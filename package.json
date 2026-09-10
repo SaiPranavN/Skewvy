@@ -1,0 +1,40 @@
+{
+  "name": "skewvy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "NODE_OPTIONS=--experimental-sqlite next dev",
+    "build": "NODE_OPTIONS=--experimental-sqlite next build",
+    "start": "NODE_OPTIONS=--experimental-sqlite next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/migrate.ts",
+    "db:seed": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/seed.ts",
+    "db:reset": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/reset.ts",
+    "covers": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/generate-covers.ts",
+    "test": "NODE_OPTIONS=--experimental-sqlite vitest run",
+    "test:watch": "NODE_OPTIONS=--experimental-sqlite vitest",
+    "admin": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/grant-admin.ts"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.2.1",
+    "@tanstack/react-query": "^5.102.8",
+    "@types/pg": "^8.23.1",
+    "next": "^15.5.25",
+    "pg": "^8.23.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.3.3",
+    "typescript": "5.7",
+    "vitest": "^3.2.7"
+  }
+}

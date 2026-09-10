@@ -1,0 +1,57 @@
+import { NextResponse, type NextRequest } from 'next/server';
+import { loginSchema } from '@/lib/validation/schemas';
+import { loginWithPin } from '@/lib/services/auth';
+import { verifyTurnstile } from '@/lib/services/turnstile';
+import { consumeRateLimit, RATE_RULES } from '@/lib/services/rate-limit';
+import { SESSION_COOKIE, sessionCookieOptions } from '@/lib/services/sessions';
+import { apiError, validationError, rateLimited } from '@/lib/api/responses';
+import { requestContext, safeRedirect } from '@/lib/api/request-context';
+
+export async function POST(request: NextRequest) {
+  const { ip, userAgent } = requestContext(request);
+
+  const limit = await consumeRateLimit(`login:ip:${ip ?? 'unknown'}`, RATE_RULES.login);
+  if (!limit.allowed) return rateLimited(limit.retryAfterSeconds);
+
+  const parsed = loginSchema.safeParse(await request.json().catch(() => ({})));
+  if (!parsed.success) return validationError(parsed.error);
+
+  const turnstile = await verifyTurnstile(parsed.data.turnstileToken, ip);
+  if (!turnstile.success) {
+    return apiError(400, 'turnstile_failed', 'The robot check did not pass. Try it again.');
+  }
+
+  const redirectTo = safeRedirect(parsed.data.redirectTo, '/');
+  const previousSessionToken = request.cookies.get(SESSION_COOKIE)?.value ?? null;
+
+  const outcome = await loginWithPin({
+    email: parsed.data.email,
+    pin: parsed.data.pin,
+    previousSessionToken,
+    userAgent,
+    ip,
+    redirectTo,
+  });
+
+  switch (outcome.status) {
+    case 'success': {
+      const response = NextResponse.json({
+        status: 'success',
+        user: outcome.user,
+        redirectTo,
+      });
+      // Session rotation happened in the service; this sets the new token.
+      response.cookies.set(SESSION_COOKIE, outcome.sessionToken, sessionCookieOptions(outcome.expiresAt));
+      return response;
+    }
+    case 'step_up_required':
+      return NextResponse.json({ status: 'step_up_required' });
+    case 'verification_required':
+      return NextResponse.json({ status: 'verification_required' });
+    case 'rate_limited':
+      return rateLimited(outcome.retryAfterSeconds);
+    default:
+      // Never distinguishes "no such account" from "wrong PIN".
+      return apiError(401, 'invalid_credentials', 'That email and PIN combination did not work.');
+  }
+}

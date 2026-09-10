@@ -1,0 +1,174 @@
+/**
+ * Source of truth for the Skewvy schema.
+ *
+ * Kept as a TypeScript string rather than a `.sql` file so the migration runs
+ * unchanged inside the Next.js server bundle, where relative file reads break.
+ * `npm run db:migrate` also mirrors it to `db/schema.sql` for anyone applying it
+ * to PostgreSQL by hand.
+ */
+export const SCHEMA_SQL = `-- Skewvy schema. Written to be valid on both SQLite and PostgreSQL:
+-- ids are application-generated UUID text, timestamps are ISO-8601 UTC text,
+-- and booleans are stored as 0/1 integers.
+
+CREATE TABLE IF NOT EXISTS users (
+  id                  TEXT PRIMARY KEY,
+  display_name        TEXT NOT NULL,
+  email               TEXT NOT NULL,
+  email_normalized    TEXT NOT NULL UNIQUE,
+  email_verified_at   TEXT,
+  pin_hash            TEXT NOT NULL,
+  pin_failed_attempts INTEGER NOT NULL DEFAULT 0,
+  pin_locked_until    TEXT,
+  is_admin            INTEGER NOT NULL DEFAULT 0,
+  created_at          TEXT NOT NULL,
+  updated_at          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id              TEXT PRIMARY KEY,
+  user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash      TEXT NOT NULL UNIQUE,
+  expires_at      TEXT NOT NULL,
+  created_at      TEXT NOT NULL,
+  last_used_at    TEXT NOT NULL,
+  revoked_at      TEXT,
+  device_metadata TEXT,
+  ip_hash         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+
+-- One-time email links: verification, PIN reset and risk-based step-up.
+CREATE TABLE IF NOT EXISTS auth_tokens (
+  id                TEXT PRIMARY KEY,
+  user_id           TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash        TEXT NOT NULL UNIQUE,
+  token_type        TEXT NOT NULL CHECK (token_type IN ('email_verification', 'pin_reset', 'step_up')),
+  expires_at        TEXT NOT NULL,
+  consumed_at       TEXT,
+  created_at        TEXT NOT NULL,
+  requested_ip_hash TEXT,
+  redirect_to       TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_user_type ON auth_tokens(user_id, token_type);
+
+CREATE TABLE IF NOT EXISTS entities (
+  id          TEXT PRIMARY KEY,
+  slug        TEXT NOT NULL UNIQUE,
+  name        TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  category    TEXT NOT NULL,
+  image_url   TEXT,
+  accent      TEXT,
+  status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_entities_status ON entities(status);
+
+CREATE TABLE IF NOT EXISTS flash_news (
+  id           TEXT PRIMARY KEY,
+  slug         TEXT NOT NULL UNIQUE,
+  headline     TEXT NOT NULL,
+  summary      TEXT NOT NULL DEFAULT '',
+  body         TEXT NOT NULL DEFAULT '',
+  category     TEXT NOT NULL,
+  image_url    TEXT,
+  accent       TEXT,
+  source_label TEXT,
+  source_url   TEXT,
+  published_at TEXT,
+  status       TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+  created_at   TEXT NOT NULL,
+  updated_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_flash_news_status ON flash_news(status, published_at);
+
+CREATE TABLE IF NOT EXISTS flash_news_entities (
+  flash_news_id TEXT NOT NULL REFERENCES flash_news(id) ON DELETE CASCADE,
+  entity_id     TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  PRIMARY KEY (flash_news_id, entity_id)
+);
+CREATE INDEX IF NOT EXISTS idx_fne_entity ON flash_news_entities(entity_id);
+
+-- One row per user per artifact. Repeated tapping never adds rows here.
+CREATE TABLE IF NOT EXISTS opinions (
+  id            TEXT PRIMARY KEY,
+  user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  artifact_type TEXT NOT NULL CHECK (artifact_type IN ('entity', 'flash_news')),
+  artifact_id   TEXT NOT NULL,
+  stance        TEXT NOT NULL CHECK (stance IN ('positive', 'negative')),
+  created_at    TEXT NOT NULL,
+  updated_at    TEXT NOT NULL,
+  UNIQUE (user_id, artifact_type, artifact_id)
+);
+CREATE INDEX IF NOT EXISTS idx_opinions_artifact ON opinions(artifact_type, artifact_id);
+
+-- Aggregated contribution per user per artifact. Never one row per tap.
+CREATE TABLE IF NOT EXISTS reaction_aggregates (
+  id               TEXT PRIMARY KEY,
+  user_id          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  artifact_type    TEXT NOT NULL CHECK (artifact_type IN ('entity', 'flash_news')),
+  artifact_id      TEXT NOT NULL,
+  rotten_egg_count INTEGER NOT NULL DEFAULT 0,
+  medal_count      INTEGER NOT NULL DEFAULT 0,
+  created_at       TEXT NOT NULL,
+  updated_at       TEXT NOT NULL,
+  UNIQUE (user_id, artifact_type, artifact_id)
+);
+CREATE INDEX IF NOT EXISTS idx_reaction_aggregates_artifact ON reaction_aggregates(artifact_type, artifact_id);
+
+CREATE TABLE IF NOT EXISTS artifact_totals (
+  artifact_type           TEXT NOT NULL CHECK (artifact_type IN ('entity', 'flash_news')),
+  artifact_id             TEXT NOT NULL,
+  rotten_egg_total        INTEGER NOT NULL DEFAULT 0,
+  medal_total             INTEGER NOT NULL DEFAULT 0,
+  positive_opinion_total  INTEGER NOT NULL DEFAULT 0,
+  negative_opinion_total  INTEGER NOT NULL DEFAULT 0,
+  unique_participant_total INTEGER NOT NULL DEFAULT 0,
+  updated_at              TEXT NOT NULL,
+  PRIMARY KEY (artifact_type, artifact_id)
+);
+
+-- Short-lived batch ledger: powers idempotent retries and velocity ranking.
+CREATE TABLE IF NOT EXISTS reaction_batches (
+  id              TEXT PRIMARY KEY,
+  user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  artifact_type   TEXT NOT NULL,
+  artifact_id     TEXT NOT NULL,
+  reaction_type   TEXT NOT NULL CHECK (reaction_type IN ('rotten_egg', 'medal')),
+  quantity        INTEGER NOT NULL,
+  client_batch_id TEXT NOT NULL,
+  created_at      TEXT NOT NULL,
+  UNIQUE (user_id, client_batch_id)
+);
+CREATE INDEX IF NOT EXISTS idx_reaction_batches_recent ON reaction_batches(artifact_type, artifact_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_reaction_batches_created ON reaction_batches(created_at);
+
+-- Server-side rate limiting; a fixed window keyed by action + subject.
+CREATE TABLE IF NOT EXISTS rate_limits (
+  bucket_key   TEXT PRIMARY KEY,
+  hit_count    INTEGER NOT NULL DEFAULT 0,
+  window_start TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+`;
+
+/** Splits the schema into individually executable statements. */
+export function schemaStatements(): string[] {
+  return SCHEMA_SQL.split(/;\s*(?:\r?\n|$)/)
+    .map((statement) =>
+      statement
+        // Drop whole-line comments so a comment above a statement never
+        // swallows the statement itself.
+        .split('\n')
+        .filter((line) => !/^\s*--/.test(line))
+        .join('\n')
+        .trim(),
+    )
+    .filter((statement) => statement.length > 0);
+}
