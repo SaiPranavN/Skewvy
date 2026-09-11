@@ -37,6 +37,8 @@ export interface AuthFormProps {
    * cannot load the widget falls back rather than being locked out.
    */
   turnstileRequired?: boolean;
+  /** True when sign-up ends at an emailed link rather than a live session. */
+  emailVerificationRequired?: boolean;
   redirectTo?: string;
   onAuthenticated?: () => void;
   compact?: boolean;
@@ -96,6 +98,36 @@ function RobotCheck({
   );
 }
 
+
+/**
+ * Leaves the auth screen once a session cookie exists.
+ *
+ * A client-side `router.push` can serve an RSC payload that was rendered before
+ * the cookie was set, landing the person on a page that still says "Sign in".
+ * A real navigation guarantees the server renders with the new session. Inside
+ * the sheet we stay put and just refresh, which keeps the page underneath.
+ */
+function completeAuth({
+  compact,
+  target,
+  refresh,
+  onAuthenticated,
+}: {
+  compact?: boolean;
+  target: string;
+  refresh: () => void;
+  onAuthenticated?: () => void;
+}): void {
+  reactionStore.flushAfterAuthentication();
+  onAuthenticated?.();
+
+  if (compact) {
+    refresh();
+    return;
+  }
+  window.location.assign(target);
+}
+
 export function LoginForm({
   siteKey,
   turnstileDisabled,
@@ -147,11 +179,12 @@ export function LoginForm({
         return;
       }
 
-      // A session exists again: anything still buffered can now be sent.
-      reactionStore.flushAfterAuthentication();
-      onAuthenticated?.();
-      router.refresh();
-      if (!compact) router.push(data.redirectTo || redirectTo || '/');
+      completeAuth({
+        compact,
+        target: data.redirectTo || redirectTo || '/',
+        refresh: router.refresh,
+        onAuthenticated,
+      });
     } catch {
       setError('We could not reach Skewvy. Check your connection and try again.');
     } finally {
@@ -215,9 +248,12 @@ export function RegisterForm({
   siteKey,
   turnstileDisabled,
   turnstileRequired,
+  emailVerificationRequired = true,
   redirectTo,
+  onAuthenticated,
   compact,
 }: AuthFormProps) {
+  const router = useRouter();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
@@ -250,11 +286,29 @@ export function RegisterForm({
         turnstileToken: token,
         redirectTo,
       });
-      const data = result.data as ApiFailure;
+      const data = result.data as ApiFailure & { status?: string; redirectTo?: string };
 
       if (!result.ok) {
         setFieldErrors(data.fields ?? {});
         setError(data.message ?? 'Something went wrong. Try again.');
+        setToken(null);
+        return;
+      }
+
+      // Where email verification is not required, the account is live now.
+      if (data.status === 'signed_in') {
+        completeAuth({
+          compact,
+          target: data.redirectTo || redirectTo || '/',
+          refresh: router.refresh,
+          onAuthenticated,
+        });
+        return;
+      }
+
+      if (data.status === 'account_exists') {
+        setFieldErrors({ email: 'That address already has an account.' });
+        setError('You already have an account with that email. Sign in instead.');
         setToken(null);
         return;
       }
@@ -330,7 +384,11 @@ export function RegisterForm({
         error={fieldErrors.email}
         onChange={(event) => setEmail(event.target.value)}
         placeholder="you@example.com"
-        hint="Confirmed once. You will not need your inbox to sign in again."
+        hint={
+          emailVerificationRequired
+            ? 'Confirmed once. You will not need your inbox to sign in again.'
+            : 'Used to sign in. No confirmation email is sent.'
+        }
       />
 
       <PinField

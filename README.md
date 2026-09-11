@@ -120,8 +120,15 @@ The schema is the string in [`src/lib/db/schema.ts`](src/lib/db/schema.ts).
 
 Passwordless registration with a **user-chosen PIN** for everyday access.
 
-**Register** → Turnstile is verified server-side → the account is created with the PIN hashed → a
-one-time link is emailed → opening it verifies the address and opens a session.
+**Email is only required where it can actually be sent.** With no `RESEND_API_KEY` configured,
+registration creates the account and signs you in immediately with whatever address you type, and
+risk-based step-up is skipped — a prototype must not send people to an inbox nothing can reach. Set
+`RESEND_API_KEY` and the full verification flow turns itself back on; production always requires it,
+whatever the environment says. `REQUIRE_EMAIL_VERIFICATION` overrides the rule in either direction.
+
+**Register (with email configured)** → Turnstile is verified server-side → the account is created
+with the PIN hashed → a one-time link is emailed → opening it verifies the address and opens a
+session.
 
 **Sign in afterwards** → email + PIN + Turnstile. **No email is sent when a session expires.** The
 inbox is only involved for first verification, PIN reset, and risk-based step-up.
@@ -261,7 +268,7 @@ drift. Tap targets are at least 44 px, and nothing depends on hover.
 ## Testing
 
 ```bash
-npm test          # 104 tests
+npm test          # 115 tests
 npm run typecheck
 ```
 
@@ -275,6 +282,7 @@ npm run typecheck
 | `tests/domain.test.ts` | Number presentation, sentiment labels, SQL placeholder translation |
 | `tests/turnstile.test.ts` | Robot-check configuration, fallback acceptance, production hardening |
 | `tests/reaction-store.test.ts` | Signed-out taps recording nothing, optimistic updates, tap batching |
+| `tests/auth-no-email.test.ts` | Prototype mode: instant sign-up, no step-up, production still locked down |
 | `tests/e2e-journey.test.ts` | Register → verify → session expiry → PIN login → react → retry → switch sides → totals |
 
 Each file gets its own temporary SQLite database and runs against the real schema. Only Cloudflare is

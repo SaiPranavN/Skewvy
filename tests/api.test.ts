@@ -35,8 +35,14 @@ const { POST: resetPinRoute } = await import('@/app/api/auth/reset-pin/route');
 const { POST: batchRoute } = await import('@/app/api/reactions/batch/route');
 const { GET: totalsRoute } = await import('@/app/api/artifacts/[type]/[id]/totals/route');
 
-beforeAll(setupTestDatabase);
-afterAll(teardownTestDatabase);
+beforeAll(async () => {
+  process.env.REQUIRE_EMAIL_VERIFICATION = '1';
+  await setupTestDatabase();
+});
+afterAll(async () => {
+  delete process.env.REQUIRE_EMAIL_VERIFICATION;
+  await teardownTestDatabase();
+});
 beforeEach(truncateAll);
 
 function post(path: string, body: unknown, options: { cookie?: string; userAgent?: string; ip?: string } = {}) {

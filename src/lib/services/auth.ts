@@ -2,19 +2,41 @@ import { queryOne, execute } from '@/lib/db';
 import { newId } from './crypto';
 import { hashPin, verifyPin } from './pin';
 import { issueAuthToken, consumeAuthToken, buildLinkUrl } from './auth-tokens';
-import { sendVerificationEmail, sendPinResetEmail, sendStepUpEmail } from './email';
+import { sendVerificationEmail, sendPinResetEmail, sendStepUpEmail, emailDeliveryConfigured } from './email';
 import { createSession, rotateSession, revokeAllSessionsForUser, isKnownDevice } from './sessions';
 import { consumeRateLimit, RATE_RULES } from './rate-limit';
 import type { PublicUser } from '@/lib/domain/types';
 
 /**
- * Account lifecycle. Two rules shape every function here:
+ * Account lifecycle. Three rules shape every function here:
  *  1. No response ever reveals whether an email address has an account.
  *  2. Email is proof of ownership once; the PIN is the credential from then on.
+ *  3. Email is never *required* unless this deployment can actually send it.
  */
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+/**
+ * Whether sign-up and risk-based step-up require an email round trip.
+ *
+ * The default follows capability rather than ceremony: a deployment with no
+ * mail transport cannot ask anyone to open a link, so it signs people in
+ * directly. Production always requires it, and `REQUIRE_EMAIL_VERIFICATION`
+ * forces the answer either way.
+ *
+ *   REQUIRE_EMAIL_VERIFICATION=1  always require it
+ *   REQUIRE_EMAIL_VERIFICATION=0  never require it (refused in production)
+ *   unset                         require it in production, or once
+ *                                 RESEND_API_KEY is configured
+ */
+export function requiresEmailVerification(): boolean {
+  const override = process.env.REQUIRE_EMAIL_VERIFICATION?.trim();
+  if (override === '1') return true;
+  if (override === '0' && process.env.NODE_ENV !== 'production') return false;
+  if (process.env.NODE_ENV === 'production') return true;
+  return emailDeliveryConfigured();
 }
 
 interface UserRow {
@@ -63,25 +85,35 @@ export interface RegisterOptions {
   email: string;
   pin: string;
   ip?: string | null;
+  userAgent?: string | null;
   redirectTo?: string | null;
 }
 
 /**
- * Always reports the same outcome. An address that already has a verified
- * account gets a "you already have an account" email rather than an error that
- * would confirm the address is registered.
+ * Always reports the same outcome for a given configuration. An address that
+ * already has a verified account gets a "you already have an account" email
+ * rather than an error that would confirm the address is registered.
  */
-export async function registerAccount(options: RegisterOptions): Promise<{ status: 'verification_sent' }> {
+export type RegisterResult =
+  | { status: 'verification_sent' }
+  | { status: 'account_exists' }
+  | { status: 'signed_in'; user: PublicUser; sessionToken: string; expiresAt: string; redirectTo: string | null };
+
+export async function registerAccount(options: RegisterOptions): Promise<RegisterResult> {
   const existing = await findByEmail(options.email);
   const now = new Date().toISOString();
+  const verifyByEmail = requiresEmailVerification();
 
   if (existing?.email_verified_at) {
+    if (!verifyByEmail) {
+      // No inbox to send anyone to, and we will not hand out a session for an
+      // account nobody has authenticated. Say so directly and point at sign-in.
+      // This only runs where email verification is off, which production forbids,
+      // so it cannot become an address-enumeration hole on a live deployment.
+      return { status: 'account_exists' };
+    }
     const reset = await issueAuthToken(existing.id, 'pin_reset', { ip: options.ip });
-    await sendPinResetEmail(
-      existing.email,
-      existing.display_name,
-      buildLinkUrl('/auth/reset-pin', reset.token),
-    );
+    await sendPinResetEmail(existing.email, existing.display_name, buildLinkUrl('/auth/reset-pin', reset.token));
     return { status: 'verification_sent' };
   }
 
@@ -89,7 +121,7 @@ export async function registerAccount(options: RegisterOptions): Promise<{ statu
   let userId: string;
 
   if (existing) {
-    // The account was never proven, so whoever verifies the inbox owns it.
+    // The account was never proven, so whoever completes sign-up owns it.
     userId = existing.id;
     await execute(
       `UPDATE users SET display_name = $1, pin_hash = $2, pin_failed_attempts = 0,
@@ -103,6 +135,26 @@ export async function registerAccount(options: RegisterOptions): Promise<{ statu
        VALUES ($1, $2, $3, $4, $5, $6, $7, $7)`,
       [userId, options.displayName, options.email.trim(), normalizeEmail(options.email), pinHash, isAdminEmail(options.email) ? 1 : 0, now],
     );
+  }
+
+  if (!verifyByEmail) {
+    // No mail transport: the account is usable immediately. The address is
+    // recorded but unproven, which is the honest state for a prototype.
+    await execute('UPDATE users SET email_verified_at = COALESCE(email_verified_at, $1), updated_at = $1 WHERE id = $2', [
+      now,
+      userId,
+    ]);
+
+    const row = (await queryOne<UserRow>('SELECT * FROM users WHERE id = $1', [userId]))!;
+    const session = await createSession({ userId, userAgent: options.userAgent, ip: options.ip });
+
+    return {
+      status: 'signed_in',
+      user: toPublicUser(row),
+      sessionToken: session.token,
+      expiresAt: session.expiresAt,
+      redirectTo: options.redirectTo ?? null,
+    };
   }
 
   const verification = await issueAuthToken(userId, 'email_verification', {
@@ -228,14 +280,15 @@ export async function loginWithPin(options: LoginOptions): Promise<LoginOutcome>
     user.id,
   ]);
 
-  if (!user.email_verified_at) {
+  if (!user.email_verified_at && requiresEmailVerification()) {
     const verification = await issueAuthToken(user.id, 'email_verification', { ip: options.ip });
     await sendVerificationEmail(user.email, user.display_name, buildLinkUrl('/auth/verify', verification.token, options.redirectTo));
     return { status: 'verification_required' };
   }
 
-  // Risk-based step-up: a device this account has never used needs one email confirmation.
-  const known = await isKnownDevice(user.id, options.userAgent ?? null, options.ip ?? null);
+  // Risk-based step-up: a device this account has never used needs one email
+  // confirmation — but only where we can actually deliver that email.
+  const known = !requiresEmailVerification() || (await isKnownDevice(user.id, options.userAgent ?? null, options.ip ?? null));
   if (!known) {
     const stepUp = await issueAuthToken(user.id, 'step_up', { ip: options.ip, redirectTo: options.redirectTo ?? null });
     await sendStepUpEmail(user.email, user.display_name, buildLinkUrl('/auth/verify', stepUp.token, options.redirectTo));

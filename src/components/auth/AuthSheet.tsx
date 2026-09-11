@@ -8,6 +8,7 @@ interface AuthConfig {
   turnstileSiteKey: string;
   turnstileDisabled: boolean;
   turnstileRequired: boolean;
+  emailVerificationRequired: boolean;
 }
 
 /**
@@ -121,8 +122,10 @@ export function AuthSheet({ open, onClose }: { open: boolean; onClose: () => voi
               siteKey={config.turnstileSiteKey}
               turnstileDisabled={config.turnstileDisabled}
               turnstileRequired={config.turnstileRequired}
+              emailVerificationRequired={config.emailVerificationRequired}
               redirectTo={pathname}
               compact
+              onAuthenticated={onClose}
             />
           )
         ) : (

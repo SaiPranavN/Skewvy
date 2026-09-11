@@ -27,6 +27,17 @@ export function clearOutbox(): void {
  *  - otherwise             → dev transport: the message is kept in memory,
  *    written to `.mail/` as HTML, and the link is logged to the server console.
  */
+/**
+ * Whether this deployment can actually deliver mail to a real inbox.
+ *
+ * This is the switch the auth flow reads before deciding to require an email
+ * round trip: asking someone to open a link we cannot send would lock them out
+ * of their own account.
+ */
+export function emailDeliveryConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY?.trim());
+}
+
 export async function sendEmail(message: Omit<OutboundEmail, 'sentAt'>): Promise<void> {
   const record: OutboundEmail = { ...message, sentAt: new Date().toISOString() };
   const store = outbox();

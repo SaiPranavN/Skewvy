@@ -13,8 +13,16 @@ import { resolveSession, revokeSession, createSession, SESSION_TTL_SECONDS } fro
 import { outbox } from '@/lib/services/email';
 import { query, execute } from '@/lib/db';
 
-beforeAll(setupTestDatabase);
-afterAll(teardownTestDatabase);
+beforeAll(async () => {
+  // These tests cover the flow as it behaves with a mail transport configured.
+  // The no-transport behaviour has its own file.
+  process.env.REQUIRE_EMAIL_VERIFICATION = '1';
+  await setupTestDatabase();
+});
+afterAll(async () => {
+  delete process.env.REQUIRE_EMAIL_VERIFICATION;
+  await teardownTestDatabase();
+});
 beforeEach(truncateAll);
 
 const DEVICE = { userAgent: 'TestBrowser/1.0', ip: '198.51.100.10' };

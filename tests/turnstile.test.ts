@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   verifyTurnstile,
   turnstileConfigured,
@@ -43,15 +43,14 @@ describe('configuration', () => {
 
   it('refuses the development bypass in production', () => {
     process.env.TURNSTILE_DISABLED = '1';
-    const original = process.env.NODE_ENV;
 
-    Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true });
+    vi.stubEnv('NODE_ENV', 'production');
     expect(turnstileDisabled()).toBe(false);
 
-    Object.defineProperty(process.env, 'NODE_ENV', { value: 'development', configurable: true });
+    vi.stubEnv('NODE_ENV', 'development');
     expect(turnstileDisabled()).toBe(true);
 
-    Object.defineProperty(process.env, 'NODE_ENV', { value: original, configurable: true });
+    vi.unstubAllEnvs();
   });
 });
 

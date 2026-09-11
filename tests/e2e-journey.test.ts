@@ -27,8 +27,14 @@ const { POST: logoutRoute } = await import('@/app/api/auth/logout/route');
 const { POST: batchRoute } = await import('@/app/api/reactions/batch/route');
 const { GET: totalsRoute } = await import('@/app/api/artifacts/[type]/[id]/totals/route');
 
-beforeAll(setupTestDatabase);
-afterAll(teardownTestDatabase);
+beforeAll(async () => {
+  process.env.REQUIRE_EMAIL_VERIFICATION = '1';
+  await setupTestDatabase();
+});
+afterAll(async () => {
+  delete process.env.REQUIRE_EMAIL_VERIFICATION;
+  await teardownTestDatabase();
+});
 
 const DEVICE = { userAgent: 'JourneyBrowser/1.0', ip: '198.51.100.44' };
 
