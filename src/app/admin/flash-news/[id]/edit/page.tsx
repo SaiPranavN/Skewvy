@@ -30,8 +30,8 @@ export default async function EditFlashNewsPage({ params }: { params: Promise<{ 
     <div className="max-w-3xl space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-chalk">Edit Flash News</h2>
-          <p className="mt-1 text-sm text-haze">
+          <h2 className="text-lg font-semibold text-primary">Edit Flash News</h2>
+          <p className="mt-1 text-sm text-secondary">
             {formatCount(totals.rottenEggTotal)} 🥚 · {formatCount(totals.medalTotal)} 🏅 ·{' '}
             {formatCount(totals.negativeOpinionTotal)}/{formatCount(totals.positiveOpinionTotal)} opinions
           </p>
@@ -48,7 +48,6 @@ export default async function EditFlashNewsPage({ params }: { params: Promise<{ 
           body: item.body,
           category: item.category,
           imageUrl: item.imageUrl,
-          accent: item.accent,
           sourceLabel: item.sourceLabel,
           sourceUrl: item.sourceUrl,
           status: item.status,

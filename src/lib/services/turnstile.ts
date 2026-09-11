@@ -7,6 +7,14 @@
 export const TURNSTILE_TEST_SITE_KEY = '1x00000000000000000000AA';
 const TURNSTILE_TEST_SECRET_KEY = '1x0000000000000000000000000000000AA';
 
+/**
+ * Sent by the client when the widget could not load — a blocked iframe, an
+ * extension, or an offline network. It is accepted only while Turnstile is
+ * running on the public test keys, where the check has no security value
+ * anyway. With real keys configured it is always rejected.
+ */
+export const TURNSTILE_FALLBACK_TOKEN = 'skewvy-widget-unavailable';
+
 const VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 
 export function turnstileSiteKey(): string {
@@ -15,6 +23,14 @@ export function turnstileSiteKey(): string {
 
 function turnstileSecret(): string {
   return process.env.TURNSTILE_SECRET_KEY?.trim() || TURNSTILE_TEST_SECRET_KEY;
+}
+
+/**
+ * True once a real site key and secret are both configured. Until then the app
+ * runs on Cloudflare's test pair, which passes every token unconditionally.
+ */
+export function turnstileConfigured(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() && process.env.TURNSTILE_SECRET_KEY?.trim());
 }
 
 /** Set TURNSTILE_DISABLED=1 only for automated tests, never in production. */
@@ -31,6 +47,14 @@ export async function verifyTurnstile(token: string, remoteIp?: string | null): 
   if (turnstileDisabled()) return { success: true, errorCodes: [] };
   if (!token) return { success: false, errorCodes: ['missing-input-response'] };
 
+  // Without real keys the widget is a demonstration, not a gate. A browser that
+  // cannot load it must still be able to reach the sign-in form.
+  if (token === TURNSTILE_FALLBACK_TOKEN) {
+    return turnstileConfigured()
+      ? { success: false, errorCodes: ['fallback-token-rejected'] }
+      : { success: true, errorCodes: [] };
+  }
+
   const body = new URLSearchParams({ secret: turnstileSecret(), response: token });
   if (remoteIp) body.set('remoteip', remoteIp);
 
@@ -46,7 +70,10 @@ export async function verifyTurnstile(token: string, remoteIp?: string | null): 
     const data = (await response.json()) as { success: boolean; 'error-codes'?: string[] };
     return { success: Boolean(data.success), errorCodes: data['error-codes'] ?? [] };
   } catch {
-    // A Turnstile outage must not silently open the gate.
-    return { success: false, errorCodes: ['verification-unavailable'] };
+    // A Turnstile outage must not silently open the gate once real keys are in
+    // use; on the test keys there is nothing to protect, so sign-in continues.
+    return turnstileConfigured()
+      ? { success: false, errorCodes: ['verification-unavailable'] }
+      : { success: true, errorCodes: ['verification-unavailable'] };
   }
 }

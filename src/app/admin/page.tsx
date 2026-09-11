@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { query } from '@/lib/db';
 import { formatCount } from '@/lib/domain/format';
+import { StatBlock, type Stat } from '@/components/ui/StatBlock';
 import { SimulatorControls } from '@/components/admin/SimulatorControls';
 import { simulatorAllowed, simulatorEnabled, simulatorRunning } from '@/lib/services/simulator';
 import { pinAlgorithm } from '@/lib/services/pin';
@@ -47,77 +48,67 @@ export default async function AdminOverviewPage() {
 
   const enabled = await simulatorEnabled();
 
-  const stats = [
-    { label: 'Rotten Eggs', value: Number(totals?.eggs ?? 0), emoji: '🥚', tone: 'text-egg' },
-    { label: 'Medals', value: Number(totals?.medals ?? 0), emoji: '🏅', tone: 'text-medal' },
-    { label: 'Negative opinions', value: Number(totals?.negative ?? 0), emoji: '⚖️', tone: 'text-chalk' },
-    { label: 'Positive opinions', value: Number(totals?.positive ?? 0), emoji: '⚖️', tone: 'text-chalk' },
+  const stats: Stat[] = [
+    { label: 'Rotten Eggs', value: Number(totals?.eggs ?? 0), emoji: '🥚', tone: 'egg' },
+    { label: 'Medals', value: Number(totals?.medals ?? 0), emoji: '🏅', tone: 'medal' },
+    { label: 'Critical opinions', value: Number(totals?.negative ?? 0) },
+    { label: 'Appreciative opinions', value: Number(totals?.positive ?? 0) },
   ];
 
   return (
     <div className="space-y-8">
       <section aria-labelledby="totals-heading">
-        <h2 id="totals-heading" className="mb-4 text-lg font-bold text-chalk">
+        <h2 id="totals-heading" className="mb-4 text-lg font-semibold text-primary">
           Across all published content
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => (
-            <div key={stat.label} className="glass rounded-[var(--radius-card)] p-5">
-              <span className="emoji text-xl" aria-hidden="true">
-                {stat.emoji}
-              </span>
-              <p className={`mt-2 text-3xl font-bold tabular ${stat.tone}`}>{formatCount(stat.value)}</p>
-              <p className="mt-1 text-xs text-haze">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-haze-dim">
+        <StatBlock stats={stats} />
+        <p className="mt-3 text-xs text-tertiary">
           Reactions count taps. Opinions count people — one per person per artifact, never more.
         </p>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-        <section aria-labelledby="content-heading" className="glass rounded-[var(--radius-card)] p-5">
-          <h2 id="content-heading" className="mb-4 text-lg font-bold text-chalk">
+        <section aria-labelledby="content-heading" className="panel rounded-[var(--radius-card)] p-5">
+          <h2 id="content-heading" className="mb-4 text-lg font-semibold text-primary">
             Content
           </h2>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Link href="/admin/entities" className="rounded-2xl border border-white/10 p-4 transition-colors hover:border-white/25">
-              <p className="text-2xl font-bold tabular text-chalk">
+            <Link href="/admin/entities" className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] p-4 transition-colors hover:border-[var(--border-strong)]">
+              <p className="text-2xl font-semibold numeric text-primary">
                 {counts?.published_entities ?? 0}
-                <span className="text-base font-medium text-haze-dim"> / {counts?.entities ?? 0}</span>
+                <span className="text-base font-medium text-tertiary"> / {counts?.entities ?? 0}</span>
               </p>
-              <p className="mt-1 text-sm text-haze">Entities published</p>
+              <p className="mt-1 text-sm text-secondary">Entities published</p>
             </Link>
 
-            <Link href="/admin/flash-news" className="rounded-2xl border border-white/10 p-4 transition-colors hover:border-white/25">
-              <p className="text-2xl font-bold tabular text-chalk">
+            <Link href="/admin/flash-news" className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] p-4 transition-colors hover:border-[var(--border-strong)]">
+              <p className="text-2xl font-semibold numeric text-primary">
                 {counts?.published_flash_news ?? 0}
-                <span className="text-base font-medium text-haze-dim"> / {counts?.flash_news ?? 0}</span>
+                <span className="text-base font-medium text-tertiary"> / {counts?.flash_news ?? 0}</span>
               </p>
-              <p className="mt-1 text-sm text-haze">Flash News published</p>
+              <p className="mt-1 text-sm text-secondary">Flash News published</p>
             </Link>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
             <Link
               href="/admin/entities/new"
-              className="rounded-full bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-bright"
+              className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
             >
               New Entity
             </Link>
             <Link
               href="/admin/flash-news/new"
-              className="rounded-full border border-white/14 px-4 py-2.5 text-sm font-medium text-chalk-dim transition-colors hover:border-white/30"
+              className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-[var(--border-default)] px-4 py-2.5 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)]"
             >
               New Flash News
             </Link>
           </div>
         </section>
 
-        <section aria-labelledby="environment-heading" className="glass rounded-[var(--radius-card)] p-5">
-          <h2 id="environment-heading" className="mb-4 text-lg font-bold text-chalk">
+        <section aria-labelledby="environment-heading" className="panel rounded-[var(--radius-card)] p-5">
+          <h2 id="environment-heading" className="mb-4 text-lg font-semibold text-primary">
             Environment
           </h2>
           <dl className="space-y-2.5 text-sm">
@@ -130,8 +121,8 @@ export default async function AdminOverviewPage() {
               ['Unique participant total', formatCount(Number(totals?.participants ?? 0))],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between gap-3">
-                <dt className="text-haze">{label}</dt>
-                <dd className="text-chalk-dim">{value}</dd>
+                <dt className="text-secondary">{label}</dt>
+                <dd className="text-secondary">{value}</dd>
               </div>
             ))}
           </dl>

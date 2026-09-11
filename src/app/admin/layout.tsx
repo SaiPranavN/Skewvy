@@ -21,17 +21,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
     return (
       <div className="mx-auto w-full max-w-2xl px-4 py-24 text-center">
-        <p className="emoji text-4xl" aria-hidden="true">
-          🔒
-        </p>
-        <h1 className="mt-4 text-2xl font-bold text-chalk">Administrator access required</h1>
-        <p className="mt-3 text-sm leading-relaxed text-haze">
-          This account does not have the admin flag. Add the address to <code className="text-chalk-dim">ADMIN_EMAILS</code>{' '}
+        <h1 className="mt-4 text-2xl font-semibold text-primary">Administrator access required</h1>
+        <p className="mt-3 text-sm leading-relaxed text-secondary">
+          This account does not have the admin flag. Add the address to <code className="text-secondary">ADMIN_EMAILS</code>{' '}
           and register again, or grant the flag directly in the database.
         </p>
         <Link
           href="/"
-          className="mt-6 inline-block rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-bright"
+          className="mt-6 inline-flex min-h-11 items-center rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
         >
           Back to Skewvy
         </Link>
@@ -43,8 +40,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="mx-auto w-full max-w-[1400px] px-4 py-8 sm:px-6 lg:px-10">
       <div className="mb-8 flex flex-wrap items-center gap-4">
         <div>
-          <p className="label-caps text-brand-bright">Admin</p>
-          <h1 className="mt-1 text-2xl font-bold text-chalk">Content management</h1>
+          <p className="eyebrow text-brand">Admin</p>
+          <h1 className="mt-1 text-2xl font-semibold text-primary">Content management</h1>
         </div>
 
         <nav aria-label="Admin sections" className="ml-auto flex flex-wrap gap-1">
@@ -52,7 +49,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link
               key={item.href}
               href={item.href}
-              className="rounded-full border border-white/12 px-4 py-2 text-sm font-medium text-haze transition-colors hover:border-white/28 hover:text-chalk"
+              className="px-3 py-2 text-sm text-secondary transition-colors duration-150 hover:text-primary"
             >
               {item.label}
             </Link>

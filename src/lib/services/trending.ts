@@ -8,15 +8,6 @@ import type { ArtifactCard, ArtifactType } from '@/lib/domain/types';
  * Every section states which measurement it uses.
  */
 
-export interface TrendingSection {
-  id: string;
-  title: string;
-  /** Says out loud whether the ranking counts reactions, opinions or people. */
-  metricLabel: string;
-  description: string;
-  cards: ArtifactCard[];
-}
-
 const VELOCITY_WINDOW_MINUTES = 24 * 60;
 
 interface VelocityRow {
@@ -185,50 +176,135 @@ export async function leaderboard(
     .filter((row): row is LeaderboardRow => row !== null);
 }
 
-export async function trendingSections(options: TrendingOptions = {}): Promise<TrendingSection[]> {
-  const [heat, eggs, medals, swing, fresh] = await Promise.all([
-    heatIndex(options),
-    mostRottenEggsToday(options),
-    mostMedalsToday(options),
-    fastestChangingOpinion(options),
-    newlyAdded(options),
-  ]);
+/* ------------------------------ ranked index ------------------------------ */
 
-  return [
-    {
-      id: 'heat-index',
-      title: 'The heat index',
-      metricLabel: 'Ranked by reactions in the last 24 hours',
-      description: 'Raw crowd energy — Rotten Eggs and Medals combined.',
-      cards: heat,
-    },
-    {
-      id: 'most-cooked',
-      title: 'Most cooked today',
-      metricLabel: 'Ranked by Rotten Eggs in the last 24 hours',
-      description: 'Where the backlash is landing right now.',
-      cards: eggs,
-    },
-    {
-      id: 'medal-worthy',
-      title: 'Medal-worthy behaviour',
-      metricLabel: 'Ranked by Medals in the last 24 hours',
-      description: 'The rare Ws the crowd actually showed up for.',
-      cards: medals,
-    },
-    {
-      id: 'switched-sides',
-      title: 'The crowd just switched sides',
-      metricLabel: 'Ranked by change in reaction mix vs lifetime',
-      description: 'Today’s mood disagrees with the record.',
-      cards: swing,
-    },
-    {
-      id: 'freshly-on-trial',
-      title: 'Freshly on trial',
-      metricLabel: 'Newest Flash News, not ranked',
-      description: 'Just published. The counters are still warming up.',
-      cards: fresh,
-    },
-  ].filter((section) => section.cards.length > 0);
+export type TrendingTab = 'activity' | 'rotten_egg' | 'medal' | 'shifting';
+
+export interface RankedIndexItem {
+  card: ArtifactCard;
+  /** The number the ranking is actually built on. */
+  primaryCount: number;
+  /** The opposing reaction total, shown compactly for context. */
+  secondaryCount: number;
+  recentChange: number;
+}
+
+export interface TrendingTabDefinition {
+  id: TrendingTab;
+  label: string;
+  title: string;
+  metricLabel: string;
+}
+
+/** Each tab states exactly what it counted, so no ranking is ambiguous. */
+export const TRENDING_TABS: TrendingTabDefinition[] = [
+  {
+    id: 'activity',
+    label: 'All activity',
+    title: 'Most active today',
+    metricLabel: 'Ranked by total reactions received in the last 24 hours',
+  },
+  {
+    id: 'rotten_egg',
+    label: 'Rotten Eggs',
+    title: 'Most criticised today',
+    metricLabel: 'Ranked by Rotten Eggs received in the last 24 hours',
+  },
+  {
+    id: 'medal',
+    label: 'Medals',
+    title: 'Most recognised today',
+    metricLabel: 'Ranked by Medals received in the last 24 hours',
+  },
+  {
+    id: 'shifting',
+    label: 'Opinion shifts',
+    title: 'Sentiment shifting',
+    metricLabel: "Ranked by how far today's reaction mix differs from the lifetime record",
+  },
+];
+
+export function trendingTab(value: string | null | undefined): TrendingTabDefinition {
+  return TRENDING_TABS.find((tab) => tab.id === value) ?? TRENDING_TABS[0];
+}
+
+/**
+ * The ranked index behind the Trending page. Ranking always uses the trailing
+ * window, never lifetime totals — a long-running Entity should not outrank a
+ * story people are reacting to right now.
+ */
+export async function rankedIndex(
+  tab: TrendingTab,
+  options: TrendingOptions = {},
+): Promise<RankedIndexItem[]> {
+  const rows = await velocityRows();
+  const limit = options.limit ?? 12;
+
+  let ranked: Array<{ type: ArtifactType; id: string; recent: number }>;
+
+  if (tab === 'shifting') {
+    const totals = await query<{
+      artifact_type: string;
+      artifact_id: string;
+      rotten_egg_total: number;
+      medal_total: number;
+    }>('SELECT artifact_type, artifact_id, rotten_egg_total, medal_total FROM artifact_totals');
+
+    const lifetimeShare = new Map<string, number>();
+    for (const row of totals) {
+      const sum = Number(row.rotten_egg_total) + Number(row.medal_total);
+      if (sum > 0) lifetimeShare.set(`${row.artifact_type}:${row.artifact_id}`, Number(row.rotten_egg_total) / sum);
+    }
+
+    ranked = rows
+      .map((row) => {
+        const recentSum = Number(row.eggs) + Number(row.medals);
+        if (recentSum < 50) return null;
+        const lifetime = lifetimeShare.get(`${row.artifact_type}:${row.artifact_id}`);
+        if (lifetime === undefined) return null;
+        return {
+          type: row.artifact_type as ArtifactType,
+          id: row.artifact_id,
+          // Percentage points of swing, so the change column stays meaningful.
+          recent: Math.round(Math.abs(Number(row.eggs) / recentSum - lifetime) * 100),
+        };
+      })
+      .filter((row): row is { type: ArtifactType; id: string; recent: number } => row !== null)
+      .sort((a, b) => b.recent - a.recent)
+      .slice(0, limit);
+  } else {
+    const measure = (row: VelocityRow) =>
+      tab === 'rotten_egg'
+        ? Number(row.eggs)
+        : tab === 'medal'
+          ? Number(row.medals)
+          : Number(row.eggs) + Number(row.medals);
+
+    ranked = rows
+      .map((row) => ({ type: row.artifact_type as ArtifactType, id: row.artifact_id, recent: measure(row) }))
+      .filter((row) => row.recent > 0)
+      .sort((a, b) => b.recent - a.recent)
+      .slice(0, limit);
+  }
+
+  const cards = await cardsForRefs(ranked, options.viewerId);
+  const byKey = new Map(cards.map((card) => [`${card.type}:${card.id}`, card]));
+
+  return ranked
+    .map((row) => {
+      const card = byKey.get(`${row.type}:${row.id}`);
+      if (!card) return null;
+
+      const primaryCount =
+        tab === 'medal'
+          ? card.totals.medalTotal
+          : tab === 'rotten_egg'
+            ? card.totals.rottenEggTotal
+            : card.totals.rottenEggTotal + card.totals.medalTotal;
+
+      const secondaryCount = tab === 'medal' ? card.totals.rottenEggTotal : card.totals.medalTotal;
+
+      return { card, primaryCount, secondaryCount, recentChange: row.recent };
+    })
+    .filter((row): row is RankedIndexItem => row !== null);
 }

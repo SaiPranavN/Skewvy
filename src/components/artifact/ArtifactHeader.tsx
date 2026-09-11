@@ -1,82 +1,100 @@
-import Image from 'next/image';
 import Link from 'next/link';
-import { TypeBadge } from '@/components/ui/TypeBadge';
-import { SentimentChip } from '@/components/ui/SentimentChip';
-import { ShareReceipt } from '@/components/share/ShareReceipt';
+import { Media, initialsFor } from '@/components/ui/Media';
+import { TypeLabel, MetaRow, MetaDot } from '@/components/ui/SentimentMarker';
 import { LocalDateTime } from '@/components/ui/TimeAgo';
-import { pickFrom, HEAT_LINES } from '@/lib/domain/copy';
+import { ShareReceipt } from '@/components/share/ShareReceipt';
 import type { ArtifactCard } from '@/lib/domain/types';
 
-/** Cinematic header shared by Entity and Flash News pages. */
+/**
+ * Editorial detail header. Context, image and metadata live here; public
+ * reaction is a separate column, so fact and sentiment never blur together.
+ */
 export function ArtifactHeader({
   card,
   timeLabel,
   shareUrl,
+  sourceLabel,
+  sourceUrl,
 }: {
   card: ArtifactCard;
   timeLabel: string;
   shareUrl: string;
+  sourceLabel?: string | null;
+  sourceUrl?: string | null;
 }) {
   return (
-    <header className="relative">
-      <div className="absolute inset-0 overflow-hidden">
-        {card.imageUrl && (
-          <Image
-            src={card.imageUrl}
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="cover-image opacity-75"
-          />
-        )}
-        <div className="cover-scrim-hero absolute inset-0" />
-      </div>
+    <header className="space-y-5">
+      <MetaRow>
+        <TypeLabel type={card.type} />
+        <MetaDot />
+        <span>{card.category}</span>
+        <MetaDot />
+        <span>
+          {timeLabel} <LocalDateTime iso={card.publishedAt} />
+        </span>
+      </MetaRow>
 
-      <div className="relative mx-auto w-full max-w-[1400px] px-4 pb-10 pt-8 sm:px-6 sm:pb-14 sm:pt-14 lg:px-10">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <TypeBadge type={card.type} />
-          <SentimentChip totals={card.totals} />
-          <span className="rounded-full bg-white/10 px-2.5 py-1 text-[0.6875rem] font-medium text-chalk-dim">
-            {card.category}
-          </span>
-        </div>
+      <h1 className="text-pretty text-[1.75rem] font-semibold leading-[1.12] tracking-[-0.025em] text-primary sm:text-[2.25rem] lg:text-[2.5rem]">
+        {card.title}
+      </h1>
 
-        <h1 className="max-w-4xl text-balance text-[2rem] font-black leading-[1.02] tracking-[-0.03em] text-chalk sm:text-5xl lg:text-6xl">
-          {card.title}
-        </h1>
+      {card.subtitle && (
+        <p className="max-w-2xl text-base leading-relaxed text-secondary">{card.subtitle}</p>
+      )}
 
-        {card.subtitle && (
-          <p className="mt-4 max-w-2xl text-base leading-relaxed text-chalk-dim sm:text-lg">{card.subtitle}</p>
-        )}
+      <Media
+        src={card.imageUrl}
+        alt={card.type === 'entity' ? `${card.title} logo` : `Image for: ${card.title}`}
+        fallbackLabel={card.type === 'entity' ? initialsFor(card.title) : card.category}
+        fallbackKind={card.type === 'entity' ? 'initials' : 'category'}
+        sizes="(max-width: 1024px) 100vw, 760px"
+        priority
+        scrim={card.imageUrl ? 'card' : 'none'}
+        className="aspect-[16/9] w-full rounded-[var(--radius-card)] border border-[var(--border-subtle)]"
+      />
 
-        <p className="mt-3 max-w-2xl text-sm italic text-haze">{pickFrom(HEAT_LINES, card.slug)}</p>
-
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <span className="text-xs text-haze-dim">
-            {timeLabel} <LocalDateTime iso={card.publishedAt} />
-          </span>
-
-          {card.relatedEntities && card.relatedEntities.length > 0 && (
-            <span className="flex flex-wrap items-center gap-1.5 text-xs text-haze-dim">
-              <span>·</span>
-              <span>Related:</span>
-              {card.relatedEntities.map((entity) => (
-                <Link
-                  key={entity.id}
-                  href={`/entities/${entity.slug}`}
-                  className="rounded-full border border-white/14 px-2 py-0.5 font-medium text-chalk-dim transition-colors hover:border-white/30 hover:text-chalk"
-                >
-                  {entity.name}
-                </Link>
-              ))}
-            </span>
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <MetaRow>
+          {sourceLabel && (
+            <>
+              <span>
+                Source:{' '}
+                {sourceUrl ? (
+                  <a
+                    href={sourceUrl}
+                    rel="noopener noreferrer nofollow"
+                    target="_blank"
+                    className="text-secondary underline underline-offset-2 hover:text-primary"
+                  >
+                    {sourceLabel}
+                  </a>
+                ) : (
+                  <span className="text-secondary">{sourceLabel}</span>
+                )}
+              </span>
+              <MetaDot />
+            </>
           )}
 
-          <span className="ml-auto">
-            <ShareReceipt card={card} url={shareUrl} />
-          </span>
-        </div>
+          {card.relatedEntities && card.relatedEntities.length > 0 ? (
+            <span className="flex flex-wrap items-center gap-x-2">
+              <span>Related:</span>
+              {card.relatedEntities.map((entity, index) => (
+                <span key={entity.id} className="flex items-center gap-2">
+                  {index > 0 && <MetaDot />}
+                  <Link
+                    href={`/entities/${entity.slug}`}
+                    className="text-secondary underline-offset-2 transition-colors duration-150 hover:text-primary hover:underline"
+                  >
+                    {entity.name}
+                  </Link>
+                </span>
+              ))}
+            </span>
+          ) : null}
+        </MetaRow>
+
+        <ShareReceipt card={card} url={shareUrl} />
       </div>
     </header>
   );

@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { SiteFooter } from '@/components/layout/SiteFooter';
@@ -7,22 +9,22 @@ import { getCurrentUser } from '@/lib/auth/current-user';
 
 export const metadata: Metadata = {
   title: {
-    default: 'Skewvy — No press release survives the crowd',
+    default: 'Skewvy — Public sentiment, counted',
     template: '%s · Skewvy',
   },
   description:
-    'Send Rotten Eggs when the internet deserves an explanation. Give Medals when someone actually gets it right. Every tap turns public mood into a number nobody can spin.',
+    'React to the stories, decisions and entities shaping the moment. Send Rotten Eggs when something deserves criticism. Award Medals when it deserves recognition.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   openGraph: {
-    title: 'Skewvy — No press release survives the crowd',
-    description: 'A global sentiment playground. 🥚 or 🏅 — the counter is unforgiving.',
+    title: 'Skewvy — Public sentiment, counted',
+    description: 'Every tap adds to the reaction total. Every person counts once in the public opinion.',
     siteName: 'Skewvy',
     type: 'website',
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#07070d',
+  themeColor: '#08090b',
   colorScheme: 'dark',
   width: 'device-width',
   initialScale: 1,
@@ -33,13 +35,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const user = await getCurrentUser();
 
   return (
-    <html lang="en">
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
-        <div className="ambient-ground" aria-hidden="true" />
-
         <a
           href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-full focus:bg-brand focus:px-5 focus:py-3 focus:font-semibold focus:text-white"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[200] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2.5 focus:text-sm focus:font-medium focus:text-ground"
         >
           Skip to content
         </a>

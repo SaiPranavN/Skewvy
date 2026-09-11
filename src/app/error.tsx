@@ -9,32 +9,27 @@ export default function ErrorBoundary({ error, reset }: { error: Error & { diges
   }, [error]);
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-24 text-center sm:py-32">
-      <p className="emoji text-5xl" aria-hidden="true">
-        🍳
+    <div className="mx-auto w-full max-w-xl px-4 py-24 sm:py-32">
+      <h1 className="text-2xl font-semibold tracking-[-0.02em] text-primary">Something went wrong</h1>
+      <p className="mt-3 text-sm leading-relaxed text-secondary">
+        This page failed to load. Your recorded reactions are unaffected.
       </p>
-      <h1 className="mt-6 text-balance text-3xl font-black tracking-[-0.02em] text-chalk sm:text-4xl">
-        Something got cooked, and it was us
-      </h1>
-      <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-haze">
-        This page failed to load. Your reactions are safe — nothing is lost.
-      </p>
-      <div className="mt-8 flex flex-wrap justify-center gap-3">
+      <div className="mt-6 flex flex-wrap gap-3">
         <button
           type="button"
           onClick={reset}
-          className="rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-bright"
+          className="min-h-11 rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
         >
           Try again
         </button>
         <Link
           href="/"
-          className="rounded-full border border-white/14 px-5 py-3 text-sm font-medium text-chalk-dim transition-colors hover:border-white/30"
+          className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-default)] px-4 py-2.5 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)]"
         >
-          Back home
+          Home
         </Link>
       </div>
-      {error.digest && <p className="mt-6 text-xs text-haze-dim">Reference: {error.digest}</p>}
+      {error.digest && <p className="mt-6 text-xs text-tertiary">Reference: {error.digest}</p>}
     </div>
   );
 }

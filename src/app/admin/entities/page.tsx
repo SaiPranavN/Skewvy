@@ -30,14 +30,14 @@ export default async function AdminEntitiesPage({ searchParams }: { searchParams
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-bold text-chalk">
-          Entities <span className="text-haze-dim">({rows.length})</span>
+        <h2 className="text-lg font-semibold text-primary">
+          Entities <span className="text-tertiary">({rows.length})</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           <AdminSearch basePath="/admin/entities" initialValue={q ?? ''} />
           <Link
             href="/admin/entities/new"
-            className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-bright"
+            className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
           >
             New Entity
           </Link>

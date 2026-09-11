@@ -25,8 +25,9 @@ export interface HydrationItem {
 }
 
 /**
- * Wires the reaction store to React: hydrates server data, keeps the sign-in
- * sheet ready for anonymous tappers, and subscribes to crowd updates.
+ * Wires the reaction store to React: hydrates server data, opens the sign-in
+ * sheet when a signed-out person tries to react, and subscribes to crowd
+ * updates.
  */
 export function ReactionProvider({
   children,
@@ -104,19 +105,12 @@ export function ReactionProvider({
     };
   }, [subscribeToRealtime]);
 
-  const value = useMemo(
-    () => ({ isAuthenticated, requestSignIn }),
-    [isAuthenticated, requestSignIn],
-  );
+  const value = useMemo(() => ({ isAuthenticated, requestSignIn }), [isAuthenticated, requestSignIn]);
 
   return (
     <ReactionContext.Provider value={value}>
       {children}
-      <AuthSheet
-        open={authSheetOpen}
-        onClose={() => setAuthSheetOpen(false)}
-        pendingCount={reactionStore.pendingAnonymousReactions().reduce((sum, item) => sum + item.quantity, 0)}
-      />
+      <AuthSheet open={authSheetOpen} onClose={() => setAuthSheetOpen(false)} />
     </ReactionContext.Provider>
   );
 }

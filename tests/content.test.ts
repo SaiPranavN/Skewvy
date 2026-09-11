@@ -15,7 +15,7 @@ import {
 } from '@/lib/services/content';
 import { applyReactionBatch } from '@/lib/services/reactions';
 import { searchArtifacts } from '@/lib/services/search';
-import { leaderboard, trendingSections } from '@/lib/services/trending';
+import { leaderboard, rankedIndex, TRENDING_TABS, trendingTab } from '@/lib/services/trending';
 
 beforeAll(setupTestDatabase);
 afterAll(teardownTestDatabase);
@@ -185,13 +185,21 @@ describe('trending', () => {
     expect(board[0].card.id).toBe(loud.id);
     expect(board[0].recentChange).toBe(200);
 
-    // Every trending section must say what it counted — reactions, opinions,
-    // people, or nothing at all.
-    const sections = await trendingSections();
-    expect(sections.length).toBeGreaterThan(0);
-    for (const section of sections) {
-      expect(section.metricLabel).toMatch(/reaction|medal|rotten egg|opinion|newest|not ranked/i);
+    // Every tab must state what it counted, so no ranking is ambiguous.
+    for (const tab of TRENDING_TABS) {
+      expect(tab.metricLabel).toMatch(/reaction|medal|rotten egg|opinion|lifetime/i);
     }
+
+    const index = await rankedIndex('rotten_egg');
+    expect(index[0].card.id).toBe(loud.id);
+    expect(index[0].recentChange).toBe(200);
+    // The opposing total travels with the row for context. The loud item
+    // received only Rotten Eggs, so its Medal column is zero.
+    expect(index[0].primaryCount).toBe(200);
+    expect(index[0].secondaryCount).toBe(0);
+
+    // An unknown tab falls back to overall activity rather than throwing.
+    expect(trendingTab('nonsense').id).toBe('activity');
   });
 });
 

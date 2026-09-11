@@ -1,21 +1,21 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
-import { ReactionZone } from '@/components/reactions/ReactionZone';
-import { CrowdPulse } from '@/components/reactions/CrowdPulse';
-import { TypeBadge } from '@/components/ui/TypeBadge';
-import { SentimentChip } from '@/components/ui/SentimentChip';
-import { useArtifact } from '@/components/reactions/useArtifact';
-import { HERO_HEADLINE, HERO_SUPPORT, pickFrom, HEAT_LINES } from '@/lib/domain/copy';
-import { formatCount } from '@/lib/domain/format';
+import { ReactionControl } from '@/components/reactions/ReactionControl';
+import { CrowdSignal } from '@/components/reactions/CrowdSignal';
+import { SentimentMarker, TypeLabel, MetaRow, MetaDot } from '@/components/ui/SentimentMarker';
+import { SentimentBalance } from '@/components/ui/OpinionSummary';
+import { Media, initialsFor } from '@/components/ui/Media';
 import { RelativeTime } from '@/components/ui/TimeAgo';
+import { useArtifact } from '@/components/reactions/useArtifact';
+import { HERO_HEADLINE, HERO_SUPPORT, MEASUREMENT_PRINCIPLE } from '@/lib/domain/copy';
+import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard } from '@/lib/domain/types';
 
 /**
- * The hero is a live artifact, not a screenshot: the preview controls send real
- * reactions. The first thing anyone reads is the headline; the first thing they
- * touch is a counter.
+ * Editorial hero: the product explained on the left, a live public counter on
+ * the right. The featured artifact is real and interactive — the counter is
+ * evidence the application works, not a screenshot of it.
  */
 export function Hero({ featured }: { featured: ArtifactCard }) {
   const state = useArtifact(featured.type, featured.id, {
@@ -26,126 +26,109 @@ export function Hero({ featured }: { featured: ArtifactCard }) {
   const href = featured.type === 'entity' ? `/entities/${featured.slug}` : `/flash-news/${featured.slug}`;
 
   return (
-    <section className="relative overflow-hidden">
-      <div className="absolute inset-0">
-        {featured.imageUrl && (
-          <Image
-            src={featured.imageUrl}
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="cover-image scale-105 opacity-70"
-          />
-        )}
-        <div className="cover-scrim-hero absolute inset-0" />
-      </div>
-
-      <div className="relative mx-auto grid w-full max-w-[1400px] gap-10 px-4 pb-14 pt-10 sm:px-6 sm:pt-16 lg:grid-cols-[1.15fr_0.85fr] lg:items-end lg:gap-14 lg:px-10 lg:pb-20 lg:pt-24">
+    <section className="mx-auto w-full max-w-[1320px] px-4 pb-12 pt-10 sm:px-6 lg:px-8 lg:pb-16 lg:pt-14">
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] lg:items-center lg:gap-16">
         <div>
-          <p className="label-caps mb-4 inline-flex items-center gap-2 rounded-full border border-white/14 bg-black/40 px-3 py-1.5 text-chalk-dim backdrop-blur">
-            <span className="emoji" aria-hidden="true">
-              🥚
-            </span>
-            A global sentiment playground
-            <span className="emoji" aria-hidden="true">
-              🏅
-            </span>
-          </p>
-
-          <h1 className="text-balance text-[2.5rem] font-black leading-[0.98] tracking-[-0.035em] text-chalk sm:text-6xl lg:text-7xl">
+          <h1 className="text-pretty text-[2rem] font-semibold leading-[1.08] tracking-[-0.03em] text-primary sm:text-[2.75rem] lg:text-[3.25rem]">
             {HERO_HEADLINE}
           </h1>
 
-          <p className="mt-5 max-w-xl text-base leading-relaxed text-chalk-dim sm:text-lg">{HERO_SUPPORT}</p>
+          <p className="mt-5 max-w-xl text-[0.9375rem] leading-relaxed text-secondary sm:text-base">{HERO_SUPPORT}</p>
 
-          <div className="mt-7 flex flex-wrap items-center gap-3">
+          <p className="mt-4 max-w-xl border-l border-[var(--border-default)] pl-4 text-sm leading-relaxed text-tertiary">
+            {MEASUREMENT_PRINCIPLE}
+          </p>
+
+          <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
             <Link
               href="/flash-news"
-              className="rounded-full bg-brand px-6 py-3.5 text-base font-semibold text-white transition-colors hover:bg-brand-bright"
+              className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
             >
-              Enter the heat
+              Browse Flash News
             </Link>
-            <Link
-              href="/trending"
-              className="rounded-full border border-white/20 bg-black/30 px-6 py-3.5 text-base font-semibold text-chalk backdrop-blur transition-colors hover:border-white/40"
-            >
-              See how the crowd votes
+            <Link href="/trending" className="group inline-flex items-center gap-1.5 text-sm text-secondary transition-colors duration-150 hover:text-primary">
+              See what is most active
+              <span
+                aria-hidden="true"
+                className="transition-transform duration-150 group-hover:translate-x-1"
+              >
+                →
+              </span>
             </Link>
-          </div>
-
-          <div className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm text-haze">
-            <span className="flex items-center gap-2">
-              <span className="emoji text-lg" aria-hidden="true">
-                🥚
-              </span>
-              Add to the pile
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="emoji text-lg" aria-hidden="true">
-                🏅
-              </span>
-              Reward the rare W
-            </span>
           </div>
         </div>
 
-        {/* The featured artifact, live and tappable. */}
-        <div className="glass-strong rounded-[28px] p-5 sm:p-6">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <TypeBadge type={featured.type} />
-            <SentimentChip totals={state.totals} />
-            <RelativeTime iso={featured.publishedAt} className="ml-auto text-xs text-haze-dim" />
-          </div>
-
-          <Link href={href} className="group block">
-            <h2 className="text-balance text-xl font-bold leading-snug text-chalk transition-colors group-hover:text-white sm:text-2xl">
-              {featured.title}
-            </h2>
+        {/* The featured artifact: a public counter, not a scoreboard. */}
+        <div className="panel overflow-hidden">
+          <Link href={href} className="media-hover block">
+            <Media
+              src={featured.imageUrl}
+              alt={featured.type === 'entity' ? `${featured.title} logo` : `Image for: ${featured.title}`}
+              fallbackLabel={featured.type === 'entity' ? initialsFor(featured.title) : featured.category}
+              fallbackKind={featured.type === 'entity' ? 'initials' : 'category'}
+              sizes="(max-width: 1024px) 100vw, 440px"
+              priority
+              scrim={featured.imageUrl ? 'card' : 'none'}
+              className="aspect-[16/9] w-full"
+            />
           </Link>
 
-          <p className="mt-2 text-sm leading-relaxed text-haze">
-            {pickFrom(HEAT_LINES, featured.slug)}
-          </p>
+          <div className="space-y-4 p-5">
+            <MetaRow>
+              <TypeLabel type={featured.type} />
+              <MetaDot />
+              <span>{featured.category}</span>
+              <MetaDot />
+              <RelativeTime iso={featured.publishedAt} />
+            </MetaRow>
 
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <ReactionZone
-              artifactType={featured.type}
-              artifactId={featured.id}
-              artifactTitle={featured.title}
-              reactionType="rotten_egg"
-              totals={featured.totals}
-              contribution={featured.contribution}
-              microcopy="Add to the pile."
-            />
-            <ReactionZone
-              artifactType={featured.type}
-              artifactId={featured.id}
-              artifactTitle={featured.title}
-              reactionType="medal"
-              totals={featured.totals}
-              contribution={featured.contribution}
-              microcopy="Reward the rare W."
-            />
-          </div>
+            <Link href={href}>
+              <h2 className="text-pretty text-lg font-medium leading-snug text-primary">{featured.title}</h2>
+            </Link>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-haze">
-            <span>
-              <span className="font-semibold text-chalk-dim">
-                {formatCount(state.totals.negativeOpinionTotal)}
-              </span>{' '}
-              people frustrated ·{' '}
-              <span className="font-semibold text-chalk-dim">
-                {formatCount(state.totals.positiveOpinionTotal)}
-              </span>{' '}
-              appreciative
-            </span>
-            <CrowdPulse
-              artifactType={featured.type}
-              artifactId={featured.id}
-              totals={featured.totals}
-              contribution={featured.contribution}
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <ReactionControl
+                artifactType={featured.type}
+                artifactId={featured.id}
+                artifactTitle={featured.title}
+                reactionType="rotten_egg"
+                totals={featured.totals}
+                contribution={featured.contribution}
+                size="md"
+              />
+              <ReactionControl
+                artifactType={featured.type}
+                artifactId={featured.id}
+                artifactTitle={featured.title}
+                reactionType="medal"
+                totals={featured.totals}
+                contribution={featured.contribution}
+                size="md"
+              />
+            </div>
+
+            <SentimentBalance totals={state.totals} />
+
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-tertiary">
+                <span className="numeric text-secondary">
+                  {formatCount(state.totals.negativeOpinionTotal)}
+                </span>{' '}
+                critical ·{' '}
+                <span className="numeric text-secondary">
+                  {formatCount(state.totals.positiveOpinionTotal)}
+                </span>{' '}
+                appreciative
+              </p>
+              <CrowdSignal
+                artifactType={featured.type}
+                artifactId={featured.id}
+                totals={featured.totals}
+                contribution={featured.contribution}
+              />
+            </div>
+
+            <SentimentMarker totals={state.totals} />
           </div>
         </div>
       </div>

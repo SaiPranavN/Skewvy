@@ -26,11 +26,11 @@ export function AdminSearch({ basePath, initialValue }: { basePath: string; init
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder="Search by title"
-        className="w-full max-w-xs rounded-xl border border-white/12 bg-black/35 px-4 py-2.5 text-sm text-chalk placeholder:text-haze-dim focus:border-white/30 focus:outline-none"
+        className="w-full max-w-xs rounded-[var(--radius-control)] border border-[var(--border-default)] bg-elevated px-4 py-2.5 text-sm text-primary placeholder:text-tertiary focus:border-[var(--border-strong)] focus:outline-none"
       />
       <button
         type="submit"
-        className="rounded-xl border border-white/14 px-4 py-2.5 text-sm font-medium text-chalk-dim transition-colors hover:border-white/30"
+        className="rounded-[var(--radius-control)] border border-[var(--border-default)] px-4 py-2.5 text-sm font-medium text-secondary transition-colors hover:border-[var(--border-strong)]"
       >
         Search
       </button>

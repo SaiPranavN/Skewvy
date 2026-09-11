@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatCount, formatCompact, sharePercent } from '@/lib/domain/format';
-import { sentimentLabel, pickFrom, HEAT_LINES } from '@/lib/domain/copy';
+import { sentimentLabel, pickFrom, RECEIPT_CAPTIONS } from '@/lib/domain/copy';
 import { stanceForReaction, emptyTotals } from '@/lib/domain/types';
 import { toSqlitePlaceholders } from '@/lib/db/sqlite';
 
@@ -24,29 +24,38 @@ describe('number presentation', () => {
 });
 
 describe('sentiment labels', () => {
-  const totals = (eggs: number, medals: number) => ({ ...emptyTotals('flash_news', 'x'), rottenEggTotal: eggs, medalTotal: medals });
+  const totals = (eggs: number, medals: number) => ({
+    ...emptyTotals('flash_news', 'x'),
+    rottenEggTotal: eggs,
+    medalTotal: medals,
+  });
 
-  it('calls out a heavily negative artifact', () => {
-    expect(sentimentLabel(totals(9000, 500)).label).toBe('Publicly cooked');
+  it('reports strong disapproval factually', () => {
+    expect(sentimentLabel(totals(9000, 500)).label).toBe('Strong disapproval');
     expect(sentimentLabel(totals(9000, 500)).tone).toBe('egg');
   });
 
-  it('recognises appreciation', () => {
-    expect(sentimentLabel(totals(400, 9000)).label).toBe('Getting its flowers');
+  it('reports strong approval factually', () => {
+    expect(sentimentLabel(totals(400, 9000)).label).toBe('Strong approval');
     expect(sentimentLabel(totals(400, 9000)).tone).toBe('medal');
   });
 
-  it('recognises a genuine split', () => {
-    expect(sentimentLabel(totals(5000, 5000)).label).toBe('Crowd split');
+  it('reports a genuine split', () => {
+    expect(sentimentLabel(totals(5000, 5000)).label).toBe('Public opinion divided');
   });
 
-  it('does not judge an artifact with barely any reactions', () => {
-    expect(sentimentLabel(totals(10, 2)).label).toBe('Freshly on trial');
+  it('does not characterise an artifact with barely any reactions', () => {
+    expect(sentimentLabel(totals(10, 2)).label).toBe('Early reaction');
   });
 
-  it('never labels a private individual — the tones map to states, not people', () => {
-    const tones = [totals(9000, 500), totals(400, 9000), totals(5000, 5000)].map((value) => sentimentLabel(value).tone);
-    expect(tones).toEqual(['egg', 'medal', 'split']);
+  it('labels the measurement, never a person', () => {
+    const labels = [totals(9000, 500), totals(400, 9000), totals(5000, 5000), totals(10, 2)].map(
+      (value) => sentimentLabel(value).label,
+    );
+    // No verdict language, no slang, nothing aimed at an individual.
+    for (const label of labels) {
+      expect(label).not.toMatch(/cooked|flowers|\bL\b|\bW\b|roast|heat/i);
+    }
   });
 });
 
@@ -59,15 +68,15 @@ describe('reaction and stance mapping', () => {
 
 describe('deterministic copy selection', () => {
   it('returns the same line for the same seed, so server and client agree', () => {
-    const first = pickFrom(HEAT_LINES, 'nimbus-fare');
-    const second = pickFrom(HEAT_LINES, 'nimbus-fare');
+    const first = pickFrom(RECEIPT_CAPTIONS, 'nimbus-fare');
+    const second = pickFrom(RECEIPT_CAPTIONS, 'nimbus-fare');
     expect(first).toBe(second);
-    expect(HEAT_LINES).toContain(first);
+    expect(RECEIPT_CAPTIONS).toContain(first);
   });
 
   it('varies across seeds', () => {
     const lines = new Set(
-      ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((seed) => pickFrom(HEAT_LINES, seed)),
+      ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((seed) => pickFrom(RECEIPT_CAPTIONS, seed)),
     );
     expect(lines.size).toBeGreaterThan(1);
   });

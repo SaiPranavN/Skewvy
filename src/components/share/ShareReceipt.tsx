@@ -23,7 +23,6 @@ export function ShareReceipt({ card, url }: { card: ArtifactCard; url: string })
     artifactType: card.type,
     category: card.category,
     imageUrl: card.imageUrl,
-    accent: card.accent,
     totals: state.totals,
     contribution: state.contribution,
     caption: pickFrom(RECEIPT_CAPTIONS, card.slug),
@@ -115,7 +114,7 @@ export function ShareReceipt({ card, url }: { card: ArtifactCard; url: string })
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-full border border-white/14 px-4 py-2.5 text-sm font-medium text-chalk-dim transition-colors hover:border-white/30 hover:text-chalk"
+        className="inline-flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] border border-[var(--border-default)] px-3.5 py-2 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)]"
       >
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path
@@ -135,7 +134,7 @@ export function ShareReceipt({ card, url }: { card: ArtifactCard; url: string })
             type="button"
             aria-label="Close share"
             onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70"
           />
 
           <div
@@ -143,16 +142,17 @@ export function ShareReceipt({ card, url }: { card: ArtifactCard; url: string })
             role="dialog"
             aria-modal="true"
             aria-labelledby="share-title"
-            className="glass-strong relative max-h-[92dvh] w-full overflow-y-auto rounded-t-[28px] p-5 pb-8 sm:max-w-sm sm:rounded-[28px] sm:p-6"
+            className="signal-in relative max-h-[92dvh] w-full overflow-y-auto rounded-t-xl border-t border-[var(--border-default)] bg-elevated p-5 pb-8 sm:max-w-sm sm:rounded-xl sm:border sm:p-6"
+            style={{ boxShadow: 'var(--shadow-overlay)' }}
           >
-            <div aria-hidden="true" className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20 sm:hidden" />
+            <div aria-hidden="true" className="mx-auto mb-4 h-1 w-9 rounded-full bg-surface-3 sm:hidden" />
 
-            <h2 id="share-title" className="text-lg font-bold text-chalk">
+            <h2 id="share-title" className="text-base font-medium text-primary">
               Sentiment receipt
             </h2>
-            <p className="mt-1 text-sm text-haze">The numbers, stamped and ready to post.</p>
+            <p className="mt-1.5 text-sm text-secondary">The current totals, stamped and ready to share.</p>
 
-            <div className="mt-4 overflow-hidden rounded-2xl border border-white/12 bg-black/40">
+            <div className="mt-4 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-subtle)] bg-ground">
               {preview ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
                 <img
@@ -161,7 +161,7 @@ export function ShareReceipt({ card, url }: { card: ArtifactCard; url: string })
                   className="w-full"
                 />
               ) : (
-                <div className="skeleton aspect-[4/5] w-full" />
+                <div className="skeleton aspect-[4/5] w-full rounded-none" />
               )}
             </div>
 
@@ -170,7 +170,7 @@ export function ShareReceipt({ card, url }: { card: ArtifactCard; url: string })
                 type="button"
                 onClick={nativeShare}
                 disabled={busy}
-                className="w-full rounded-xl bg-brand px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-bright disabled:opacity-60"
+                className="min-h-11 w-full rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90 disabled:opacity-50"
               >
                 {busy ? 'Preparing…' : 'Share'}
               </button>
@@ -179,21 +179,21 @@ export function ShareReceipt({ card, url }: { card: ArtifactCard; url: string })
                   type="button"
                   onClick={download}
                   disabled={busy}
-                  className="rounded-xl border border-white/14 px-4 py-3 text-sm font-medium text-chalk-dim transition-colors hover:border-white/30 disabled:opacity-60"
+                  className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-default)] px-4 py-2.5 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)] disabled:opacity-50"
                 >
                   Save image
                 </button>
                 <button
                   type="button"
                   onClick={copyLink}
-                  className="rounded-xl border border-white/14 px-4 py-3 text-sm font-medium text-chalk-dim transition-colors hover:border-white/30"
+                  className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-default)] px-4 py-2.5 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)]"
                 >
                   Copy link
                 </button>
               </div>
             </div>
 
-            <p role="status" className="mt-3 min-h-5 text-center text-xs text-haze">
+            <p role="status" className="mt-3 min-h-5 text-center text-xs text-tertiary">
               {status}
             </p>
           </div>

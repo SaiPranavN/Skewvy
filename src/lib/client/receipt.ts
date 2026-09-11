@@ -14,7 +14,6 @@ export interface ReceiptInput {
   artifactType: ArtifactType;
   category: string;
   imageUrl: string | null;
-  accent: string;
   totals: ArtifactTotals;
   contribution?: UserContribution | null;
   caption: string;
@@ -93,57 +92,47 @@ export async function buildReceiptSvg(input: ReceiptInput): Promise<string> {
   const own = input.contribution;
   const ownLine =
     own && (own.rottenEggCount > 0 || own.medalCount > 0)
-      ? `You sent ${own.rottenEggCount > 0 ? `${formatCount(own.rottenEggCount)} 🥚` : ''}${
-          own.rottenEggCount > 0 && own.medalCount > 0 ? '   ·   ' : ''
+      ? `Your contribution: ${own.rottenEggCount > 0 ? `${formatCount(own.rottenEggCount)} 🥚` : ''}${
+          own.rottenEggCount > 0 && own.medalCount > 0 ? '   ' : ''
         }${own.medalCount > 0 ? `${formatCount(own.medalCount)} 🏅` : ''}`
-      : 'Add your own reaction on skewvy.com';
+      : 'Recorded on skewvy.com';
 
   /*
    * Everything below the title flows from where the title actually ends, so a
-   * one-line and a three-line headline both produce a balanced card instead of
-   * overlapping blocks.
+   * one-line and a three-line headline both produce a balanced card.
    */
-  const artTop = 168;
+  const artTop = 164;
   const artHeight = 372;
-  const titleLineHeight = 60;
-  const titleFirstBaseline = artTop + artHeight + 118;
+  const titleLineHeight = 58;
+  const titleFirstBaseline = artTop + artHeight + 112;
   const titleLastBaseline = titleFirstBaseline + (titleLines.length - 1) * titleLineHeight;
 
-  const countersTop = titleLastBaseline + 44;
-  const countersHeight = 208;
-  const barTop = countersTop + countersHeight + 56;
-  const footerTop = barTop + 128;
+  const countersTop = titleLastBaseline + 46;
+  const countersHeight = 200;
+  const barTop = countersTop + countersHeight + 58;
+  const footerTop = barTop + 126;
 
   const barWidth = 960;
   const negativeWidth = Math.round((barWidth * negativeShare) / 100);
   const counterWidth = 468;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" font-family="Inter, -apple-system, 'Helvetica Neue', Arial, sans-serif">
+  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" font-family="Geist, Inter, -apple-system, 'Helvetica Neue', Arial, sans-serif">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0.6" y2="1">
-      <stop offset="0%" stop-color="#12111d"/>
-      <stop offset="60%" stop-color="#0a0a12"/>
-      <stop offset="100%" stop-color="#07070d"/>
-    </linearGradient>
     <linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#07070d" stop-opacity="0.1"/>
-      <stop offset="100%" stop-color="#07070d" stop-opacity="0.9"/>
+      <stop offset="0%" stop-color="#08090b" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#08090b" stop-opacity="0.92"/>
     </linearGradient>
-    <linearGradient id="brandmark" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#ff5c4d"/>
-      <stop offset="100%" stop-color="#b6551d"/>
-    </linearGradient>
-    <clipPath id="artClip"><rect x="60" y="${artTop}" width="960" height="${artHeight}" rx="34"/></clipPath>
+    <clipPath id="artClip"><rect x="60" y="${artTop}" width="960" height="${artHeight}" rx="10"/></clipPath>
   </defs>
 
-  <rect width="${WIDTH}" height="${HEIGHT}" fill="url(#bg)"/>
-  <circle cx="900" cy="90" r="300" fill="${input.accent}" opacity="0.18"/>
+  <rect width="${WIDTH}" height="${HEIGHT}" fill="#08090b"/>
 
   <g>
-    <rect x="60" y="60" width="62" height="62" rx="17" fill="url(#brandmark)"/>
-    <text x="91" y="104" text-anchor="middle" font-size="38" font-weight="800" fill="#ffffff">S</text>
-    <text x="140" y="103" font-size="36" font-weight="700" fill="#f5f3fa" letter-spacing="-0.5">Skewvy</text>
-    <text x="1020" y="100" text-anchor="end" font-size="21" font-weight="600" fill="#a9a3bd" letter-spacing="3">${
+    <text x="60" y="100" font-size="34" font-weight="600" fill="#f2f2f0" letter-spacing="-0.5">Ske</text>
+    <path d="M129 84 L136 101 L143 89 L147 96 L151 89 L158 101 L165 84" stroke="#e5484d" stroke-width="3"
+      stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <text x="168" y="100" font-size="34" font-weight="600" fill="#f2f2f0" letter-spacing="-0.5">vy</text>
+    <text x="1020" y="97" text-anchor="end" font-size="19" font-weight="500" fill="#70737a" letter-spacing="1.6">${
       input.artifactType === 'entity' ? 'ENTITY' : 'FLASH NEWS'
     }</text>
   </g>
@@ -151,59 +140,59 @@ export async function buildReceiptSvg(input: ReceiptInput): Promise<string> {
   <g clip-path="url(#artClip)">
     ${
       embedded
-        ? `<image xlink:href="${embedded}" x="60" y="${artTop}" width="960" height="${artHeight}" preserveAspectRatio="xMidYMid slice"/>`
-        : `<rect x="60" y="${artTop}" width="960" height="${artHeight}" fill="${input.accent}" opacity="0.45"/>`
+        ? `<image xlink:href="${embedded}" x="60" y="${artTop}" width="960" height="${artHeight}" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="60" y="${artTop}" width="960" height="${artHeight}" fill="url(#scrim)"/>`
+        : `<rect x="60" y="${artTop}" width="960" height="${artHeight}" fill="#14171c"/>`
     }
-    <rect x="60" y="${artTop}" width="960" height="${artHeight}" fill="url(#scrim)"/>
-    <text x="92" y="${artTop + artHeight - 34}" font-size="22" font-weight="600" fill="#d8d4e4" letter-spacing="2.5">${escapeXml(
+    <text x="90" y="${artTop + artHeight - 32}" font-size="19" font-weight="500" fill="#a4a6aa" letter-spacing="1.6">${escapeXml(
       input.category.toUpperCase(),
     )}</text>
   </g>
-  <rect x="60" y="${artTop}" width="960" height="${artHeight}" rx="34" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2"/>
+  <rect x="60" y="${artTop}" width="960" height="${artHeight}" rx="10" fill="none" stroke="#ffffff" stroke-opacity="0.11"/>
 
   ${titleLines
     .map(
       (line, index) =>
-        `<text x="60" y="${titleFirstBaseline + index * titleLineHeight}" font-size="52" font-weight="800" fill="#f5f3fa" letter-spacing="-1.5">${escapeXml(
+        `<text x="60" y="${titleFirstBaseline + index * titleLineHeight}" font-size="48" font-weight="600" fill="#f2f2f0" letter-spacing="-1.4">${escapeXml(
           line,
         )}</text>`,
     )
     .join('')}
 
   <g transform="translate(60, ${countersTop})">
-    <rect x="0" y="0" width="${counterWidth}" height="${countersHeight}" rx="28" fill="#ffffff" fill-opacity="0.05" stroke="#e8913c" stroke-opacity="0.32" stroke-width="2"/>
-    <text x="34" y="72" font-size="46">🥚</text>
-    <text x="34" y="150" font-size="62" font-weight="800" fill="#e8913c" letter-spacing="-2">${formatCount(
+    <rect x="0" y="0" width="${counterWidth}" height="${countersHeight}" rx="10" fill="#101216" stroke="#ffffff" stroke-opacity="0.07"/>
+    <text x="32" y="68" font-size="34">🥚</text>
+    <text x="32" y="142" font-size="58" font-weight="600" fill="#bd7650" letter-spacing="-1.8">${formatCount(
       totals.rottenEggTotal,
     )}</text>
-    <text x="34" y="184" font-size="19" font-weight="600" fill="#a9a3bd" letter-spacing="2.5">ROTTEN EGGS</text>
+    <text x="32" y="174" font-size="18" fill="#a4a6aa">Rotten Eggs</text>
 
-    <rect x="${barWidth - counterWidth}" y="0" width="${counterWidth}" height="${countersHeight}" rx="28" fill="#ffffff" fill-opacity="0.05" stroke="#f2c14e" stroke-opacity="0.32" stroke-width="2"/>
-    <text x="${barWidth - counterWidth + 34}" y="72" font-size="46">🏅</text>
-    <text x="${barWidth - counterWidth + 34}" y="150" font-size="62" font-weight="800" fill="#f2c14e" letter-spacing="-2">${formatCount(
+    <rect x="${barWidth - counterWidth}" y="0" width="${counterWidth}" height="${countersHeight}" rx="10" fill="#101216" stroke="#ffffff" stroke-opacity="0.07"/>
+    <text x="${barWidth - counterWidth + 32}" y="68" font-size="34">🏅</text>
+    <text x="${barWidth - counterWidth + 32}" y="142" font-size="58" font-weight="600" fill="#c5a15a" letter-spacing="-1.8">${formatCount(
       totals.medalTotal,
     )}</text>
-    <text x="${barWidth - counterWidth + 34}" y="184" font-size="19" font-weight="600" fill="#a9a3bd" letter-spacing="2.5">MEDALS</text>
+    <text x="${barWidth - counterWidth + 32}" y="174" font-size="18" fill="#a4a6aa">Medals</text>
   </g>
 
   <g transform="translate(60, ${barTop})">
-    <rect x="0" y="0" width="${barWidth}" height="16" rx="8" fill="#ffffff" fill-opacity="0.1"/>
-    <rect x="0" y="0" width="${negativeWidth}" height="16" rx="8" fill="#e8913c"/>
-    <rect x="${negativeWidth}" y="0" width="${barWidth - negativeWidth}" height="16" rx="8" fill="#f2c14e"/>
-    <text x="0" y="54" font-size="23" fill="#a9a3bd">${formatCount(totals.negativeOpinionTotal)} frustrated</text>
-    <text x="${barWidth}" y="54" text-anchor="end" font-size="23" fill="#a9a3bd">${formatCount(
+    <rect x="0" y="0" width="${barWidth}" height="6" rx="3" fill="#181b20"/>
+    <rect x="0" y="0" width="${negativeWidth}" height="6" rx="3" fill="#76503c"/>
+    <rect x="${negativeWidth}" y="0" width="${barWidth - negativeWidth}" height="6" rx="3" fill="#766442"/>
+    <text x="0" y="46" font-size="21" fill="#a4a6aa">${formatCount(totals.negativeOpinionTotal)} critical</text>
+    <text x="${barWidth}" y="46" text-anchor="end" font-size="21" fill="#a4a6aa">${formatCount(
       totals.positiveOpinionTotal,
     )} appreciative</text>
-    <text x="${barWidth / 2}" y="94" text-anchor="middle" font-size="22" fill="#7d7794">${formatCount(
+    <text x="0" y="82" font-size="19" fill="#70737a">${formatCount(
       totals.uniqueParticipantTotal,
-    )} people took part</text>
+    )} people counted once each</text>
   </g>
 
   <g transform="translate(60, ${footerTop})">
-    <text x="0" y="0" font-size="32" font-weight="700" fill="#f5f3fa">${escapeXml(input.caption)}</text>
-    <text x="0" y="48" font-size="25" fill="#d8d4e4">${escapeXml(ownLine)}</text>
-    <text x="0" y="100" font-size="21" fill="#7d7794">${escapeXml(stamp)}</text>
-    <text x="${barWidth}" y="100" text-anchor="end" font-size="24" font-weight="700" fill="#e0483c">skewvy.com</text>
+    <text x="0" y="0" font-size="28" font-weight="600" fill="#f2f2f0">${escapeXml(input.caption)}</text>
+    <text x="0" y="44" font-size="21" fill="#a4a6aa">${escapeXml(ownLine)}</text>
+    <text x="0" y="94" font-size="18" fill="#70737a">${escapeXml(stamp)}</text>
+    <text x="${barWidth}" y="94" text-anchor="end" font-size="19" font-weight="500" fill="#70737a">skewvy.com</text>
   </g>
 </svg>`;
 }

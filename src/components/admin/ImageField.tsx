@@ -31,16 +31,16 @@ export function ImageField({ name, defaultValue }: { name: string; defaultValue:
 
   return (
     <div className="space-y-2.5">
-      <label htmlFor={`${name}-url`} className="block text-sm font-medium text-chalk-dim">
+      <label htmlFor={`${name}-url`} className="block text-sm font-medium text-secondary">
         Cover image
       </label>
 
       <div className="flex flex-wrap gap-3">
-        <span className="relative h-24 w-40 shrink-0 overflow-hidden rounded-xl border border-white/12 bg-black/40">
+        <span className="relative h-24 w-40 shrink-0 overflow-hidden rounded-[var(--radius-control)] border border-[var(--border-default)] bg-elevated">
           {url ? (
             <Image src={url} alt="Cover preview" fill sizes="160px" className="cover-image" />
           ) : (
-            <span className="grid h-full place-items-center text-xs text-haze-dim">No image</span>
+            <span className="grid h-full place-items-center text-xs text-tertiary">No image</span>
           )}
         </span>
 
@@ -51,7 +51,7 @@ export function ImageField({ name, defaultValue }: { name: string; defaultValue:
             value={url}
             onChange={(event) => setUrl(event.target.value)}
             placeholder="/covers/example.svg or https://…"
-            className="w-full rounded-xl border border-white/12 bg-black/35 px-4 py-2.5 text-sm text-chalk placeholder:text-haze-dim focus:border-white/30 focus:outline-none"
+            className="w-full rounded-[var(--radius-control)] border border-[var(--border-default)] bg-elevated px-4 py-2.5 text-sm text-primary placeholder:text-tertiary focus:border-[var(--border-strong)] focus:outline-none"
           />
 
           <div className="flex flex-wrap gap-2">
@@ -70,7 +70,7 @@ export function ImageField({ name, defaultValue }: { name: string; defaultValue:
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={pending}
-              className="rounded-lg border border-white/14 px-3 py-2 text-xs font-medium text-chalk-dim transition-colors hover:border-white/30 disabled:opacity-60"
+              className="rounded-lg border border-[var(--border-default)] px-3 py-2 text-xs font-medium text-secondary transition-colors hover:border-[var(--border-strong)] disabled:opacity-60"
             >
               {pending ? 'Uploading…' : 'Upload image'}
             </button>
@@ -78,14 +78,14 @@ export function ImageField({ name, defaultValue }: { name: string; defaultValue:
               <button
                 type="button"
                 onClick={() => setUrl('')}
-                className="rounded-lg px-3 py-2 text-xs font-medium text-haze transition-colors hover:text-chalk"
+                className="rounded-lg px-3 py-2 text-xs font-medium text-secondary transition-colors hover:text-primary"
               >
                 Clear
               </button>
             )}
           </div>
 
-          <p role="status" className="min-h-4 text-xs text-haze-dim">
+          <p role="status" className="min-h-4 text-xs text-tertiary">
             {message ?? 'PNG, JPEG, WebP, AVIF or SVG, up to 6 MB. An external URL works too.'}
           </p>
         </div>

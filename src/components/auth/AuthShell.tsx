@@ -1,40 +1,34 @@
 import Link from 'next/link';
-import { SkewvyLogo } from '@/components/layout/SkewvyLogo';
+import { Wordmark } from '@/components/layout/Wordmark';
 
-/** Shared frame for the standalone auth pages. */
+/**
+ * A focused, centred authentication panel. No slogan competing with the form,
+ * no second column that carries no information.
+ */
 export function AuthShell({
-  eyebrow,
   title,
   intro,
   children,
-  aside,
+  footer,
 }: {
-  eyebrow: string;
   title: string;
   intro: string;
   children: React.ReactNode;
-  aside?: React.ReactNode;
+  footer?: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto grid w-full max-w-[1100px] gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1fr_minmax(0,420px)] lg:items-center lg:gap-16 lg:py-20">
-      <div className="hidden lg:block">
-        <Link href="/" className="mb-8 inline-block">
-          <SkewvyLogo />
-        </Link>
-        <p className="label-caps mb-4 text-brand-bright">{eyebrow}</p>
-        <h1 className="text-balance text-5xl font-black leading-[1.02] tracking-[-0.035em] text-chalk">{title}</h1>
-        <p className="mt-5 max-w-md text-base leading-relaxed text-haze">{intro}</p>
-        {aside}
-      </div>
+    <div className="mx-auto flex w-full max-w-[400px] flex-col px-4 py-10 sm:py-14">
+      <Link href="/" aria-label="Skewvy home" className="mb-8 self-start">
+        <Wordmark />
+      </Link>
 
-      <div className="glass-strong rounded-[28px] p-6 sm:p-8">
-        <div className="mb-6 lg:hidden">
-          <p className="label-caps mb-2 text-brand-bright">{eyebrow}</p>
-          <h1 className="text-balance text-3xl font-black leading-tight tracking-[-0.03em] text-chalk">{title}</h1>
-          <p className="mt-3 text-sm leading-relaxed text-haze">{intro}</p>
-        </div>
+      <div className="panel p-5 sm:p-6">
+        <h1 className="text-lg font-medium tracking-[-0.01em] text-primary">{title}</h1>
+        <p className="mb-6 mt-2 text-sm leading-relaxed text-secondary">{intro}</p>
         {children}
       </div>
+
+      {footer && <div className="mt-5 text-xs leading-relaxed text-tertiary">{footer}</div>}
     </div>
   );
 }

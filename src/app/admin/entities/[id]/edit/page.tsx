@@ -26,8 +26,8 @@ export default async function EditEntityPage({ params }: { params: Promise<{ id:
     <div className="max-w-3xl space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-chalk">Edit Entity</h2>
-          <p className="mt-1 text-sm text-haze">
+          <h2 className="text-lg font-semibold text-primary">Edit Entity</h2>
+          <p className="mt-1 text-sm text-secondary">
             {formatCount(totals.rottenEggTotal)} 🥚 · {formatCount(totals.medalTotal)} 🏅 ·{' '}
             {formatCount(totals.uniqueParticipantTotal)} people
           </p>
@@ -43,7 +43,6 @@ export default async function EditEntityPage({ params }: { params: Promise<{ id:
           description: entity.description,
           category: entity.category,
           imageUrl: entity.imageUrl,
-          accent: entity.accent,
           status: entity.status,
         }}
         action={action}

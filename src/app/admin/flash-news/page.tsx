@@ -33,14 +33,14 @@ export default async function AdminFlashNewsPage({ searchParams }: { searchParam
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-bold text-chalk">
-          Flash News <span className="text-haze-dim">({rows.length})</span>
+        <h2 className="text-lg font-semibold text-primary">
+          Flash News <span className="text-tertiary">({rows.length})</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           <AdminSearch basePath="/admin/flash-news" initialValue={q ?? ''} />
           <Link
             href="/admin/flash-news/new"
-            className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-bright"
+            className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
           >
             New Flash News
           </Link>

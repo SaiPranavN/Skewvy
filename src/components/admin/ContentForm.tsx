@@ -9,7 +9,7 @@ import type { ActionResult } from '@/app/admin/actions';
 import type { ContentStatus } from '@/lib/domain/types';
 
 const inputClass =
-  'w-full rounded-xl border border-white/12 bg-black/35 px-4 py-2.5 text-sm text-chalk placeholder:text-haze-dim focus:border-white/30 focus:outline-none';
+  'w-full rounded-[var(--radius-control)] border border-[var(--border-default)] bg-elevated px-4 py-2.5 text-sm text-primary placeholder:text-tertiary focus:border-[var(--border-strong)] focus:outline-none';
 
 function FormField({
   id,
@@ -26,16 +26,16 @@ function FormField({
 }) {
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-sm font-medium text-chalk-dim">
+      <label htmlFor={id} className="block text-sm font-medium text-secondary">
         {label}
       </label>
       {children}
       {error ? (
-        <p id={`${id}-error`} className="text-xs font-medium text-brand-bright">
+        <p id={`${id}-error`} className="text-xs font-medium text-brand">
           {error}
         </p>
       ) : hint ? (
-        <p className="text-xs text-haze-dim">{hint}</p>
+        <p className="text-xs text-tertiary">{hint}</p>
       ) : null}
     </div>
   );
@@ -48,7 +48,6 @@ export interface EntityFormValues {
   description: string;
   category: string;
   imageUrl: string | null;
-  accent: string | null;
   status: ContentStatus;
 }
 
@@ -60,7 +59,6 @@ export interface FlashNewsFormValues {
   body: string;
   category: string;
   imageUrl: string | null;
-  accent: string | null;
   sourceLabel: string | null;
   sourceUrl: string | null;
   status: ContentStatus;
@@ -102,11 +100,11 @@ function FormFooter({
   cancelHref: string;
 }) {
   return (
-    <div className="sticky bottom-0 -mx-5 mt-2 flex flex-wrap items-center gap-3 border-t border-white/10 bg-ink-900/90 px-5 py-4 backdrop-blur sm:-mx-6 sm:px-6">
+    <div className="sticky bottom-0 -mx-5 mt-2 flex flex-wrap items-center gap-3 border-t border-[var(--border-subtle)] bg-ground px-5 py-4  sm:-mx-6 sm:px-6">
       <button
         type="submit"
         disabled={pending}
-        className="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-bright disabled:opacity-60"
+        className="min-h-11 rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90 disabled:opacity-50"
       >
         {pending ? 'Saving…' : 'Save'}
       </button>
@@ -116,19 +114,19 @@ function FormFooter({
           href={previewHref}
           target="_blank"
           rel="noreferrer"
-          className="rounded-xl border border-white/14 px-4 py-2.5 text-sm font-medium text-chalk-dim transition-colors hover:border-white/30"
+          className="rounded-[var(--radius-control)] border border-[var(--border-default)] px-4 py-2.5 text-sm font-medium text-secondary transition-colors hover:border-[var(--border-strong)]"
         >
           Preview ↗
         </Link>
       )}
 
-      <Link href={cancelHref} className="text-sm text-haze transition-colors hover:text-chalk">
+      <Link href={cancelHref} className="text-sm text-secondary transition-colors hover:text-primary">
         Back to list
       </Link>
 
       <p
         role="status"
-        className={`ml-auto text-sm ${state.ok ? 'text-good' : state.message ? 'text-brand-bright' : 'text-haze'}`}
+        className={`ml-auto text-sm ${state.ok ? 'text-success' : state.message ? 'text-brand' : 'text-secondary'}`}
       >
         {state.message}
       </p>
@@ -154,7 +152,7 @@ export function EntityForm({
   }, [state, router, values.id]);
 
   return (
-    <form action={formAction} className="glass space-y-5 rounded-[var(--radius-card)] p-5 sm:p-6">
+    <form action={formAction} className="panel space-y-5 rounded-[var(--radius-card)] p-5 sm:p-6">
       <FormField id="name" label="Name" error={state.fields?.name}>
         <input
           id="name"
@@ -206,9 +204,6 @@ export function EntityForm({
           </select>
         </FormField>
 
-        <FormField id="accent" label="Accent colour" hint="Drives the card glow. Hex, e.g. #e0483c.">
-          <input id="accent" name="accent" defaultValue={values.accent ?? ''} className={inputClass} placeholder="#e0483c" />
-        </FormField>
       </div>
 
       <ImageField name="imageUrl" defaultValue={values.imageUrl} />
@@ -252,7 +247,7 @@ export function FlashNewsForm({
   };
 
   return (
-    <form action={formAction} className="glass space-y-5 rounded-[var(--radius-card)] p-5 sm:p-6">
+    <form action={formAction} className="panel space-y-5 rounded-[var(--radius-card)] p-5 sm:p-6">
       <FormField id="headline" label="Headline" error={state.fields?.headline}>
         <input
           id="headline"
@@ -301,9 +296,6 @@ export function FlashNewsForm({
           </select>
         </FormField>
 
-        <FormField id="accent" label="Accent colour" hint="Drives the card glow. Hex, e.g. #e0483c.">
-          <input id="accent" name="accent" defaultValue={values.accent ?? ''} className={inputClass} placeholder="#e0483c" />
-        </FormField>
 
         <FormField id="sourceLabel" label="Source / context label">
           <input
@@ -329,8 +321,8 @@ export function FlashNewsForm({
       <ImageField name="imageUrl" defaultValue={values.imageUrl} />
 
       <fieldset className="space-y-2.5">
-        <legend className="text-sm font-medium text-chalk-dim">Related Entities</legend>
-        <p className="text-xs text-haze-dim">
+        <legend className="text-sm font-medium text-secondary">Related Entities</legend>
+        <p className="text-xs text-tertiary">
           A Flash News item can belong to one Entity, several, or none at all.
         </p>
 
@@ -347,10 +339,10 @@ export function FlashNewsForm({
                 type="button"
                 onClick={() => toggleEntity(entity.id)}
                 aria-pressed={selected}
-                className={`rounded-full border px-3.5 py-2 text-xs font-medium transition-colors ${
+                className={`min-h-9 rounded-[var(--radius-control)] border px-3 py-2 text-xs transition-colors duration-150 ${
                   selected
-                    ? 'border-brand/50 bg-brand/15 text-chalk'
-                    : 'border-white/12 text-haze hover:border-white/28 hover:text-chalk'
+                    ? 'border-[var(--border-strong)] bg-surface-2 text-primary'
+                    : 'border-[var(--border-default)] text-secondary hover:border-[var(--border-strong)] hover:text-primary'
                 }`}
               >
                 {selected ? '✓ ' : ''}

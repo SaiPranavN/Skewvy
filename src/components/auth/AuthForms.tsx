@@ -2,11 +2,14 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Turnstile } from './Turnstile';
 import { TextField, PinField, FormError, FormNotice, SubmitButton } from './fields';
 import { reactionStore } from '@/lib/client/reaction-store';
 import { PIN_MIN_LENGTH } from '@/lib/validation/schemas';
+
+/** Mirrors the server constant; sent when the widget cannot load. */
+const TURNSTILE_FALLBACK_TOKEN = 'skewvy-widget-unavailable';
 
 interface ApiFailure {
   error: string;
@@ -29,52 +32,78 @@ export interface AuthFormProps {
   siteKey: string;
   /** Development-only: skip the widget when the robot check is bypassed. */
   turnstileDisabled?: boolean;
+  /**
+   * True once real Turnstile keys are configured. Until then a browser that
+   * cannot load the widget falls back rather than being locked out.
+   */
+  turnstileRequired?: boolean;
   redirectTo?: string;
-  /** Called after a session exists, before navigation. */
   onAuthenticated?: () => void;
   compact?: boolean;
 }
 
 /**
- * The robot check. In development the check can be bypassed
- * (TURNSTILE_DISABLED=1), in which case a clearly-labelled placeholder stands in
- * — the server still refuses the bypass whenever NODE_ENV is production.
+ * The robot check.
+ *
+ * Three states, in order of preference: the real widget; a clearly-labelled
+ * bypass in development; and a fallback when the widget cannot load and no real
+ * keys are configured — the server rejects that fallback the moment keys exist.
  */
 function RobotCheck({
   siteKey,
   disabled,
+  required,
   action,
   onToken,
 }: {
   siteKey: string;
   disabled?: boolean;
+  required?: boolean;
   action: string;
   onToken: (token: string | null) => void;
 }) {
+  const [unavailable, setUnavailable] = useState(false);
+
   useEffect(() => {
     if (disabled) onToken('development-bypass');
   }, [disabled, onToken]);
 
+  const handleUnavailable = useCallback(() => {
+    setUnavailable(true);
+    if (!required) onToken(TURNSTILE_FALLBACK_TOKEN);
+  }, [onToken, required]);
+
   if (disabled) {
     return (
-      <p className="rounded-xl border border-white/12 bg-white/5 px-3 py-2.5 text-xs text-haze-dim">
+      <p className="rounded-[var(--radius-control)] border border-[var(--border-subtle)] bg-elevated px-3.5 py-2.5 text-xs text-tertiary">
         Robot check bypassed for local development.
       </p>
     );
   }
 
-  return <Turnstile siteKey={siteKey} action={action} onToken={onToken} />;
+  return (
+    <div>
+      <Turnstile siteKey={siteKey} action={action} onToken={onToken} onUnavailable={handleUnavailable} />
+      {unavailable && !required && (
+        <p className="mt-1.5 text-xs text-tertiary">Continuing without it — no site key is configured yet.</p>
+      )}
+      {unavailable && required && (
+        <p className="mt-1.5 text-xs text-error">
+          The robot check is required. Disable blocking extensions or try another browser.
+        </p>
+      )}
+    </div>
+  );
 }
 
-/** Applies taps that were held while the person was signed out. */
-function applyPendingReactions(): number {
-  const pending = reactionStore.pendingAnonymousReactions();
-  const count = pending.reduce((sum, item) => sum + item.quantity, 0);
-  reactionStore.flushAfterAuthentication();
-  return count;
-}
-
-export function LoginForm({ siteKey, turnstileDisabled, redirectTo, onAuthenticated, compact }: AuthFormProps) {
+export function LoginForm({
+  siteKey,
+  turnstileDisabled,
+  turnstileRequired,
+  redirectTo,
+  onAuthenticated,
+  compact,
+}: AuthFormProps) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
@@ -109,20 +138,20 @@ export function LoginForm({ siteKey, turnstileDisabled, redirectTo, onAuthentica
 
       if (data.status === 'step_up_required') {
         setNotice(
-          'We did not recognise this device. Check your email and open the confirmation link — you will not need to do this next time.',
+          'We did not recognise this device. Open the confirmation link in your email — you will not need to do this next time.',
         );
         return;
       }
       if (data.status === 'verification_required') {
-        setNotice('Confirm your email address first. We have sent you a fresh link.');
+        setNotice('Confirm your email address first. We have sent a fresh link.');
         return;
       }
 
-      const applied = applyPendingReactions();
+      // A session exists again: anything still buffered can now be sent.
+      reactionStore.flushAfterAuthentication();
       onAuthenticated?.();
       router.refresh();
       if (!compact) router.push(data.redirectTo || redirectTo || '/');
-      if (applied > 0) setNotice(`Signed in. Adding your ${applied} held reactions.`);
     } catch {
       setError('We could not reach Skewvy. Check your connection and try again.');
     } finally {
@@ -155,20 +184,25 @@ export function LoginForm({ siteKey, turnstileDisabled, redirectTo, onAuthentica
         value={pin}
         error={fieldErrors.pin}
         onChange={(event) => setPin(event.target.value)}
-        placeholder="Your PIN"
       />
 
-      <RobotCheck siteKey={siteKey} disabled={turnstileDisabled} action="login" onToken={setToken} />
+      <RobotCheck
+        siteKey={siteKey}
+        disabled={turnstileDisabled}
+        required={turnstileRequired}
+        action="login"
+        onToken={setToken}
+      />
 
-      <SubmitButton pending={pending}>Continue</SubmitButton>
+      <SubmitButton pending={pending}>Sign in</SubmitButton>
 
-      <div className="flex items-center justify-between text-sm">
-        <Link href="/auth/reset-pin" className="text-haze transition-colors hover:text-chalk">
+      <div className="flex items-center justify-between gap-4 text-sm">
+        <Link href="/auth/reset-pin" className="text-tertiary transition-colors duration-150 hover:text-primary">
           Forgot PIN?
         </Link>
         <Link
           href={redirectTo ? `/register?redirectTo=${encodeURIComponent(redirectTo)}` : '/register'}
-          className="font-medium text-chalk-dim transition-colors hover:text-chalk"
+          className="text-secondary transition-colors duration-150 hover:text-primary"
         >
           Create an account
         </Link>
@@ -177,7 +211,13 @@ export function LoginForm({ siteKey, turnstileDisabled, redirectTo, onAuthentica
   );
 }
 
-export function RegisterForm({ siteKey, turnstileDisabled, redirectTo, compact }: AuthFormProps) {
+export function RegisterForm({
+  siteKey,
+  turnstileDisabled,
+  turnstileRequired,
+  redirectTo,
+  compact,
+}: AuthFormProps) {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
@@ -233,7 +273,7 @@ export function RegisterForm({ siteKey, turnstileDisabled, redirectTo, compact }
     const result = await postJson('/api/auth/resend-verification', { email });
     const data = result.data as ApiFailure;
     setResendNotice(
-      result.ok ? 'Link sent. Check your inbox.' : data.message ?? 'Wait a moment before asking for another link.',
+      result.ok ? 'Link sent. Check your inbox.' : (data.message ?? 'Wait a moment before asking for another link.'),
     );
     setResendPending(false);
   };
@@ -241,15 +281,12 @@ export function RegisterForm({ siteKey, turnstileDisabled, redirectTo, compact }
   if (sent) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-white/12 bg-white/5 p-5">
-          <p className="text-2xl" aria-hidden="true">
-            📮
-          </p>
-          <h2 className="mt-2 text-lg font-semibold text-chalk">Check your email</h2>
-          <p className="mt-2 text-sm leading-relaxed text-haze">
+        <div>
+          <h2 className="text-base font-medium text-primary">Check your email</h2>
+          <p className="mt-2 text-sm leading-relaxed text-secondary">
             If that address can be used, a one-time confirmation link is on its way to{' '}
-            <span className="text-chalk-dim">{email}</span>. Open it once and you are in — after that you sign in with
-            your email and PIN.
+            <span className="text-primary">{email}</span>. Open it once — after that you sign in with your email and
+            PIN.
           </p>
         </div>
 
@@ -259,14 +296,12 @@ export function RegisterForm({ siteKey, turnstileDisabled, redirectTo, compact }
           type="button"
           onClick={resend}
           disabled={resendPending}
-          className="w-full rounded-xl border border-white/14 px-4 py-3 text-sm font-medium text-chalk-dim transition-colors hover:border-white/28 disabled:opacity-60"
+          className="min-h-11 w-full rounded-[var(--radius-control)] border border-[var(--border-default)] px-4 py-2.5 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)] disabled:opacity-50"
         >
           {resendPending ? 'Sending…' : 'Resend the link'}
         </button>
 
-        <p className="text-center text-xs text-haze-dim">
-          Links expire after 60 minutes. You can ask for a new one every few minutes.
-        </p>
+        <p className="text-xs text-tertiary">Links expire after 60 minutes.</p>
       </div>
     );
   }
@@ -283,7 +318,6 @@ export function RegisterForm({ siteKey, turnstileDisabled, redirectTo, compact }
         value={displayName}
         error={fieldErrors.displayName}
         onChange={(event) => setDisplayName(event.target.value)}
-        placeholder="What the crowd sees"
       />
 
       <TextField
@@ -296,7 +330,7 @@ export function RegisterForm({ siteKey, turnstileDisabled, redirectTo, compact }
         error={fieldErrors.email}
         onChange={(event) => setEmail(event.target.value)}
         placeholder="you@example.com"
-        hint="Confirmed once, then never needed to sign in again."
+        hint="Confirmed once. You will not need your inbox to sign in again."
       />
 
       <PinField
@@ -307,7 +341,7 @@ export function RegisterForm({ siteKey, turnstileDisabled, redirectTo, compact }
         value={pin}
         error={fieldErrors.pin}
         onChange={(event) => setPin(event.target.value)}
-        hint={`At least ${PIN_MIN_LENGTH} characters. Digits, letters or both — not a repeated or sequential run.`}
+        hint={`At least ${PIN_MIN_LENGTH} characters. Digits, letters or both.`}
       />
 
       <PinField
@@ -320,18 +354,24 @@ export function RegisterForm({ siteKey, turnstileDisabled, redirectTo, compact }
         onChange={(event) => setConfirmPin(event.target.value)}
       />
 
-      <RobotCheck siteKey={siteKey} disabled={turnstileDisabled} action="register" onToken={setToken} />
+      <RobotCheck
+        siteKey={siteKey}
+        disabled={turnstileDisabled}
+        required={turnstileRequired}
+        action="register"
+        onToken={setToken}
+      />
 
-      <SubmitButton pending={pending}>Continue</SubmitButton>
+      <SubmitButton pending={pending}>Create account</SubmitButton>
 
       {!compact && (
-        <p className="text-center text-sm text-haze">
+        <p className="text-sm text-tertiary">
           Already have an account?{' '}
           <Link
             href={redirectTo ? `/login?redirectTo=${encodeURIComponent(redirectTo)}` : '/login'}
-            className="font-medium text-chalk-dim hover:text-chalk"
+            className="text-secondary transition-colors duration-150 hover:text-primary"
           >
-            Log in
+            Sign in
           </Link>
         </p>
       )}

@@ -1,56 +1,31 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-
+/**
+ * A compact editorial strip rather than three decorated step cards. It explains
+ * the one thing that is genuinely non-obvious: reactions and opinions are
+ * different measurements.
+ */
 const STEPS = [
   {
-    emoji: '🔎',
-    title: 'Find an Entity or Flash News',
-    copy: 'Spot the headline.',
+    title: 'Find a story or an entity',
+    copy: 'Flash News covers a specific event. An Entity accumulates sentiment over time.',
   },
   {
-    emoji: '🥚',
-    title: 'Tap Rotten Eggs or Medals',
-    copy: 'Pick a side.',
-    alternate: '🏅',
+    title: 'React as often as you like',
+    copy: 'Each tap adds one Rotten Egg or one Medal to the public reaction total.',
   },
   {
-    emoji: '📈',
-    title: 'Watch the public mood move',
-    copy: 'Make the counter sweat.',
+    title: 'Count once in the opinion',
+    copy: 'However many times you react, you count as one person on one side.',
   },
 ];
 
-/** Three steps with a small looping emoji demonstration. */
 export function HowItWorks() {
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (media.matches) return;
-    const timer = setInterval(() => setTick((value) => value + 1), 1400);
-    return () => clearInterval(timer);
-  }, []);
-
   return (
-    <ol className="grid gap-4 sm:grid-cols-3">
+    <ol className="grid gap-x-8 gap-y-6 sm:grid-cols-3">
       {STEPS.map((step, index) => (
-        <li
-          key={step.title}
-          className="glass card-lift relative overflow-hidden rounded-[var(--radius-card)] p-5"
-        >
-          <span className="label-caps text-haze-dim">Step {index + 1}</span>
-
-          <span
-            className="emoji mt-3 block text-4xl transition-transform duration-500"
-            aria-hidden="true"
-            style={{ transform: tick % 3 === index ? 'translateY(-4px) scale(1.12)' : 'none' }}
-          >
-            {step.alternate && tick % 2 === 1 ? step.alternate : step.emoji}
-          </span>
-
-          <h3 className="mt-3 text-base font-semibold text-chalk">{step.title}</h3>
-          <p className="mt-1 text-sm text-haze">{step.copy}</p>
+        <li key={step.title} className="border-t border-[var(--border-subtle)] pt-4">
+          <span className="numeric text-xs text-tertiary">{String(index + 1).padStart(2, '0')}</span>
+          <h3 className="mt-2 text-sm font-medium text-primary">{step.title}</h3>
+          <p className="mt-1.5 text-sm leading-relaxed text-secondary">{step.copy}</p>
         </li>
       ))}
     </ol>

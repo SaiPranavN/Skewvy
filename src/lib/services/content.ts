@@ -10,9 +10,6 @@ import type {
 } from '@/lib/domain/types';
 import type { EntityInput, FlashNewsInput } from '@/lib/validation/schemas';
 
-/** Fallback accent when content has no stored colour. */
-const DEFAULT_ACCENT = '#e0483c';
-
 interface EntityRow {
   id: string;
   slug: string;
@@ -272,7 +269,6 @@ export async function toCards(
       subtitle: entity.description,
       category: entity.category,
       imageUrl: entity.imageUrl,
-      accent: entity.accent ?? DEFAULT_ACCENT,
       publishedAt: entity.updatedAt,
       totals: totals.get(key)!,
       contribution: contributions?.get(key) ?? null,
@@ -292,7 +288,6 @@ export async function toCards(
       subtitle: item.summary,
       category: item.category,
       imageUrl: item.imageUrl,
-      accent: item.accent ?? DEFAULT_ACCENT,
       publishedAt: item.publishedAt,
       totals: totals.get(key)!,
       contribution: contributions?.get(key) ?? null,

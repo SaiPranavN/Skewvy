@@ -3,25 +3,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { LoginForm, RegisterForm } from './AuthForms';
-import { reactionStore } from '@/lib/client/reaction-store';
-import { formatCount } from '@/lib/domain/format';
+
+interface AuthConfig {
+  turnstileSiteKey: string;
+  turnstileDisabled: boolean;
+  turnstileRequired: boolean;
+}
 
 /**
- * Sign-in surface that opens over whatever the person was reacting to.
- * A bottom sheet on mobile, a centred dialog on larger screens — their held
- * taps stay buffered the whole time and are applied on success.
+ * Sign-in surface that opens over whatever the person was reading — a bottom
+ * sheet on mobile, a centred dialog above it. This is the one place a shadow is
+ * used, because the surface is genuinely temporary and above the page.
  */
-export function AuthSheet({
-  open,
-  onClose,
-  pendingCount,
-}: {
-  open: boolean;
-  onClose: () => void;
-  pendingCount: number;
-}) {
-  const [mode, setMode] = useState<'login' | 'register'>('register');
-  const [config, setConfig] = useState<{ turnstileSiteKey: string; turnstileDisabled: boolean } | null>(null);
+export function AuthSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [mode, setMode] = useState<'register' | 'login'>('register');
+  const [config, setConfig] = useState<AuthConfig | null>(null);
   const pathname = usePathname();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -33,7 +29,7 @@ export function AuthSheet({
 
     fetch('/api/auth/config')
       .then((response) => response.json())
-      .then((data: { turnstileSiteKey: string; turnstileDisabled: boolean }) => setConfig(data))
+      .then((data: AuthConfig) => setConfig(data))
       .catch(() => setConfig(null));
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -71,39 +67,28 @@ export function AuthSheet({
 
   if (!open) return null;
 
-  const held = pendingCount || reactionStore.pendingAnonymousReactions().reduce((sum, item) => sum + item.quantity, 0);
-
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center">
-      <button
-        type="button"
-        aria-label="Close sign-in"
-        onClick={onClose}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-      />
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/70" />
 
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="auth-sheet-title"
-        className="glass-strong relative max-h-[92dvh] w-full overflow-y-auto rounded-t-[28px] p-5 pb-8 sm:max-w-md sm:rounded-[28px] sm:p-7"
+        className="signal-in relative max-h-[92dvh] w-full overflow-y-auto rounded-t-xl border-t border-[var(--border-default)] bg-elevated p-5 pb-8 sm:max-w-[400px] sm:rounded-xl sm:border sm:p-6"
+        style={{ boxShadow: 'var(--shadow-overlay)' }}
       >
-        <div aria-hidden="true" className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/20 sm:hidden" />
+        <div aria-hidden="true" className="mx-auto mb-4 h-1 w-9 rounded-full bg-surface-3 sm:hidden" />
 
-        <div className="mb-5">
-          <p className="label-caps text-brand-bright">Your taps are safe</p>
-          <h2 id="auth-sheet-title" className="mt-2 text-2xl font-bold leading-tight text-chalk">
-            {held > 0 ? `${formatCount(held)} ${held === 1 ? 'reaction' : 'reactions'} waiting to land` : 'Make it count'}
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed text-haze">
-            {held > 0
-              ? 'Sign in and we will add them to the public counter straight away.'
-              : 'Anyone can watch the numbers move. Sending reactions needs an account — one email confirmation, then a PIN.'}
-          </p>
-        </div>
+        <h2 id="auth-sheet-title" className="text-base font-medium text-primary">
+          Sign in to react
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-secondary">
+          Sign in to keep your reactions, track your opinion and continue where you left off.
+        </p>
 
-        <div role="tablist" aria-label="Sign in or create an account" className="mb-5 flex rounded-full bg-black/40 p-1">
+        <div role="tablist" aria-label="Sign in or create an account" className="mb-5 mt-5 flex gap-5 border-b border-[var(--border-subtle)]">
           {(['register', 'login'] as const).map((value) => (
             <button
               key={value}
@@ -111,11 +96,12 @@ export function AuthSheet({
               type="button"
               aria-selected={mode === value}
               onClick={() => setMode(value)}
-              className={`flex-1 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                mode === value ? 'bg-white/12 text-chalk' : 'text-haze hover:text-chalk'
+              className={`relative -mb-px pb-2.5 text-sm transition-colors duration-150 ${
+                mode === value ? 'text-primary' : 'text-tertiary hover:text-secondary'
               }`}
             >
-              {value === 'register' ? 'Create account' : 'Log in'}
+              {value === 'register' ? 'Create account' : 'Sign in'}
+              {mode === value && <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-brand" />}
             </button>
           ))}
         </div>
@@ -125,6 +111,7 @@ export function AuthSheet({
             <LoginForm
               siteKey={config.turnstileSiteKey}
               turnstileDisabled={config.turnstileDisabled}
+              turnstileRequired={config.turnstileRequired}
               redirectTo={pathname}
               compact
               onAuthenticated={onClose}
@@ -133,6 +120,7 @@ export function AuthSheet({
             <RegisterForm
               siteKey={config.turnstileSiteKey}
               turnstileDisabled={config.turnstileDisabled}
+              turnstileRequired={config.turnstileRequired}
               redirectTo={pathname}
               compact
             />
@@ -140,7 +128,7 @@ export function AuthSheet({
         ) : (
           <div className="space-y-3" aria-busy="true">
             {[0, 1, 2].map((index) => (
-              <div key={index} className="skeleton h-12 rounded-xl" />
+              <div key={index} className="skeleton h-11" />
             ))}
           </div>
         )}

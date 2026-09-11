@@ -2,28 +2,23 @@ import Link from 'next/link';
 
 export default function NotFound() {
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-24 text-center sm:py-32">
-      <p className="emoji text-5xl" aria-hidden="true">
-        🥚
+    <div className="mx-auto w-full max-w-xl px-4 py-24 sm:py-32">
+      <h1 className="text-2xl font-semibold tracking-[-0.02em] text-primary">Page not found</h1>
+      <p className="mt-3 text-sm leading-relaxed text-secondary">
+        That page has been unpublished, archived, or never existed.
       </p>
-      <h1 className="mt-6 text-balance text-3xl font-black tracking-[-0.02em] text-chalk sm:text-4xl">
-        Nothing to react to here
-      </h1>
-      <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-haze">
-        That page has been unpublished, archived, or never existed. The crowd has moved on.
-      </p>
-      <div className="mt-8 flex flex-wrap justify-center gap-3">
+      <div className="mt-6 flex flex-wrap gap-3">
         <Link
           href="/flash-news"
-          className="rounded-full bg-brand px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-bright"
+          className="min-h-11 rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
         >
-          See what&apos;s catching fire
+          Browse Flash News
         </Link>
         <Link
           href="/"
-          className="rounded-full border border-white/14 px-5 py-3 text-sm font-medium text-chalk-dim transition-colors hover:border-white/30"
+          className="min-h-11 rounded-[var(--radius-control)] border border-[var(--border-default)] px-4 py-2.5 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)]"
         >
-          Back home
+          Home
         </Link>
       </div>
     </div>

@@ -18,8 +18,8 @@ export default async function NewFlashNewsPage() {
   return (
     <div className="max-w-3xl space-y-5">
       <div>
-        <h2 className="text-lg font-bold text-chalk">New Flash News</h2>
-        <p className="mt-1 text-sm text-haze">
+        <h2 className="text-lg font-semibold text-primary">New Flash News</h2>
+        <p className="mt-1 text-sm text-secondary">
           A specific event, announcement, decision, release or achievement the crowd can react to.
         </p>
       </div>
@@ -32,7 +32,6 @@ export default async function NewFlashNewsPage() {
           body: '',
           category: CATEGORIES[0],
           imageUrl: null,
-          accent: '#e0483c',
           sourceLabel: null,
           sourceUrl: null,
           status: 'draft',

@@ -9,7 +9,6 @@ export interface SeedEntity {
   name: string;
   description: string;
   category: string;
-  accent: string;
   /** Roughly how heavily this subject leans negative over its lifetime, 0–1. */
   eggBias: number;
   participants: number;
@@ -23,7 +22,6 @@ export interface SeedFlashNews {
   summary: string;
   body: string;
   category: string;
-  accent: string;
   sourceLabel: string;
   entitySlugs: string[];
   hoursAgo: number;
@@ -38,7 +36,6 @@ export const SEED_ENTITIES: SeedEntity[] = [
     name: 'Nimbus Fare',
     description: 'Budget flight-booking app best known for the fees it finds after you have already picked a seat.',
     category: 'Technology',
-    accent: '#e0483c',
     eggBias: 0.79,
     participants: 5200,
     intensity: 26,
@@ -48,7 +45,6 @@ export const SEED_ENTITIES: SeedEntity[] = [
     name: 'Vantablack Studios',
     description: 'Independent game studio behind the Ashfall series. Ambitious release dates, complicated relationship with them.',
     category: 'Gaming',
-    accent: '#8a5cf6',
     eggBias: 0.52,
     participants: 6100,
     intensity: 31,
@@ -58,7 +54,6 @@ export const SEED_ENTITIES: SeedEntity[] = [
     name: 'Harrow United FC',
     description: 'Second-division football club with a loud away end and an ownership group that keeps testing it.',
     category: 'Sports',
-    accent: '#f0a020',
     eggBias: 0.47,
     participants: 4800,
     intensity: 34,
@@ -68,7 +63,6 @@ export const SEED_ENTITIES: SeedEntity[] = [
     name: 'Riverline Collective',
     description: 'Student-run environmental group that keeps showing up on Saturday mornings with waders and bin bags.',
     category: 'Community',
-    accent: '#3fbf8f',
     eggBias: 0.08,
     participants: 3400,
     intensity: 22,
@@ -78,7 +72,6 @@ export const SEED_ENTITIES: SeedEntity[] = [
     name: 'Ottermilk Coffee',
     description: 'Neighbourhood coffee chain. Beloved for the late shift, argued about for everything else.',
     category: 'Business',
-    accent: '#c98a3e',
     eggBias: 0.42,
     participants: 2900,
     intensity: 19,
@@ -88,7 +81,6 @@ export const SEED_ENTITIES: SeedEntity[] = [
     name: 'Pellucid Motors',
     description: 'Electric car maker that ships features over the air, including the ones nobody asked for.',
     category: 'Technology',
-    accent: '#4d8ef0',
     eggBias: 0.61,
     participants: 5600,
     intensity: 28,
@@ -98,7 +90,6 @@ export const SEED_ENTITIES: SeedEntity[] = [
     name: 'The Long Night II',
     description: 'The sequel that spent four years in post-production and arrived with a nine-minute ovation and a cliffhanger.',
     category: 'Entertainment',
-    accent: '#d6486f',
     eggBias: 0.38,
     participants: 7300,
     intensity: 24,
@@ -108,7 +99,6 @@ export const SEED_ENTITIES: SeedEntity[] = [
     name: 'Meridian Public Library',
     description: 'City library system running on a budget that has not moved since 2016.',
     category: 'Culture',
-    accent: '#6fb3c9',
     eggBias: 0.24,
     participants: 2100,
     intensity: 17,
@@ -123,7 +113,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'Nimbus Fare confirmed the fee applies to all fares booked through the app, including tickets where the traveller declines to choose a seat. The company described it as “a service charge covering seat allocation infrastructure”. Screenshots of the charge appearing at the final checkout step spread within hours.',
     category: 'Controversy',
-    accent: '#e0483c',
     sourceLabel: 'Company statement',
     entitySlugs: ['nimbus-fare'],
     hoursAgo: 9,
@@ -138,7 +127,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'The reversal came with an unusually direct note from the company: the fee is gone, refunds are automatic, and no reinstatement is planned. Whether the crowd counts this as a win or as damage control is exactly what the counters are for.',
     category: 'Business',
-    accent: '#f0a020',
     sourceLabel: 'Company statement',
     entitySlugs: ['nimbus-fare'],
     hoursAgo: 3,
@@ -153,7 +141,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'Pre-orders remain open and are fully refundable. The studio published a fourteen-minute breakdown of what the extra year buys, which is either reassuring or infuriating depending on how long you have already waited.',
     category: 'Gaming',
-    accent: '#8a5cf6',
     sourceLabel: 'Developer update',
     entitySlugs: ['vantablack-studios'],
     hoursAgo: 20,
@@ -168,7 +155,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'The policy is public, dated and specific, which is more than most such announcements manage. Staff confirmed the back-pay landed before the announcement went out.',
     category: 'Gaming',
-    accent: '#3fbf8f',
     sourceLabel: 'Studio policy',
     entitySlugs: ['vantablack-studios'],
     hoursAgo: 32,
@@ -183,7 +169,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'The club pointed to promotion costs and squad investment. The supporters trust pointed to the removed concession band, which covered roughly four thousand seats last season.',
     category: 'Sports',
-    accent: '#e0483c',
     sourceLabel: 'Club announcement',
     entitySlugs: ['harrow-united'],
     hoursAgo: 46,
@@ -198,7 +183,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'A result that will be described in that away end for a decade. The club opened the training ground gates the next morning and roughly two thousand people turned up.',
     category: 'Sports',
-    accent: '#f0a020',
     sourceLabel: 'Match report',
     entitySlugs: ['harrow-united'],
     hoursAgo: 14,
@@ -213,7 +197,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'The group published a full weight breakdown and the disposal receipts, which is not something volunteer clean-ups usually bother to do. The council has since agreed to fund the skips.',
     category: 'Good News',
-    accent: '#3fbf8f',
     sourceLabel: 'Volunteer report',
     entitySlugs: ['riverline-collective'],
     hoursAgo: 27,
@@ -228,7 +211,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'The syllabus is unglamorous and useful: maths, written English, and how to read a tenancy agreement. Sixty people came the first week.',
     category: 'Good News',
-    accent: '#3fbf8f',
     sourceLabel: 'Community notice',
     entitySlugs: ['riverline-collective'],
     hoursAgo: 61,
@@ -243,7 +225,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'Staff volunteered the shift and the company paid triple time without being asked to. The shop reopened at six the next morning as usual.',
     category: 'Good News',
-    accent: '#c98a3e',
     sourceLabel: 'Local reporting',
     entitySlugs: ['ottermilk-coffee'],
     hoursAgo: 8,
@@ -258,7 +239,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'The conversion removes the counter entirely in the affected locations. The company has not said how many of the 340 roles have an available equivalent nearby.',
     category: 'Business',
-    accent: '#e0483c',
     sourceLabel: 'Company statement',
     entitySlugs: ['ottermilk-coffee'],
     hoursAgo: 38,
@@ -273,7 +253,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'The company later described the change as “battery longevity protection”. Owners have asked for an opt-out; there is not one yet.',
     category: 'Technology',
-    accent: '#e0483c',
     sourceLabel: 'Owner reports',
     entitySlugs: ['pellucid-motors'],
     hoursAgo: 6,
@@ -288,7 +267,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'Three competitors confirmed they will adopt the connector. It is the kind of move that makes the next fee announcement harder to swallow, and the crowd is currently holding both thoughts at once.',
     category: 'Technology',
-    accent: '#4d8ef0',
     sourceLabel: 'Company statement',
     entitySlugs: ['pellucid-motors'],
     hoursAgo: 52,
@@ -303,7 +281,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'Early reactions are unusually consistent for a sequel this delayed. Whether that survives contact with a wider audience is the interesting part.',
     category: 'Entertainment',
-    accent: '#d6486f',
     sourceLabel: 'Premiere coverage',
     entitySlugs: ['the-long-night-ii'],
     hoursAgo: 18,
@@ -318,7 +295,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'Audiences are split between admiring the nerve and resenting the bill. The counters currently reflect exactly that.',
     category: 'Entertainment',
-    accent: '#8a5cf6',
     sourceLabel: 'Studio statement',
     entitySlugs: ['the-long-night-ii'],
     hoursAgo: 12,
@@ -333,7 +309,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'The library service says the cut protects weekday opening. Three of the eleven branches sit in areas where the library is the only free indoor study space.',
     category: 'Culture',
-    accent: '#e0483c',
     sourceLabel: 'Service notice',
     entitySlugs: ['meridian-public-library'],
     hoursAgo: 41,
@@ -348,7 +323,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'Funded by reallocating an events budget. Roughly nine hundred people used it in the first four nights.',
     category: 'Culture',
-    accent: '#6fb3c9',
     sourceLabel: 'Service notice',
     entitySlugs: ['meridian-public-library'],
     hoursAgo: 23,
@@ -363,7 +337,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'A partnership between two brands whose customers overlap mostly in the sense that both are tired. Reception is genuinely split.',
     category: 'Business',
-    accent: '#c98a3e',
     sourceLabel: 'Joint announcement',
     entitySlugs: ['nimbus-fare', 'ottermilk-coffee'],
     hoursAgo: 30,
@@ -378,7 +351,6 @@ export const SEED_FLASH_NEWS: SeedFlashNews[] = [
     body:
       'The rule covers travel, events and venues inside the city boundary, and applies to app-based sellers. Not attached to any one company — which is the point.',
     category: 'Controversy',
-    accent: '#3fbf8f',
     sourceLabel: 'Council decision',
     entitySlugs: [],
     hoursAgo: 5,

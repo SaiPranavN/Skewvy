@@ -14,8 +14,8 @@ export default function NewEntityPage() {
   return (
     <div className="max-w-3xl space-y-5">
       <div>
-        <h2 className="text-lg font-bold text-chalk">New Entity</h2>
-        <p className="mt-1 text-sm text-haze">
+        <h2 className="text-lg font-semibold text-primary">New Entity</h2>
+        <p className="mt-1 text-sm text-secondary">
           A persistent subject that accumulates public sentiment over time — a company, club, studio, product or public
           body.
         </p>
@@ -28,7 +28,6 @@ export default function NewEntityPage() {
           description: '',
           category: CATEGORIES[0],
           imageUrl: null,
-          accent: '#e0483c',
           status: 'draft',
         }}
         action={action}

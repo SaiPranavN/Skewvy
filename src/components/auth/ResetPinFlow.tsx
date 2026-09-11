@@ -2,10 +2,13 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Turnstile } from './Turnstile';
 import { TextField, PinField, FormError, FormNotice, SubmitButton } from './fields';
 import { PIN_MIN_LENGTH } from '@/lib/validation/schemas';
+
+/** Mirrors the server constant; sent when the widget cannot load. */
+const TURNSTILE_FALLBACK_TOKEN = 'skewvy-widget-unavailable';
 
 interface ApiFailure {
   error?: string;
@@ -13,54 +16,48 @@ interface ApiFailure {
   fields?: Record<string, string>;
 }
 
-/**
- * Two modes in one page: requesting a reset link, and — when arriving from that
- * link — choosing the new PIN. Neither branch reveals whether an address has an
- * account.
- */
-export function ResetPinFlow({
-  siteKey,
-  turnstileDisabled,
-  token,
-}: {
+interface RobotCheckConfig {
   siteKey: string;
   turnstileDisabled?: boolean;
-  token: string | null;
-}) {
-  return token ? (
-    <ChooseNewPin siteKey={siteKey} turnstileDisabled={turnstileDisabled} token={token} />
-  ) : (
-    <RequestResetLink siteKey={siteKey} turnstileDisabled={turnstileDisabled} />
-  );
+  turnstileRequired?: boolean;
 }
 
-/** Development-only bypass placeholder; the server rejects it in production. */
+/**
+ * Two modes in one page: requesting the reset link, and — when arriving from
+ * that link — choosing the new PIN. Neither branch reveals whether an address
+ * has an account.
+ */
+export function ResetPinFlow({ token, ...config }: RobotCheckConfig & { token: string | null }) {
+  return token ? <ChooseNewPin token={token} {...config} /> : <RequestResetLink {...config} />;
+}
+
 function RobotCheck({
   siteKey,
-  disabled,
+  turnstileDisabled,
+  turnstileRequired,
   action,
   onToken,
-}: {
-  siteKey: string;
-  disabled?: boolean;
-  action: string;
-  onToken: (token: string | null) => void;
-}) {
+}: RobotCheckConfig & { action: string; onToken: (token: string | null) => void }) {
   useEffect(() => {
-    if (disabled) onToken('development-bypass');
-  }, [disabled, onToken]);
+    if (turnstileDisabled) onToken('development-bypass');
+  }, [turnstileDisabled, onToken]);
 
-  if (disabled) {
+  const handleUnavailable = useCallback(() => {
+    if (!turnstileRequired) onToken(TURNSTILE_FALLBACK_TOKEN);
+  }, [onToken, turnstileRequired]);
+
+  if (turnstileDisabled) {
     return (
-      <p className="rounded-xl border border-white/12 bg-white/5 px-3 py-2.5 text-xs text-haze-dim">
+      <p className="rounded-[var(--radius-control)] border border-[var(--border-subtle)] bg-elevated px-3.5 py-2.5 text-xs text-tertiary">
         Robot check bypassed for local development.
       </p>
     );
   }
-  return <Turnstile siteKey={siteKey} action={action} onToken={onToken} />;
+
+  return <Turnstile siteKey={siteKey} action={action} onToken={onToken} onUnavailable={handleUnavailable} />;
 }
 
-function RequestResetLink({ siteKey, turnstileDisabled }: { siteKey: string; turnstileDisabled?: boolean }) {
+function RequestResetLink(config: RobotCheckConfig) {
   const [email, setEmail] = useState('');
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -101,19 +98,16 @@ function RequestResetLink({ siteKey, turnstileDisabled }: { siteKey: string; tur
   if (sent) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-white/12 bg-white/5 p-5">
-          <p className="text-2xl" aria-hidden="true">
-            📮
-          </p>
-          <h2 className="mt-2 text-lg font-semibold text-chalk">Check your email</h2>
-          <p className="mt-2 text-sm leading-relaxed text-haze">
-            If that address has a verified Skewvy account, a one-click reset link is on its way. It expires in 30
-            minutes and works once.
+        <div>
+          <h2 className="text-base font-medium text-primary">Check your email</h2>
+          <p className="mt-2 text-sm leading-relaxed text-secondary">
+            If that address has a verified account, a one-click reset link is on its way. It works once and expires in
+            30 minutes.
           </p>
         </div>
         <Link
           href="/login"
-          className="block rounded-xl border border-white/14 px-4 py-3 text-center text-sm font-medium text-chalk-dim transition-colors hover:border-white/30"
+          className="flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] border border-[var(--border-default)] px-4 py-2.5 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)]"
         >
           Back to sign in
         </Link>
@@ -136,13 +130,13 @@ function RequestResetLink({ siteKey, turnstileDisabled }: { siteKey: string; tur
         placeholder="you@example.com"
       />
 
-      <RobotCheck siteKey={siteKey} disabled={turnstileDisabled} action="pin-reset" onToken={setTurnstileToken} />
+      <RobotCheck {...config} action="pin-reset" onToken={setTurnstileToken} />
 
-      <SubmitButton pending={pending}>Send the reset link</SubmitButton>
+      <SubmitButton pending={pending}>Send reset link</SubmitButton>
 
-      <p className="text-center text-sm text-haze">
+      <p className="text-sm text-tertiary">
         Remembered it?{' '}
-        <Link href="/login" className="font-medium text-chalk-dim hover:text-chalk">
+        <Link href="/login" className="text-secondary transition-colors duration-150 hover:text-primary">
           Sign in
         </Link>
       </p>
@@ -150,15 +144,7 @@ function RequestResetLink({ siteKey, turnstileDisabled }: { siteKey: string; tur
   );
 }
 
-function ChooseNewPin({
-  siteKey,
-  turnstileDisabled,
-  token,
-}: {
-  siteKey: string;
-  turnstileDisabled?: boolean;
-  token: string;
-}) {
+function ChooseNewPin({ token, ...config }: RobotCheckConfig & { token: string }) {
   const router = useRouter();
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -209,9 +195,9 @@ function ChooseNewPin({
         <FormNotice message="New PIN saved. Every other session has been signed out." />
         <Link
           href="/"
-          className="block rounded-xl bg-brand px-4 py-3.5 text-center text-base font-semibold text-white transition-colors hover:bg-brand-bright"
+          className="flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
         >
-          Back to the heat
+          Continue
         </Link>
       </div>
     );
@@ -242,18 +228,9 @@ function ChooseNewPin({
         onChange={(event) => setConfirmPin(event.target.value)}
       />
 
-      <RobotCheck
-        siteKey={siteKey}
-        disabled={turnstileDisabled}
-        action="reset-pin-confirm"
-        onToken={setTurnstileToken}
-      />
+      <RobotCheck {...config} action="reset-pin-confirm" onToken={setTurnstileToken} />
 
       <SubmitButton pending={pending}>Save new PIN</SubmitButton>
-
-      <p className="text-xs leading-relaxed text-haze-dim">
-        Saving a new PIN signs you out everywhere else, including any device you may have lost.
-      </p>
     </form>
   );
 }

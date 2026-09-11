@@ -136,12 +136,20 @@ class ReactionStore {
 
   /**
    * Records one tap. The counter moves immediately; the network catches up.
-   * Returns false when the tap was held back pending sign-in.
+   * Returns false when nothing was recorded because sign-in is required.
    */
   react(artifactType: ArtifactType, artifactId: string, reactionType: ReactionType, quantity = 1): boolean {
     const key = artifactKey(artifactType, artifactId);
     const current = this.state[key];
     if (!current) return false;
+
+    // A signed-out tap changes nothing. The public counter only ever moves for
+    // a reaction that will actually be recorded, so the number on screen is
+    // never something the person cannot back up with an account.
+    if (!this.authenticated) {
+      this.onAuthRequired?.();
+      return false;
+    }
 
     const isEgg = reactionType === 'rotten_egg';
     const stance = isEgg ? 'negative' : 'positive';
@@ -187,26 +195,19 @@ class ReactionStore {
     if (buffered) buffered.quantity += quantity;
     else this.buffer.set(bufferKey, { artifactType, artifactId, reactionType, quantity });
 
-    if (!this.authenticated) {
-      // Anonymous taps stay buffered locally and are applied after sign-in.
-      this.onAuthRequired?.();
-      return false;
-    }
-
     this.scheduleFlush();
     return true;
   }
 
-  /** Anonymous taps waiting for a successful sign-in. */
-  pendingAnonymousReactions(): PendingReaction[] {
+  /**
+   * Taps that were accepted but not yet acknowledged by the server. A session
+   * that expires mid-burst pushes them back here rather than dropping them.
+   */
+  pendingReactions(): PendingReaction[] {
     return [...this.buffer.values()].map((item) => ({ ...item }));
   }
 
-  hasPendingAnonymousReactions(): boolean {
-    return !this.authenticated && this.buffer.size > 0;
-  }
-
-  /** Called once sign-in completes: the held taps are sent as real batches. */
+  /** Sends anything the buffer still holds once a session exists again. */
   flushAfterAuthentication(): void {
     this.authenticated = true;
     if (this.buffer.size === 0) return;

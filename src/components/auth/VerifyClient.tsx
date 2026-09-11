@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { reactionStore } from '@/lib/client/reaction-store';
+import { FormNotice } from './fields';
 
 type State =
   | { phase: 'checking' }
@@ -45,11 +46,10 @@ export function VerifyClient({ token, redirectTo }: { token: string | null; redi
           return;
         }
 
-        // Any taps held before signing up are applied now.
         reactionStore.flushAfterAuthentication();
         setState({
           phase: 'success',
-          displayName: data.user?.displayName ?? 'friend',
+          displayName: data.user?.displayName ?? 'there',
           redirectTo: data.redirectTo || redirectTo || '/',
         });
         router.refresh();
@@ -62,9 +62,8 @@ export function VerifyClient({ token, redirectTo }: { token: string | null; redi
   if (state.phase === 'checking') {
     return (
       <div className="space-y-3" aria-busy="true" aria-live="polite">
-        <div className="skeleton h-6 w-40 rounded-full" />
-        <div className="skeleton h-24 rounded-2xl" />
-        <p className="text-sm text-haze">Checking your link…</p>
+        <div className="skeleton h-4 w-32" />
+        <div className="skeleton h-11 w-full" />
       </div>
     );
   }
@@ -72,24 +71,21 @@ export function VerifyClient({ token, redirectTo }: { token: string | null; redi
   if (state.phase === 'error') {
     return (
       <div className="space-y-4">
-        <div role="alert" className="rounded-2xl border border-brand/35 bg-brand/12 p-5">
-          <p className="text-2xl" aria-hidden="true">
-            ⏳
-          </p>
-          <h2 className="mt-2 text-lg font-semibold text-chalk">That link is no longer usable</h2>
-          <p className="mt-2 text-sm leading-relaxed text-chalk-dim">{state.message}</p>
+        <div role="alert">
+          <h2 className="text-base font-medium text-primary">That link is no longer usable</h2>
+          <p className="mt-2 text-sm leading-relaxed text-secondary">{state.message}</p>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2">
           <Link
             href="/login"
-            className="rounded-xl bg-brand px-4 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-bright"
+            className="flex min-h-11 items-center justify-center rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
           >
-            Sign in with your PIN
+            Sign in
           </Link>
           <Link
             href="/auth/reset-pin"
-            className="rounded-xl border border-white/14 px-4 py-3 text-center text-sm font-medium text-chalk-dim transition-colors hover:border-white/30"
+            className="flex min-h-11 items-center justify-center rounded-[var(--radius-control)] border border-[var(--border-default)] px-4 py-2.5 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)]"
           >
             Reset my PIN
           </Link>
@@ -100,21 +96,15 @@ export function VerifyClient({ token, redirectTo }: { token: string | null; redi
 
   return (
     <div className="space-y-4" aria-live="polite">
-      <div className="rounded-2xl border border-good/30 bg-good/10 p-5">
-        <p className="text-2xl" aria-hidden="true">
-          🏅
-        </p>
-        <h2 className="mt-2 text-lg font-semibold text-chalk">You are in, {state.displayName}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-chalk-dim">
-          Email confirmed. From now on you sign in with your email address and PIN — no inbox required.
-        </p>
-      </div>
-
+      <FormNotice message={`Email confirmed. Welcome, ${state.displayName}.`} />
+      <p className="text-sm leading-relaxed text-secondary">
+        From now on you sign in with your email address and PIN — no inbox required.
+      </p>
       <Link
         href={state.redirectTo}
-        className="block rounded-xl bg-brand px-4 py-3.5 text-center text-base font-semibold text-white transition-colors hover:bg-brand-bright"
+        className="flex min-h-11 w-full items-center justify-center rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
       >
-        Enter the heat
+        Continue
       </Link>
     </div>
   );

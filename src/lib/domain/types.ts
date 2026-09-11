@@ -80,7 +80,6 @@ export interface ArtifactCard {
   subtitle: string;
   category: string;
   imageUrl: string | null;
-  accent: string;
   publishedAt: string | null;
   totals: ArtifactTotals;
   contribution?: UserContribution | null;

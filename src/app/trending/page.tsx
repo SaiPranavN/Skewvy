@@ -1,59 +1,86 @@
 import type { Metadata } from 'next';
+import { RankedRow } from '@/components/cards/RankedRow';
 import { CardGrid } from '@/components/cards/CardGrid';
+import { FilterTabs } from '@/components/cards/FilterTabs';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { HydrateArtifacts } from '@/components/reactions/HydrateArtifacts';
 import { getCurrentUser } from '@/lib/auth/current-user';
-import { trendingSections } from '@/lib/services/trending';
+import { rankedIndex, trendingTab, newlyAdded, TRENDING_TABS } from '@/lib/services/trending';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Trending',
-  description: 'Ranked by recent reaction velocity, not lifetime totals.',
+  description: 'Ranked by reactions received in the last 24 hours, not by lifetime totals.',
 };
 
-export default async function TrendingPage() {
+export default async function TrendingPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const { tab } = await searchParams;
   const user = await getCurrentUser();
-  const sections = await trendingSections({ viewerId: user?.id ?? null });
-  const allCards = sections.flatMap((section) => section.cards);
+  const viewerId = user?.id ?? null;
+
+  const active = trendingTab(tab);
+  const [ranked, fresh] = await Promise.all([
+    rankedIndex(active.id, { viewerId, limit: 12 }),
+    newlyAdded({ viewerId, limit: 3 }),
+  ]);
+
+  const metric = active.id === 'rotten_egg' ? 'rotten_egg' : active.id === 'medal' ? 'medal' : 'activity';
+  const windowLabel = active.id === 'shifting' ? 'pt swing' : 'today';
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-4 py-10 sm:px-6 sm:py-14 lg:px-10">
-      <HydrateArtifacts cards={allCards} />
+    <div className="page-enter mx-auto w-full max-w-[1320px] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+      <HydrateArtifacts cards={[...ranked.map((item) => item.card), ...fresh]} />
 
-      <header className="mb-10 max-w-3xl">
-        <p className="label-caps mb-3 text-brand-bright">Trending</p>
-        <h1 className="text-balance text-4xl font-black leading-[1.02] tracking-[-0.03em] text-chalk sm:text-5xl">
-          The heat index
-        </h1>
-        <p className="mt-4 text-base leading-relaxed text-haze">
-          Ranked by how fast reactions are arriving right now, not by who has been collecting them the longest. Each
-          section says exactly what it is counting.
-        </p>
-      </header>
-
-      {sections.length === 0 ? (
-        <EmptyState
-          title="The counters are quiet"
-          description="No reactions have landed in the last 24 hours. Start something."
-          action={{ href: '/flash-news', label: 'Browse Flash News' }}
+      <PageHeader
+        title="Trending"
+        description="Ranked by how fast reactions are arriving, not by who has been collecting them the longest."
+      >
+        <FilterTabs
+          label="Ranking method"
+          param="tab"
+          active={active.id === 'activity' ? null : active.id}
+          options={[
+            { label: TRENDING_TABS[0].label, value: null },
+            ...TRENDING_TABS.slice(1).map((item) => ({ label: item.label, value: item.id })),
+          ]}
         />
-      ) : (
-        <div className="space-y-16">
-          {sections.map((section) => (
-            <section key={section.id} aria-labelledby={section.id}>
-              <SectionHeader
-                title={section.title}
-                description={section.description}
-                metricLabel={section.metricLabel}
+      </PageHeader>
+
+      <section aria-labelledby="ranked-heading">
+        <SectionHeader title={active.title} metricLabel={active.metricLabel} className="mb-3" />
+
+        {ranked.length === 0 ? (
+          <EmptyState
+            title="No reactions in the last 24 hours"
+            description="Nothing has been ranked for this window yet."
+            action={{ href: '/flash-news', label: 'Browse Flash News' }}
+          />
+        ) : (
+          <ul id="ranked-heading" className="border-t border-[var(--border-subtle)]">
+            {ranked.map((item, index) => (
+              <RankedRow
+                key={`${item.card.type}:${item.card.id}`}
+                item={item}
+                rank={index + 1}
+                metric={metric}
+                windowLabel={windowLabel}
               />
-              <div id={section.id}>
-                <CardGrid cards={section.cards} />
-              </div>
-            </section>
-          ))}
-        </div>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {fresh.length > 0 && (
+        <section className="mt-14">
+          <SectionHeader
+            title="Recently added"
+            description="Newly published Flash News. Not ranked — the counters are still filling."
+          />
+          <CardGrid cards={fresh} />
+        </section>
       )}
     </div>
   );

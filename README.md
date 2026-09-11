@@ -3,8 +3,7 @@
 **A global sentiment playground.** People find an **Entity** or a piece of **Flash News**, then tap
 🥚 **Rotten Eggs** or 🏅 **Medals** as many times as they feel like it. The counters are the product.
 
-> News tells you what happened. Skewvy shows who got cooked, who earned the medals, and how hard the
-> crowd felt it.
+> Every tap adds to the reaction total. Every person counts once in the public opinion.
 
 ---
 
@@ -48,13 +47,14 @@ npm run admin -- you@example.com
 | Concern | Choice |
 |---|---|
 | Framework | Next.js 15 (App Router), React 19, TypeScript |
-| Styling | Tailwind CSS v4, CSS custom properties |
+| Styling | Tailwind CSS v4, design tokens as CSS custom properties |
+| Typeface | Geist, self-hosted — one family throughout |
 | Database | One adapter, two drivers — `node:sqlite` locally, PostgreSQL (`pg`) in production |
 | PIN hashing | Argon2id (`@node-rs/argon2`), scrypt fallback |
 | Bot check | Cloudflare Turnstile, verified server-side |
 | Realtime | Server-sent events + an in-process bus (PostgreSQL `LISTEN/NOTIFY` across instances) |
 | Validation | Zod schemas shared by the forms and the route handlers |
-| Particles | Pooled DOM nodes, CSS keyframes — no canvas, no animation library |
+| Motion | One shared token set; pooled DOM particles, CSS keyframes — no animation library |
 | Share card | SVG composed in the browser and rasterised through a canvas — no dependency |
 | Tests | Vitest against a real temporary SQLite database |
 
@@ -73,7 +73,7 @@ Copy `.env.example` to `.env.local`. Everything is optional locally.
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Base for emailed links — **must be set in production** |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare test key | Public site key |
 | `TURNSTILE_SECRET_KEY` | Cloudflare test key | **Set both in production** |
-| `TURNSTILE_DISABLED` | unset | `1` bypasses the check. Ignored when `NODE_ENV=production` |
+| `TURNSTILE_DISABLED` | unset | `1` bypasses the check entirely. Ignored when `NODE_ENV=production` |
 | `RESEND_API_KEY` | unset | Without it, mail is written to `.mail/` and logged |
 | `EMAIL_FROM` | `Skewvy <onboarding@resend.dev>` | Sender identity |
 | `IP_HASH_PEPPER` | dev value | **Set a long random value in production** |
@@ -133,6 +133,12 @@ Also implemented: HTTP-only `SameSite=Lax` cookies, token rotation after login, 
 expiry, progressive lockout (60s → 5min → 30min), per-address and per-IP rate limits, resend
 cooldowns, PIN reset that revokes every session, and invalid/expired states for every emailed link.
 
+**The robot check.** Turnstile is verified server-side on every entry point. Until a real site key
+*and* secret are both configured, the app runs on Cloudflare's public test keys, where every token
+passes and the check carries no security value — so a browser that cannot load the widget (blocked
+iframe, privacy extension, corporate proxy) falls back and can still reach the form. The moment real
+keys are set, that fallback is rejected and a failed check blocks the request.
+
 **Security properties.** Raw PINs are never stored, logged or returned. Session and email tokens are
 stored as SHA-256 digests, never in plaintext. IP addresses are stored only as a peppered digest.
 No response from registration, login or PIN reset reveals whether an address has an account.
@@ -163,8 +169,11 @@ deltas are written.
 
 On the client: the counter moves in the same frame as the tap, failed batches retry with the same id
 and a quiet retry state, and unacknowledged taps are added on top of server totals so a number never
-appears to go backwards. Anonymous taps are held locally, the sign-in sheet opens, and the held
-contribution lands after authentication.
+appears to go backwards.
+
+**A signed-out tap records nothing.** It does not move the public counter, the opinion counts or the
+participant total — it opens the sign-in sheet instead. The number on screen only ever reflects
+reactions that will actually be saved.
 
 ---
 
@@ -207,15 +216,41 @@ Seeded counters are not written straight into `artifact_totals`: the seeder crea
 participants with real aggregate and opinion rows and derives the totals from them, so the sample
 data obeys exactly the same invariants the live path does.
 
-Cover art is generated locally into `public/covers` (`npm run covers`) — no hot-linked photography,
-so the app works offline and the licensing is unambiguous. Admins can replace any of it.
+The sample content ships without images. Rather than manufacture artwork for events that never
+happened, a card with no image falls back to a neutral charcoal block carrying the Entity's initials
+or the category. Real images can be uploaded or linked per item from the admin area.
+
+---
+
+## Design
+
+**Dark editorial signal.** A near-black neutral ground (`#08090b`), surfaces separated by a single
+low-contrast border and a small change in tone, and no shadow anywhere except genuinely temporary
+overlays — dialogs and the sign-in sheet.
+
+Colour is rationed. Skewvy red appears in the wordmark's waveform, the active navigation rule and
+small attention indicators. Muted terracotta means Rotten Eggs, antique gold means Medals. Nothing
+else is tinted: no section accents, no sentiment-tinted pages, no decorative gradients.
+
+Hierarchy comes from typography, spacing and the scale of the numbers. Reaction totals are the
+largest numeric element on any surface; public opinion sits at body scale beneath them so the two
+measurements never compete.
+
+The brand is the full **Skewvy** wordmark — white letters with the "w" drawn as a red waveform. There
+is no icon, monogram or badge form, and the mark is never placed inside a container.
+
+Motion is one shared token set: 150ms for micro-interactions, 180ms for controls, 220ms for surfaces,
+240ms for page entrances, and 1.5–2.2s for reaction particles. Page entrances move 6px and fade.
+Pressing a reaction control compresses it to `scale(0.985)` and brightens its number. Counters emphasise
+briefly and settle within 300ms. `prefers-reduced-motion` replaces particle travel and page movement
+with short opacity changes.
 
 ---
 
 ## Accessibility
 
-Reaction zones are real buttons: keyboard operable, with visible focus rings and screen-reader labels
-carrying the action, the current total and your own contribution. Live-region announcements are
+Reaction controls are real buttons: keyboard operable, with visible focus rings and screen-reader
+labels carrying the action, the current total and your own contribution. Live-region announcements are
 throttled to at most one every 1.5 s so a burst of taps cannot flood a screen reader. Rotten Eggs and
 Medals are distinguished by emoji, label and shape — never by colour alone. `prefers-reduced-motion`
 replaces the floating particles with a brief fade-and-scale at the control and stops the ambient
@@ -226,7 +261,7 @@ drift. Tap targets are at least 44 px, and nothing depends on hover.
 ## Testing
 
 ```bash
-npm test          # 91 tests
+npm test          # 104 tests
 npm run typecheck
 ```
 
@@ -238,6 +273,8 @@ npm run typecheck
 | `tests/content.test.ts` | Publishing, relationships, cards, search, trending |
 | `tests/api.test.ts` | Route handlers end to end, including cookies and rate limits |
 | `tests/domain.test.ts` | Number presentation, sentiment labels, SQL placeholder translation |
+| `tests/turnstile.test.ts` | Robot-check configuration, fallback acceptance, production hardening |
+| `tests/reaction-store.test.ts` | Signed-out taps recording nothing, optimistic updates, tap batching |
 | `tests/e2e-journey.test.ts` | Register → verify → session expiry → PIN login → react → retry → switch sides → totals |
 
 Each file gets its own temporary SQLite database and runs against the real schema. Only Cloudflare is

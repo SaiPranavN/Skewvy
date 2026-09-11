@@ -1,17 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ReactionZone } from '@/components/reactions/ReactionZone';
+import { ReactionControl } from '@/components/reactions/ReactionControl';
 import type { ArtifactCard } from '@/lib/domain/types';
 
 /**
- * Mobile-only reaction tray. It slides in once the main reaction zones have
- * scrolled off the top, so the counters and the controls stay within thumb
- * reach for the whole page.
+ * Mobile reaction tray. It slides in once the main controls have scrolled off
+ * the top, keeping both totals within thumb reach without covering the content
+ * behind it.
  *
  * Position is read directly on scroll rather than inferred from an
- * IntersectionObserver entry: a long jump (an anchor link, a restored scroll
- * position) can skip the observer's thresholds entirely.
+ * IntersectionObserver entry: a long jump — an anchor link, a restored scroll
+ * position — can skip the observer's thresholds entirely.
  */
 export function StickyReactionTray({ card, watchTargetId }: { card: ArtifactCard; watchTargetId: string }) {
   const [visible, setVisible] = useState(false);
@@ -23,7 +23,6 @@ export function StickyReactionTray({ card, watchTargetId }: { card: ArtifactCard
       frame = null;
       const target = document.getElementById(watchTargetId);
       if (!target) return;
-      // Show once the zones have passed above the top of the viewport.
       setVisible(target.getBoundingClientRect().bottom < 0);
     };
 
@@ -46,28 +45,28 @@ export function StickyReactionTray({ card, watchTargetId }: { card: ArtifactCard
   return (
     <div
       aria-hidden={!visible}
-      className={`fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-ink-900/92 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl transition-transform duration-300 lg:hidden ${
+      className={`fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border-default)] bg-ground px-3 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-2.5 transition-transform duration-[var(--duration-surface)] ease-[var(--ease-standard)] lg:hidden ${
         visible ? 'translate-y-0' : 'pointer-events-none translate-y-full'
       }`}
     >
-      <div className="grid grid-cols-2 gap-2.5">
-        <ReactionZone
+      <div className="grid grid-cols-2 gap-2">
+        <ReactionControl
           artifactType={card.type}
           artifactId={card.id}
           artifactTitle={card.title}
           reactionType="rotten_egg"
           totals={card.totals}
           contribution={card.contribution}
-          size="compact"
+          size="sm"
         />
-        <ReactionZone
+        <ReactionControl
           artifactType={card.type}
           artifactId={card.id}
           artifactTitle={card.title}
           reactionType="medal"
           totals={card.totals}
           contribution={card.contribution}
-          size="compact"
+          size="sm"
         />
       </div>
     </div>

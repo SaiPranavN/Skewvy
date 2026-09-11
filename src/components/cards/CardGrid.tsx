@@ -11,9 +11,7 @@ export function CardGrid({
   priorityCount?: number;
 }) {
   return (
-    <div
-      className={`grid gap-5 sm:grid-cols-2 ${columns === 3 ? 'lg:grid-cols-3' : ''}`}
-    >
+    <div className={`grid gap-4 sm:grid-cols-2 ${columns === 3 ? 'lg:grid-cols-3' : ''}`}>
       {cards.map((card, index) => (
         <ArtifactCard key={`${card.type}:${card.id}`} card={card} priority={index < priorityCount} />
       ))}

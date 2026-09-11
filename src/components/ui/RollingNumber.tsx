@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from 'react';
 import { formatCount } from '@/lib/domain/format';
 
 /**
- * A large total that animates gently when it changes.
+ * A reaction total.
  *
- * Own taps get an immediate bump; remote crowd movement rolls in more softly so
- * the two are distinguishable. Announcements are throttled so a rapid burst does
- * not flood a screen reader — see `ReactionZone` for the live region itself.
+ * Own taps land immediately — the number is the feedback, so it must never lag
+ * the press. A large remote jump rolls briefly so movement is legible, and any
+ * change gets a short brightness emphasis that settles within 300ms. Nothing
+ * bounces or rescales.
  */
 export function RollingNumber({
   value,
@@ -17,10 +18,11 @@ export function RollingNumber({
 }: {
   value: number;
   className?: string;
+  /** Remote crowd movement: rolls rather than snapping. */
   soft?: boolean;
 }) {
   const [displayed, setDisplayed] = useState(value);
-  const [bumping, setBumping] = useState(false);
+  const [emphasised, setEmphasised] = useState(false);
   const frameRef = useRef<number | null>(null);
   const previousRef = useRef(value);
 
@@ -33,20 +35,21 @@ export function RollingNumber({
     const reduced =
       typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // Small or personal changes snap; large remote jumps roll to show movement.
-    if (reduced || (!soft && difference < 60)) {
+    setEmphasised(true);
+    const settle = setTimeout(() => setEmphasised(false), 300);
+
+    if (reduced || (!soft && difference < 80)) {
       setDisplayed(value);
-      setBumping(true);
-      const timer = setTimeout(() => setBumping(false), 240);
-      return () => clearTimeout(timer);
+      return () => clearTimeout(settle);
     }
 
     const start = performance.now();
     const from = previous;
-    const duration = Math.min(900, 260 + difference * 1.6);
+    const duration = Math.min(600, 200 + difference * 1.1);
 
     const step = (now: number) => {
       const progress = Math.min(1, (now - start) / duration);
+      // Matches --ease-standard closely enough for a numeric roll.
       const eased = 1 - Math.pow(1 - progress, 3);
       setDisplayed(Math.round(from + (value - from) * eased));
       if (progress < 1) frameRef.current = requestAnimationFrame(step);
@@ -54,12 +57,13 @@ export function RollingNumber({
 
     frameRef.current = requestAnimationFrame(step);
     return () => {
+      clearTimeout(settle);
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
     };
   }, [value, soft]);
 
   return (
-    <span className={`tabular inline-block ${bumping ? 'count-bump' : ''} ${className}`}>
+    <span className={`numeric-lg inline-block ${emphasised ? 'total-changed' : ''} ${className}`}>
       {formatCount(displayed)}
     </span>
   );

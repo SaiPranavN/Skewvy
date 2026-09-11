@@ -1,20 +1,19 @@
 import Link from 'next/link';
-import { SkewvyLogo } from './SkewvyLogo';
+import { Wordmark } from './Wordmark';
 
 export function SiteFooter() {
   return (
-    <footer className="mt-24 border-t border-white/8">
-      <div className="mx-auto grid w-full max-w-[1400px] gap-8 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr] lg:px-10">
+    <footer className="mt-20 border-t border-[var(--border-subtle)]">
+      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.6fr_1fr_1fr] lg:px-8">
         <div>
-          <SkewvyLogo />
-          <p className="mt-4 max-w-sm text-sm leading-relaxed text-haze">
-            News tells you what happened. Skewvy shows who got cooked, who earned the medals, and how hard the crowd
-            felt it.
+          <Wordmark size="sm" />
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-secondary">
+            A public sentiment index. Reaction totals measure intensity; public opinion counts each person once.
           </p>
         </div>
 
         <nav aria-label="Explore" className="text-sm">
-          <h2 className="label-caps mb-3 text-haze-dim">Explore</h2>
+          <h2 className="eyebrow mb-3">Explore</h2>
           <ul className="space-y-2">
             {[
               ['/flash-news', 'Flash News'],
@@ -23,7 +22,7 @@ export function SiteFooter() {
               ['/search', 'Search'],
             ].map(([href, label]) => (
               <li key={href}>
-                <Link href={href} className="text-haze transition-colors hover:text-chalk">
+                <Link href={href} className="text-secondary transition-colors duration-150 hover:text-primary">
                   {label}
                 </Link>
               </li>
@@ -32,17 +31,17 @@ export function SiteFooter() {
         </nav>
 
         <div className="text-sm">
-          <h2 className="label-caps mb-3 text-haze-dim">The rules</h2>
-          <ul className="space-y-2 text-haze">
-            <li>Heat is for decisions, not people.</li>
-            <li>Reactions measure intensity. Opinions count people.</li>
+          <h2 className="eyebrow mb-3">About the data</h2>
+          <ul className="space-y-2 text-secondary">
+            <li>Reactions count taps. Opinions count people.</li>
+            <li>Sentiment applies to decisions and events, not private individuals.</li>
             <li>All sample content is fictional.</li>
           </ul>
         </div>
       </div>
 
-      <div className="border-t border-white/8 py-6 text-center text-xs text-haze-dim">
-        skewvy.com — a global sentiment playground.
+      <div className="border-t border-[var(--border-subtle)] py-6">
+        <p className="mx-auto w-full max-w-[1320px] px-4 text-xs text-tertiary sm:px-6 lg:px-8">skewvy.com</p>
       </div>
     </footer>
   );

@@ -1,60 +1,73 @@
 import type { ArtifactTotals } from './types';
 
 /**
- * Editorial copy lives here so the tone stays consistent and reviewable in one
- * place. Heat is aimed at events, decisions, products and organisations —
- * never at private individuals or vulnerable groups.
+ * Editorial copy lives here so the tone stays consistent and reviewable.
+ *
+ * The rule: marketing surfaces may be sharp, but anything that labels data is
+ * factual and credible. A sentiment label describes a measurement, never a
+ * verdict on a person.
  */
 
-export const HERO_HEADLINE = 'No press release survives the crowd.';
+export const HERO_HEADLINE = 'Public sentiment, counted.';
 
 export const HERO_SUPPORT =
-  'Send Rotten Eggs when the internet deserves an explanation. Give Medals when someone actually gets it right. Every tap turns public mood into a number nobody can spin.';
+  'React to the stories, decisions and entities shaping the moment. Send Rotten Eggs when something deserves criticism. Award Medals when it deserves recognition.';
 
-/** Rotated across featured content so the same line never repeats on one screen. */
-export const HEAT_LINES = [
-  'Put it on trial. One tap at a time.',
-  'The internet has entered the chat—and brought eggs.',
-  'Applause is cute. Public heat is louder.',
-  'Give flowers to the winners. Feed the rest to the egg counter.',
-  'Every headline gets the crowd it deserves.',
-  'Praise it. Roast it. Make the numbers hurt.',
-  'Where bad decisions meet their breakfast.',
-  'The public mood has receipts.',
-  'Turn the outrage into a scoreboard.',
-  'No takes. Just heat.',
-  'If it deserves smoke, send eggs.',
-  'The crowd is watching. The counter is unforgiving.',
-  'Some stories earn medals. Some get breakfast.',
-  'Bring your applause. Bring your ammunition.',
-] as const;
+/** The distinction the whole product rests on. Stated plainly, everywhere. */
+export const MEASUREMENT_PRINCIPLE =
+  'Every tap adds to the reaction total. Every person counts once in the public opinion.';
 
-export const EGG_LABELS = [
-  'Add to the pile',
-  'Turn up the heat',
-  'Serve the backlash',
-] as const;
+export const MEASUREMENT_NOTE =
+  'Reaction totals measure intensity. Public opinion counts each person once.';
 
-export const MEDAL_LABELS = [
-  'Reward the rare W',
-  'Crown the comeback',
-  'Give credit where it’s due',
-] as const;
+export const EGG_ACTION = 'Send Rotten Eggs';
+export const MEDAL_ACTION = 'Award Medals';
 
-export const ARTIFACT_MICROCOPY = [
-  'Add to the pile.',
-  'Make the counter sweat.',
-  'Reward the rare W.',
-  'Give credit where it’s due.',
-  'The crowd is watching.',
-  'Your tap counts.',
-] as const;
+export type SentimentState =
+  | 'strong-disapproval'
+  | 'under-scrutiny'
+  | 'divided'
+  | 'approval'
+  | 'strong-approval'
+  | 'early';
+
+export interface SentimentLabel {
+  state: SentimentState;
+  label: string;
+  tone: 'egg' | 'medal' | 'neutral';
+}
+
+/**
+ * Describes which way a crowd is leaning, using reaction volume for confidence
+ * and the reaction mix for direction. Deliberately factual: these labels sit on
+ * data, so they report rather than editorialise.
+ */
+export function sentimentLabel(totals: ArtifactTotals): SentimentLabel {
+  const reactions = totals.rottenEggTotal + totals.medalTotal;
+  if (reactions < 200) return { state: 'early', label: 'Early reaction', tone: 'neutral' };
+
+  const eggShare = totals.rottenEggTotal / reactions;
+  if (eggShare >= 0.78) return { state: 'strong-disapproval', label: 'Strong disapproval', tone: 'egg' };
+  if (eggShare >= 0.6) return { state: 'under-scrutiny', label: 'Under scrutiny', tone: 'egg' };
+  if (eggShare <= 0.22) return { state: 'strong-approval', label: 'Strong approval', tone: 'medal' };
+  if (eggShare <= 0.4) return { state: 'approval', label: 'Broadly approved', tone: 'medal' };
+  return { state: 'divided', label: 'Public opinion divided', tone: 'neutral' };
+}
+
+/** Section headings for the ranked surfaces. Descriptive, not promotional. */
+export const SECTION_TITLES = {
+  trending: 'Most active today',
+  scrutiny: 'Entities under scrutiny',
+  recognition: 'Earning recognition',
+  latest: 'Latest Flash News',
+  shifting: 'Sentiment shifting',
+  fresh: 'Recently added',
+} as const;
 
 export const RECEIPT_CAPTIONS = [
-  'The crowd has spoken.',
-  'Currently catching heat.',
-  'Medals awarded by the public.',
-  'The numbers are not subtle.',
+  'Public sentiment, counted.',
+  'Recorded by the public.',
+  'The reaction so far.',
 ] as const;
 
 /** Deterministic pick so server and client renders agree. */
@@ -66,37 +79,9 @@ export function pickFrom<T>(list: readonly T[], seed: string): T {
   return list[hash % list.length];
 }
 
-export type SentimentState = 'heat' | 'flowers' | 'split' | 'quiet' | 'cooked' | 'fresh';
-
-export interface SentimentLabel {
-  state: SentimentState;
-  label: string;
-  tone: 'egg' | 'medal' | 'split' | 'neutral';
+/** Grouped remote activity, reported plainly. */
+export function crowdSignal(reactionType: 'rotten_egg' | 'medal', formattedQuantity: string): string {
+  return reactionType === 'rotten_egg'
+    ? `+${formattedQuantity} Rotten Eggs`
+    : `+${formattedQuantity} Medals`;
 }
-
-/**
- * Describes which way a crowd is leaning. Uses reaction volume for intensity and
- * opinion counts for the split, and never mixes the two into one number.
- */
-export function sentimentLabel(totals: ArtifactTotals): SentimentLabel {
-  const reactions = totals.rottenEggTotal + totals.medalTotal;
-  if (reactions < 200) return { state: 'fresh', label: 'Freshly on trial', tone: 'neutral' };
-
-  const eggShare = totals.rottenEggTotal / reactions;
-  if (eggShare >= 0.78) return { state: 'cooked', label: 'Publicly cooked', tone: 'egg' };
-  if (eggShare >= 0.6) return { state: 'heat', label: 'Catching heat', tone: 'egg' };
-  if (eggShare <= 0.22) return { state: 'flowers', label: 'Getting its flowers', tone: 'medal' };
-  if (eggShare <= 0.4) return { state: 'quiet', label: 'Quietly winning', tone: 'medal' };
-  return { state: 'split', label: 'Crowd split', tone: 'split' };
-}
-
-/** Short leaderboard captions. */
-export function leaderboardTag(rank: number, board: 'heat' | 'medals'): string {
-  if (board === 'heat') return ['Most cooked', 'Taking the L', 'Feeling the heat'][rank] ?? 'On the pile';
-  return ['Crowd favourite', 'Biggest comeback', 'Quietly winning'][rank] ?? 'Earning it';
-}
-
-export const CROWD_PULSE_LINES = {
-  rotten_egg: ['{n} 🥚 just landed', 'The crowd added {n} eggs', '+{n} 🥚 from the crowd'],
-  medal: ['+{n} 🏅 for the rare W', '{n} 🏅 just landed', 'The crowd added {n} medals'],
-} as const;

@@ -19,16 +19,14 @@ const NEXT_ACTIONS: Record<ContentStatus, Array<{ status: ContentStatus; label: 
   ],
 };
 
+/** Publication state as a dot and a word, not a coloured pill. */
 export function StatusBadge({ status }: { status: ContentStatus }) {
-  const tone =
-    status === 'published'
-      ? 'bg-good/14 text-good border-good/25'
-      : status === 'draft'
-        ? 'bg-white/8 text-haze border-white/14'
-        : 'bg-egg/12 text-egg border-egg/22';
+  const dot =
+    status === 'published' ? 'bg-success' : status === 'draft' ? 'bg-tertiary' : 'bg-egg';
 
   return (
-    <span className={`rounded-full border px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.12em] ${tone}`}>
+    <span className="inline-flex items-center gap-1.5 text-xs capitalize text-secondary">
+      <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
       {status}
     </span>
   );
@@ -69,13 +67,13 @@ export function StatusControls({
           type="button"
           onClick={() => apply(action.status)}
           disabled={pending}
-          className="rounded-full border border-white/12 px-3 py-1.5 text-xs font-medium text-haze transition-colors hover:border-white/28 hover:text-chalk disabled:opacity-50"
+          className="rounded-[var(--radius-control)] border border-[var(--border-default)] px-2.5 py-1.5 text-xs text-secondary transition-colors duration-150 hover:border-[var(--border-strong)] hover:text-primary disabled:opacity-50"
         >
           {action.label}
         </button>
       ))}
       {error && (
-        <span role="alert" className="text-xs text-brand-bright">
+        <span role="alert" className="text-xs text-brand">
           {error}
         </span>
       )}

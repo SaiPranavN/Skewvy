@@ -32,8 +32,8 @@ export function ContentTable({
 }) {
   if (rows.length === 0) {
     return (
-      <div className="glass rounded-[var(--radius-card)] px-6 py-12 text-center">
-        <p className="text-sm text-haze">Nothing matches. Try a different search, or create something new.</p>
+      <div className="panel rounded-[var(--radius-card)] px-6 py-12 text-center">
+        <p className="text-sm text-secondary">Nothing matches. Try a different search, or create something new.</p>
       </div>
     );
   }
@@ -41,17 +41,17 @@ export function ContentTable({
   return (
     <ul className="space-y-2">
       {rows.map((row) => (
-        <li key={row.id} className="glass rounded-2xl p-4">
+        <li key={row.id} className="panel rounded-[var(--radius-card)] p-4">
           <div className="flex flex-wrap items-start gap-4">
-            <span className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border border-white/10">
+            <span className="relative h-16 w-24 shrink-0 overflow-hidden rounded-[var(--radius-control)] border border-[var(--border-subtle)]">
               {row.imageUrl && <Image src={row.imageUrl} alt="" fill sizes="96px" className="cover-image" />}
             </span>
 
             <div className="min-w-0 flex-1">
-              <Link href={`${editHrefPrefix}/${row.id}/edit`} className="block text-sm font-semibold text-chalk hover:underline">
+              <Link href={`${editHrefPrefix}/${row.id}/edit`} className="block text-sm font-semibold text-primary hover:underline">
                 {row.title}
               </Link>
-              <p className="mt-1 text-xs text-haze-dim">
+              <p className="mt-1 text-xs text-tertiary">
                 {row.category} · /{row.slug}
                 {row.meta ? ` · ${row.meta}` : ''}
               </p>
@@ -67,21 +67,21 @@ export function ContentTable({
               <p className="mt-1 font-semibold text-medal">
                 {formatCount(row.totals.medalTotal)} <span className="emoji">🏅</span>
               </p>
-              <p className="mt-1.5 text-haze-dim">
+              <p className="mt-1.5 text-tertiary">
                 {formatCount(row.totals.negativeOpinionTotal)} / {formatCount(row.totals.positiveOpinionTotal)} opinions
               </p>
-              <p className="mt-0.5 text-haze-dim">{formatCount(row.totals.uniqueParticipantTotal)} people</p>
+              <p className="mt-0.5 text-tertiary">{formatCount(row.totals.uniqueParticipantTotal)} people</p>
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2 border-t border-white/6 pt-3 text-xs">
-            <Link href={`${editHrefPrefix}/${row.id}/edit`} className="text-chalk-dim hover:text-chalk">
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--border-subtle)] pt-3 text-xs">
+            <Link href={`${editHrefPrefix}/${row.id}/edit`} className="text-secondary hover:text-primary">
               Edit
             </Link>
-            <span className="text-haze-dim">·</span>
+            <span className="text-tertiary">·</span>
             <Link
               href={`${publicHrefPrefix}/${row.slug}`}
-              className="text-chalk-dim hover:text-chalk"
+              className="text-secondary hover:text-primary"
               target="_blank"
               rel="noreferrer"
             >
