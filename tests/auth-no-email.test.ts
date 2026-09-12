@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import { setupTestDatabase, teardownTestDatabase, truncateAll } from './helpers';
-import { registerAccount, loginWithPin, requiresEmailVerification } from '@/lib/services/auth';
+import {
+  registerAccount,
+  loginWithPin,
+  requiresEmailVerification,
+  requestPinReset,
+  resetPinWithoutEmail,
+} from '@/lib/services/auth';
 import { resolveSession } from '@/lib/services/sessions';
 import { outbox } from '@/lib/services/email';
 
@@ -130,5 +136,76 @@ describe('sign-in', () => {
   it('still rejects an unknown address', async () => {
     const result = await loginWithPin({ email: 'nobody@whatever.test', pin: 'letmein2026', ...DEVICE });
     expect(result.status).toBe('invalid_credentials');
+  });
+});
+
+describe('forgotten PIN', () => {
+  it('offers a direct reset rather than an email nobody can receive', async () => {
+    await registerAccount({ displayName: 'Tester', email: 'forgot@whatever.test', pin: 'letmein2026', ...DEVICE });
+    outbox().length = 0;
+
+    const outcome = await requestPinReset('forgot@whatever.test');
+
+    expect(outcome.mode).toBe('set_directly');
+    expect(outbox()).toHaveLength(0);
+  });
+
+  it('sets the new PIN, signs other sessions out, and signs this one in', async () => {
+    const created = await registerAccount({
+      displayName: 'Tester',
+      email: 'recover@whatever.test',
+      pin: 'letmein2026',
+      ...DEVICE,
+    });
+    expect(created.status).toBe('signed_in');
+    if (created.status !== 'signed_in') return;
+
+    const result = await resetPinWithoutEmail('recover@whatever.test', 'brand-new-2026', DEVICE);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // The session that existed before the reset is gone.
+    expect(await resolveSession(created.sessionToken)).toBeNull();
+    // The one handed back works.
+    expect(await resolveSession(result.sessionToken)).not.toBeNull();
+
+    const oldPin = await loginWithPin({ email: 'recover@whatever.test', pin: 'letmein2026', ...DEVICE });
+    expect(oldPin.status).toBe('invalid_credentials');
+
+    const newPin = await loginWithPin({ email: 'recover@whatever.test', pin: 'brand-new-2026', ...DEVICE });
+    expect(newPin.status).toBe('success');
+  });
+
+  it('refuses an address with no account', async () => {
+    const result = await resetPinWithoutEmail('ghost@whatever.test', 'brand-new-2026', DEVICE);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('not_found');
+  });
+
+  it('is refused outright once email verification is required', async () => {
+    await registerAccount({ displayName: 'Tester', email: 'locked@whatever.test', pin: 'letmein2026', ...DEVICE });
+
+    process.env.REQUIRE_EMAIL_VERIFICATION = '1';
+    try {
+      const result = await resetPinWithoutEmail('locked@whatever.test', 'brand-new-2026', DEVICE);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.reason).toBe('not_permitted');
+
+      // And the original PIN is untouched.
+      const login = await loginWithPin({ email: 'locked@whatever.test', pin: 'letmein2026', ...DEVICE });
+      expect(login.status).toBe('success');
+    } finally {
+      delete process.env.REQUIRE_EMAIL_VERIFICATION;
+    }
+  });
+
+  it('emails a link instead whenever a transport is configured', async () => {
+    process.env.REQUIRE_EMAIL_VERIFICATION = '1';
+    try {
+      const outcome = await requestPinReset('nobody-here@whatever.test');
+      expect(outcome.mode).toBe('emailed');
+    } finally {
+      delete process.env.REQUIRE_EMAIL_VERIFICATION;
+    }
   });
 });

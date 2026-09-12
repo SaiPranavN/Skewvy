@@ -23,8 +23,11 @@ export async function POST(request: NextRequest) {
     return apiError(400, 'turnstile_failed', 'The robot check did not pass. Try it again.');
   }
 
-  await requestPinReset(parsed.data.email, ip);
+  const outcome = await requestPinReset(parsed.data.email, ip);
 
-  // Identical response whether or not that address has a verified account.
-  return NextResponse.json({ status: 'sent' });
+  // `set_directly` means there is no mail transport, so the form collects the
+  // new PIN in place rather than pointing at an inbox nothing can reach.
+  // Where a link *was* sent, the response is identical whether or not that
+  // address has a verified account.
+  return NextResponse.json({ status: outcome.mode === 'set_directly' ? 'set_directly' : 'sent' });
 }

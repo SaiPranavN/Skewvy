@@ -40,6 +40,15 @@ npm run admin -- you@example.com
 
 (Register the account first, or list the address in `ADMIN_EMAILS` before registering.)
 
+Locked out — forgotten PIN, or an account created before you picked one? Set a PIN directly, creating
+the account if it does not exist:
+
+```bash
+npm run pin -- you@example.com your-new-pin
+```
+
+Add `--admin` to grant the admin flag at the same time. This talks to the database, never over HTTP.
+
 ---
 
 ## Stack
@@ -135,6 +144,12 @@ inbox is only involved for first verification, PIN reset, and risk-based step-up
 
 **Step-up** → a sign-in from a device and network the account has never used asks for one email
 confirmation. It is the exception, not the routine.
+
+**Forgotten PIN.** With a mail transport, "Forgot PIN?" emails a one-click link. Without one, the
+same screen takes the address and sets the new PIN in place — there is no inbox to send anyone to,
+and a forgotten PIN would otherwise lock the account permanently. The direct path is refused by the
+service the moment email verification is required, so a live deployment always proves inbox
+ownership first.
 
 Also implemented: HTTP-only `SameSite=Lax` cookies, token rotation after login, sliding 30-day
 expiry, progressive lockout (60s → 5min → 30min), per-address and per-IP rate limits, resend
@@ -268,7 +283,7 @@ drift. Tap targets are at least 44 px, and nothing depends on hover.
 ## Testing
 
 ```bash
-npm test          # 115 tests
+npm test          # 120 tests
 npm run typecheck
 ```
 
@@ -282,7 +297,7 @@ npm run typecheck
 | `tests/domain.test.ts` | Number presentation, sentiment labels, SQL placeholder translation |
 | `tests/turnstile.test.ts` | Robot-check configuration, fallback acceptance, production hardening |
 | `tests/reaction-store.test.ts` | Signed-out taps recording nothing, optimistic updates, tap batching |
-| `tests/auth-no-email.test.ts` | Prototype mode: instant sign-up, no step-up, production still locked down |
+| `tests/auth-no-email.test.ts` | Prototype mode: instant sign-up, direct PIN reset, production still locked down |
 | `tests/e2e-journey.test.ts` | Register → verify → session expiry → PIN login → react → retry → switch sides → totals |
 
 Each file gets its own temporary SQLite database and runs against the real schema. Only Cloudflare is

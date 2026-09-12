@@ -325,13 +325,59 @@ export async function completeStepUp(
   };
 }
 
-/** Always resolves the same way, whether or not the address has a verified account. */
-export async function requestPinReset(email: string, ip?: string | null): Promise<void> {
-  const user = await findByEmail(email);
-  if (!user || !user.email_verified_at) return;
+/**
+ * Starts a PIN reset.
+ *
+ * With a mail transport, this emails a one-time link and always resolves the
+ * same way whether or not the address has a verified account. Without one there
+ * is no link to send, so the caller is told to collect the new PIN directly —
+ * otherwise anyone who forgot a PIN would be locked out permanently, with no
+ * inbox and no way back in.
+ */
+export type PinResetRequestOutcome = { mode: 'emailed' } | { mode: 'set_directly' };
 
-  const reset = await issueAuthToken(user.id, 'pin_reset', { ip });
-  await sendPinResetEmail(user.email, user.display_name, buildLinkUrl('/auth/reset-pin', reset.token));
+export async function requestPinReset(email: string, ip?: string | null): Promise<PinResetRequestOutcome> {
+  if (!requiresEmailVerification()) return { mode: 'set_directly' };
+
+  const user = await findByEmail(email);
+  if (user?.email_verified_at) {
+    const reset = await issueAuthToken(user.id, 'pin_reset', { ip });
+    await sendPinResetEmail(user.email, user.display_name, buildLinkUrl('/auth/reset-pin', reset.token));
+  }
+  return { mode: 'emailed' };
+}
+
+export type DirectResetOutcome =
+  | { ok: true; user: PublicUser; sessionToken: string; expiresAt: string }
+  | { ok: false; reason: 'not_found' | 'not_permitted' };
+
+/**
+ * Sets a new PIN from the address alone, for deployments with no mail
+ * transport. Refused outright the moment email verification is required, so a
+ * live deployment can never reset a PIN without proving inbox ownership.
+ */
+export async function resetPinWithoutEmail(
+  email: string,
+  newPin: string,
+  context: { userAgent?: string | null; ip?: string | null } = {},
+): Promise<DirectResetOutcome> {
+  if (requiresEmailVerification()) return { ok: false, reason: 'not_permitted' };
+
+  const user = await findByEmail(email);
+  if (!user) return { ok: false, reason: 'not_found' };
+
+  const pinHash = await hashPin(newPin);
+  const now = new Date().toISOString();
+  await execute(
+    `UPDATE users SET pin_hash = $1, pin_failed_attempts = 0, pin_locked_until = NULL,
+            email_verified_at = COALESCE(email_verified_at, $2), updated_at = $2 WHERE id = $3`,
+    [pinHash, now, user.id],
+  );
+  await revokeAllSessionsForUser(user.id);
+
+  const row = (await queryOne<UserRow>('SELECT * FROM users WHERE id = $1', [user.id]))!;
+  const session = await createSession({ userId: row.id, userAgent: context.userAgent, ip: context.ip });
+  return { ok: true, user: toPublicUser(row), sessionToken: session.token, expiresAt: session.expiresAt };
 }
 
 export type ResetPinOutcome =

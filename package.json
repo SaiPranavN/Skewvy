@@ -14,7 +14,8 @@
     "db:reset": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/reset.ts",
     "test": "NODE_OPTIONS=--experimental-sqlite vitest run",
     "test:watch": "NODE_OPTIONS=--experimental-sqlite vitest",
-    "admin": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/grant-admin.ts"
+    "admin": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/grant-admin.ts",
+    "pin": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/set-pin.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",

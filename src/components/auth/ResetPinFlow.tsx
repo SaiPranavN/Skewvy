@@ -14,6 +14,7 @@ interface ApiFailure {
   error?: string;
   message?: string;
   fields?: Record<string, string>;
+  status?: string;
 }
 
 interface RobotCheckConfig {
@@ -26,6 +27,15 @@ interface RobotCheckConfig {
  * Two modes in one page: requesting the reset link, and — when arriving from
  * that link — choosing the new PIN. Neither branch reveals whether an address
  * has an account.
+ */
+/**
+ * Three states in one page:
+ *
+ *  - arriving from an emailed link → choose the new PIN against that token;
+ *  - a deployment with mail        → ask for the address, send the link;
+ *  - a deployment without mail     → ask for the address, then set the new PIN
+ *    in place. There is no inbox to send anyone to, and a forgotten PIN would
+ *    otherwise lock the account permanently with no way back in.
  */
 export function ResetPinFlow({ token, ...config }: RobotCheckConfig & { token: string | null }) {
   return token ? <ChooseNewPin token={token} {...config} /> : <RequestResetLink {...config} />;
@@ -61,7 +71,8 @@ function RequestResetLink(config: RobotCheckConfig) {
   const [email, setEmail] = useState('');
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [sent, setSent] = useState(false);
+  /** Which branch the server put us on. */
+  const [phase, setPhase] = useState<'email' | 'link_sent' | 'set_directly'>('email');
   const [error, setError] = useState<string | null>(null);
 
   const submit = async (event: React.FormEvent) => {
@@ -87,7 +98,7 @@ function RequestResetLink(config: RobotCheckConfig) {
         setTurnstileToken(null);
         return;
       }
-      setSent(true);
+      setPhase(data.status === 'set_directly' ? 'set_directly' : 'link_sent');
     } catch {
       setError('We could not reach Skewvy. Check your connection and try again.');
     } finally {
@@ -95,7 +106,9 @@ function RequestResetLink(config: RobotCheckConfig) {
     }
   };
 
-  if (sent) {
+  if (phase === 'set_directly') return <SetPinDirectly email={email} {...config} />;
+
+  if (phase === 'link_sent') {
     return (
       <div className="space-y-4">
         <div>
@@ -132,13 +145,101 @@ function RequestResetLink(config: RobotCheckConfig) {
 
       <RobotCheck {...config} action="pin-reset" onToken={setTurnstileToken} />
 
-      <SubmitButton pending={pending}>Send reset link</SubmitButton>
+      <SubmitButton pending={pending}>Continue</SubmitButton>
 
       <p className="text-sm text-tertiary">
         Remembered it?{' '}
         <Link href="/login" className="text-secondary transition-colors duration-150 hover:text-primary">
           Sign in
         </Link>
+      </p>
+    </form>
+  );
+}
+
+
+/**
+ * No mail transport: collect the new PIN here and set it against the address.
+ * The server refuses this the moment email verification is required, so it can
+ * never become a way to take over an account on a live deployment.
+ */
+function SetPinDirectly({ email, ...config }: RobotCheckConfig & { email: string }) {
+  const [pin, setPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setFieldErrors({});
+
+    if (!turnstileToken) {
+      setError('Complete the robot check before continuing.');
+      return;
+    }
+
+    setPending(true);
+    try {
+      const response = await fetch('/api/auth/reset-pin', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email, pin, confirmPin, turnstileToken }),
+      });
+      const data = (await response.json().catch(() => ({}))) as ApiFailure;
+
+      if (!response.ok) {
+        setFieldErrors(data.fields ?? {});
+        setError(data.message ?? 'That did not work.');
+        setTurnstileToken(null);
+        return;
+      }
+
+      // A real navigation, so the server renders with the new session cookie.
+      window.location.assign('/');
+    } catch {
+      setError('We could not reach Skewvy. Check your connection and try again.');
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4" noValidate>
+      <FormError message={error} />
+      <FormNotice message={`No confirmation email is configured, so you can set a new PIN for ${email} here.`} />
+
+      <PinField
+        id="direct-new-pin"
+        label="New PIN"
+        autoComplete="new-password"
+        required
+        autoFocus
+        value={pin}
+        error={fieldErrors.pin}
+        onChange={(event) => setPin(event.target.value)}
+        hint={`At least ${PIN_MIN_LENGTH} characters.`}
+      />
+
+      <PinField
+        id="direct-confirm-pin"
+        label="Confirm new PIN"
+        autoComplete="new-password"
+        required
+        value={confirmPin}
+        error={fieldErrors.confirmPin}
+        onChange={(event) => setConfirmPin(event.target.value)}
+      />
+
+      <RobotCheck {...config} action="reset-pin-direct" onToken={setTurnstileToken} />
+
+      <SubmitButton pending={pending}>Set new PIN</SubmitButton>
+
+      <p className="text-xs leading-relaxed text-tertiary">
+        Every other session on the account is signed out. Set <code>RESEND_API_KEY</code> to require an emailed link
+        instead.
       </p>
     </form>
   );

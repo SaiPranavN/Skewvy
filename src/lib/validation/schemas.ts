@@ -63,6 +63,19 @@ export const resetPinSchema = z
     path: ['confirmPin'],
   });
 
+/** Reset without an emailed link, for deployments with no mail transport. */
+export const directResetPinSchema = z
+  .object({
+    email: emailSchema,
+    pin: pinSchema,
+    confirmPin: z.string(),
+    turnstileToken: z.string().min(1, 'Complete the robot check.'),
+  })
+  .refine((data) => data.pin === data.confirmPin, {
+    message: 'The two PINs do not match.',
+    path: ['confirmPin'],
+  });
+
 export const resendVerificationSchema = z.object({
   email: emailSchema,
 });
