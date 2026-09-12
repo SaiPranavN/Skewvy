@@ -9,7 +9,8 @@ import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
  *
  * One card holds the centre at full strength while its neighbours peek in,
  * scaled down and dimmed, so the row reads as a deck rather than a grid. It
- * advances on its own, on the Next button, on arrow keys, and on a swipe.
+ * advances on its own, on the control bar beneath it, on arrow keys, and on a
+ * swipe.
  *
  * Autoplay stops the moment someone takes over — a pointer entering, a focus
  * landing inside, a swipe, or the tab going to the background — and it never
@@ -167,71 +168,66 @@ export function ShowcaseCarousel({ cards }: { cards: ArtifactCardModel[] }) {
             </div>
           );
         })}
-
-        {count > 1 && (
-          <button
-            type="button"
-            onClick={() => {
-              setPaused(true);
-              next();
-            }}
-            className="absolute right-3 top-1/2 z-20 hidden min-h-11 -translate-y-1/2 items-center rounded-full bg-primary px-5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90 sm:inline-flex lg:right-[max(1rem,calc(50%-560px))]"
-          >
-            Next
-            <span className="sr-only"> item</span>
-          </button>
-        )}
       </div>
 
+      {/*
+        * One control bar, set well clear of the deck so it reads as chrome
+        * belonging to the carousel rather than as marks printed on the card
+        * above it.
+        */}
       {count > 1 && (
-        <div className="mt-2 flex items-center justify-center gap-4">
-          <button
-            type="button"
-            onClick={() => {
-              setPaused(true);
-              previous();
-            }}
-            aria-label="Previous item"
-            className="grid h-11 w-11 place-items-center rounded-full border border-[var(--border-default)] text-secondary transition-colors duration-150 hover:border-[var(--border-strong)] hover:text-primary"
-          >
-            <Chevron direction="left" />
-          </button>
+        <div className="mt-10 flex justify-center sm:mt-12">
+          <div className="inline-flex items-center gap-1 rounded-full border border-[var(--border-subtle)] bg-surface p-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setPaused(true);
+                previous();
+              }}
+              aria-label="Previous item"
+              className="grid h-9 w-9 place-items-center rounded-full text-secondary transition-colors duration-150 hover:bg-surface-2 hover:text-primary"
+            >
+              <Chevron direction="left" />
+            </button>
 
-          <div className="flex items-center gap-2" role="tablist" aria-label="Choose an item">
-            {cards.map((card, position) => (
-              <button
-                key={`${card.type}:${card.id}`}
-                role="tab"
-                type="button"
-                aria-selected={position === index}
-                aria-label={card.title}
-                onClick={() => {
-                  setPaused(true);
-                  go(position);
-                }}
-                className="grid h-6 w-4 place-items-center"
-              >
-                <span
-                  aria-hidden="true"
-                  className={`block h-1.5 rounded-full transition-all duration-200 ${
-                    position === index ? 'w-5 bg-primary' : 'w-1.5 bg-surface-3'
-                  }`}
-                />
-              </button>
-            ))}
+            <div className="flex items-center px-1.5" role="tablist" aria-label="Choose an item">
+              {cards.map((card, position) => (
+                <button
+                  key={`${card.type}:${card.id}`}
+                  role="tab"
+                  type="button"
+                  aria-selected={position === index}
+                  aria-label={card.title}
+                  onClick={() => {
+                    setPaused(true);
+                    go(position);
+                  }}
+                  className="group grid h-9 w-5 place-items-center"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`block h-[3px] rounded-full transition-all duration-[220ms] ease-[var(--ease-standard)] ${
+                      position === index
+                        ? 'w-6 bg-primary'
+                        : 'w-2.5 bg-[var(--border-strong)] group-hover:bg-secondary'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setPaused(true);
+                next();
+              }}
+              aria-label="Next item"
+              className="grid h-9 w-9 place-items-center rounded-full text-secondary transition-colors duration-150 hover:bg-surface-2 hover:text-primary"
+            >
+              <Chevron direction="right" />
+            </button>
           </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              setPaused(true);
-              next();
-            }}
-            aria-label="Next item"
-            className="grid h-11 w-11 place-items-center rounded-full border border-[var(--border-default)] text-secondary transition-colors duration-150 hover:border-[var(--border-strong)] hover:text-primary"
-          >
-            <Chevron direction="right" />
-          </button>
         </div>
       )}
 
