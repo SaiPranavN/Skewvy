@@ -1,6 +1,16 @@
 import Image from 'next/image';
 
 /**
+ * Next's image optimiser rejects SVG unless `dangerouslyAllowSVG` is enabled,
+ * answering 400 and taking the surrounding render down with it. A vector gains
+ * nothing from rasterisation, so it is served as-is instead of loosening the
+ * optimiser for every image on the site.
+ */
+export function isVectorSource(src: string): boolean {
+  return /\.svg($|\?)/i.test(src);
+}
+
+/**
  * Editorial media block.
  *
  * When an artifact has an image, it is shown with a neutral black scrim for
@@ -33,7 +43,15 @@ export function Media({
     // they sit in, from a 56px thumbnail up to a full-width hero.
     <div className={`@container relative overflow-hidden bg-surface-2 ${className}`}>
       {src ? (
-        <Image src={src} alt={alt} fill priority={priority} sizes={sizes} className="media-image" />
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          priority={priority}
+          sizes={sizes}
+          unoptimized={isVectorSource(src)}
+          className="media-image"
+        />
       ) : (
         <MediaFallback label={fallbackLabel} kind={fallbackKind} />
       )}

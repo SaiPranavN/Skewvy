@@ -84,10 +84,27 @@ export async function runSimulationTick(): Promise<number> {
   for (let index = 0; index < bursts; index += 1) {
     const artifact = pick(artifacts);
     const userId = pick(users);
-    // Lean the demo crowd the way the artifact is already leaning, so the
-    // sentiment picture stays coherent rather than drifting to a flat 50/50.
-    const eggBias = artifact.eggBias;
-    const reactionType: ReactionType = Math.random() < eggBias ? 'rotten_egg' : 'medal';
+
+    /*
+     * A side, once taken, is final — so a demo account that already reacted to
+     * this artifact must keep to the same side, or the batch would simply be
+     * refused and the tick wasted. Only a newcomer picks a side, and they lean
+     * the way the artifact is already leaning so the picture stays coherent
+     * rather than drifting to a flat 50/50.
+     */
+    const existing = await queryOne<{ stance: string }>(
+      'SELECT stance FROM opinions WHERE user_id = $1 AND artifact_type = $2 AND artifact_id = $3',
+      [userId, artifact.type, artifact.id],
+    );
+
+    const reactionType: ReactionType = existing
+      ? existing.stance === 'negative'
+        ? 'rotten_egg'
+        : 'medal'
+      : Math.random() < artifact.eggBias
+        ? 'rotten_egg'
+        : 'medal';
+
     const quantity = 3 + Math.floor(Math.random() * 45);
 
     await applyReactionBatch({

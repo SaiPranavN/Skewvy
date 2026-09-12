@@ -151,19 +151,24 @@ class ReactionStore {
       return false;
     }
 
+    // A side, once taken, is final. The server refuses the other side outright,
+    // so the counter must not move for it here either.
+    const stanceForType = reactionType === 'rotten_egg' ? 'negative' : 'positive';
+    if (current.contribution.stance && current.contribution.stance !== stanceForType) {
+      return false;
+    }
+
     const isEgg = reactionType === 'rotten_egg';
     const stance = isEgg ? 'negative' : 'positive';
     const previousStance = current.contribution.stance;
 
-    // Opinion counts track people, not taps: they only move when this person's
-    // single stance actually changes.
-    const opinionShift = { positive: 0, negative: 0 };
-    if (previousStance !== stance) {
-      if (previousStance === 'positive') opinionShift.positive -= 1;
-      if (previousStance === 'negative') opinionShift.negative -= 1;
-      if (stance === 'positive') opinionShift.positive += 1;
-      else opinionShift.negative += 1;
-    }
+    // Opinion counts track people, not taps, and a side cannot be changed — so
+    // they move exactly once, on this person's first reaction to this artifact.
+    const isFirstOpinion = previousStance === null;
+    const opinionShift = {
+      positive: isFirstOpinion && stance === 'positive' ? 1 : 0,
+      negative: isFirstOpinion && stance === 'negative' ? 1 : 0,
+    };
     const isNewParticipant =
       current.contribution.rottenEggCount === 0 && current.contribution.medalCount === 0 && previousStance === null;
 
@@ -354,6 +359,15 @@ class ReactionStore {
       });
 
       if (response.status === 401) return { status: 'unauthenticated' };
+      // The side is locked: retrying cannot help, and the server's numbers are
+      // the ones to believe.
+      if (response.status === 409) {
+        const data = (await response.json().catch(() => null)) as
+          | { totals: ArtifactTotals; contribution: UserContribution }
+          | null;
+        if (data) return { status: 'ok', totals: data.totals, contribution: data.contribution };
+        return { status: 'fatal' };
+      }
       if (response.status === 429 || response.status >= 500) return { status: 'retry' };
       if (!response.ok) return { status: 'fatal' };
 

@@ -46,7 +46,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
         <ReactionProvider isAuthenticated={Boolean(user)}>
           <SiteHeader user={user} />
-          <main id="main">{children}</main>
+          {/* The masthead is fixed; the hero pulls back up under it. */}
+          <main id="main" className="pt-[68px]">
+            {children}
+          </main>
           <SiteFooter />
         </ReactionProvider>
       </body>

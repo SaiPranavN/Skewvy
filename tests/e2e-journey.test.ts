@@ -152,24 +152,38 @@ describe('full Skewvy journey', () => {
     const restored = await readTotals(artifactId, secondSession);
     expect(restored.contribution?.rottenEggCount).toBe(75);
 
-    /* 7. Change sides. The opinion moves; the reactions already sent stay. */
-    const switched = await send(6, 'journey-batch-three', 'medal', secondSession);
-    const switchedBody = (await switched.json()) as {
+    /* 7. Try to cross the floor. Refused — a side, once taken, is final. */
+    const crossing = await send(6, 'journey-batch-three', 'medal', secondSession);
+    expect(crossing.status).toBe(409);
+
+    const crossingBody = (await crossing.json()) as {
+      error: string;
+      lockedTo: string;
       totals: { rottenEggTotal: number; medalTotal: number; positiveOpinionTotal: number; negativeOpinionTotal: number };
       contribution: { rottenEggCount: number; medalCount: number; stance: string };
     };
 
-    expect(switchedBody.totals.rottenEggTotal).toBe(75);
-    expect(switchedBody.totals.medalTotal).toBe(6);
-    expect(switchedBody.totals.positiveOpinionTotal).toBe(1);
-    expect(switchedBody.totals.negativeOpinionTotal).toBe(0);
-    expect(switchedBody.contribution.stance).toBe('positive');
+    expect(crossingBody.error).toBe('opinion_locked');
+    expect(crossingBody.lockedTo).toBe('negative');
+    expect(crossingBody.totals.medalTotal).toBe(0);
+    expect(crossingBody.totals.positiveOpinionTotal).toBe(0);
+    expect(crossingBody.totals.negativeOpinionTotal).toBe(1);
+    expect(crossingBody.contribution.stance).toBe('negative');
+
+    /* 8. The chosen side keeps accepting more. */
+    await send(25, 'journey-batch-four', 'rotten_egg', secondSession);
+    const deepened = await readTotals(artifactId, secondSession);
+    expect(deepened.totals.rottenEggTotal).toBe(100);
+    expect(deepened.contribution?.rottenEggCount).toBe(100);
+    // Still one person on one side.
+    expect(deepened.totals.negativeOpinionTotal).toBe(1);
+    expect(deepened.totals.uniqueParticipantTotal).toBe(1);
 
     // Exactly one opinion row exists for this person and artifact, still.
     const opinions = await query('SELECT * FROM opinions');
     expect(opinions).toHaveLength(1);
 
-    /* 8. A second person joins; totals and opinions both move correctly. */
+    /* 9. A second person joins; totals and opinions both move correctly. */
     await registerRoute(
       request('/api/auth/register', {
         displayName: 'Second Voice',
@@ -185,22 +199,22 @@ describe('full Skewvy journey', () => {
     await send(120, 'second-person-batch-1', 'rotten_egg', secondPerson);
 
     const final = await readTotals(artifactId, secondPerson);
-    expect(final.totals.rottenEggTotal).toBe(195);
-    expect(final.totals.medalTotal).toBe(6);
-    expect(final.totals.negativeOpinionTotal).toBe(1);
-    expect(final.totals.positiveOpinionTotal).toBe(1);
+    expect(final.totals.rottenEggTotal).toBe(220);
+    expect(final.totals.medalTotal).toBe(0);
+    expect(final.totals.negativeOpinionTotal).toBe(2);
+    expect(final.totals.positiveOpinionTotal).toBe(0);
     expect(final.totals.uniqueParticipantTotal).toBe(2);
     // Reactions measure intensity; opinions count people. The two never mix.
     expect(final.totals.rottenEggTotal + final.totals.medalTotal).not.toBe(
       final.totals.negativeOpinionTotal + final.totals.positiveOpinionTotal,
     );
 
-    /* 9. Log out. The public totals stay; the personal view goes. */
+    /* 10. Log out. The public totals stay; the personal view goes. */
     const loggedOut = await logoutRoute(request('/api/auth/logout', {}, secondPerson));
     expect(loggedOut.status).toBe(200);
 
     const anonymous = await readTotals(artifactId, secondPerson);
     expect(anonymous.contribution).toBeNull();
-    expect(anonymous.totals.rottenEggTotal).toBe(195);
+    expect(anonymous.totals.rottenEggTotal).toBe(220);
   });
 });

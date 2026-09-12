@@ -53,6 +53,24 @@ export async function POST(request: NextRequest) {
 
   void ip;
 
+  // A side, once taken, is final. Contradicting batches are refused and the
+  // caller is told which stance it is held to, so the UI can lock the control.
+  if (result.lockedTo) {
+    return NextResponse.json(
+      {
+        error: 'opinion_locked',
+        message:
+          result.lockedTo === 'negative'
+            ? 'You already reacted critically to this. You can keep sending Rotten Eggs, but not Medals.'
+            : 'You already reacted appreciatively to this. You can keep awarding Medals, but not Rotten Eggs.',
+        lockedTo: result.lockedTo,
+        totals: result.totals,
+        contribution: result.contribution,
+      },
+      { status: 409 },
+    );
+  }
+
   return NextResponse.json({
     applied: result.applied,
     totals: result.totals,

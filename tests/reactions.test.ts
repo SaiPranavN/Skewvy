@@ -188,31 +188,73 @@ describe('opinions', () => {
     expect(totals.negativeOpinionTotal).toBe(1);
   });
 
-  it('moves an existing opinion across instead of creating a second one', async () => {
+  it('refuses the opposite side once a person has taken one', async () => {
     const artifactId = await createTestFlashNews();
     const userId = await createVerifiedUser();
 
     await applyReactionBatch({
       userId, artifactType: 'flash_news', artifactId,
-      reactionType: 'rotten_egg', quantity: 100, clientBatchId: 'neg',
+      reactionType: 'rotten_egg', quantity: 100, clientBatchId: 'neg-batch-1',
     });
-    const afterSwitch = await applyReactionBatch({
+    const crossing = await applyReactionBatch({
       userId, artifactType: 'flash_news', artifactId,
-      reactionType: 'medal', quantity: 3, clientBatchId: 'pos',
+      reactionType: 'medal', quantity: 3, clientBatchId: 'pos-batch-1',
     });
+
+    expect(crossing.applied).toBe(false);
+    expect(crossing.lockedTo).toBe('negative');
+
+    // Nothing moved: not the Medal total, not the opinion, not the contribution.
+    expect(crossing.totals.medalTotal).toBe(0);
+    expect(crossing.totals.positiveOpinionTotal).toBe(0);
+    expect(crossing.totals.negativeOpinionTotal).toBe(1);
+    expect(crossing.contribution.medalCount).toBe(0);
+    expect(crossing.contribution.stance).toBe('negative');
 
     const opinions = await query<{ stance: string }>('SELECT stance FROM opinions WHERE user_id = $1', [userId]);
     expect(opinions).toHaveLength(1);
-    expect(opinions[0].stance).toBe('positive');
+    expect(opinions[0].stance).toBe('negative');
+  });
 
-    expect(afterSwitch.totals.negativeOpinionTotal).toBe(0);
-    expect(afterSwitch.totals.positiveOpinionTotal).toBe(1);
-    // Reactions already sent are intensity, and are never taken back.
-    expect(afterSwitch.totals.rottenEggTotal).toBe(100);
-    expect(afterSwitch.contribution.rottenEggCount).toBe(100);
-    expect(afterSwitch.contribution.medalCount).toBe(3);
-    // The person is still one participant, not two.
-    expect(afterSwitch.totals.uniqueParticipantTotal).toBe(1);
+  it('leaves the refused batch id unused, so the correct side still lands', async () => {
+    const artifactId = await createTestFlashNews();
+    const userId = await createVerifiedUser();
+
+    await applyReactionBatch({
+      userId, artifactType: 'flash_news', artifactId,
+      reactionType: 'medal', quantity: 5, clientBatchId: 'first-medal-1',
+    });
+
+    const refused = await applyReactionBatch({
+      userId, artifactType: 'flash_news', artifactId,
+      reactionType: 'rotten_egg', quantity: 9, clientBatchId: 'reused-id-1',
+    });
+    expect(refused.applied).toBe(false);
+
+    // The same id now carries an allowed reaction and must be accepted.
+    const allowed = await applyReactionBatch({
+      userId, artifactType: 'flash_news', artifactId,
+      reactionType: 'medal', quantity: 9, clientBatchId: 'reused-id-1',
+    });
+    expect(allowed.applied).toBe(true);
+    expect(allowed.totals.medalTotal).toBe(14);
+  });
+
+  it('keeps accepting more of the side already chosen', async () => {
+    const artifactId = await createTestFlashNews();
+    const userId = await createVerifiedUser();
+
+    for (let index = 0; index < 4; index += 1) {
+      await applyReactionBatch({
+        userId, artifactType: 'flash_news', artifactId,
+        reactionType: 'medal', quantity: 25, clientBatchId: `more-medals-${index}`,
+      });
+    }
+
+    const totals = await getTotals('flash_news', artifactId);
+    expect(totals.medalTotal).toBe(100);
+    expect(totals.positiveOpinionTotal).toBe(1);
+    expect(totals.uniqueParticipantTotal).toBe(1);
   });
 
   it('counts people once and taps in full across a crowd', async () => {

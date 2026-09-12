@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Wordmark } from './Wordmark';
 import type { PublicUser } from '@/lib/domain/types';
 
@@ -14,19 +14,22 @@ const NAV_ITEMS = [
 ];
 
 /**
- * Slim masthead. The active route is marked with brighter text and a thin red
- * rule — no filled pill, no blur, no glow. On scroll it gains only a solid
- * ground and a hairline bottom border.
+ * Masthead: wordmark left, navigation centred, account and primary action
+ * right.
+ *
+ * Over the landing hero it sits transparent on the photograph and turns solid
+ * once the page scrolls, so the image reads at full height on arrival.
  */
 export function SiteHeader({ user }: { user: PublicUser | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const overHero = pathname === '/';
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const onScroll = () => setScrolled(window.scrollY > 24);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
@@ -41,18 +44,25 @@ export function SiteHeader({ user }: { user: PublicUser | null }) {
     router.refresh();
   };
 
+  const transparent = overHero && !scrolled && !menuOpen;
+
   return (
     <header
-      className={`sticky top-0 z-50 border-b transition-colors duration-200 ${
-        scrolled ? 'border-[var(--border-subtle)] bg-ground' : 'border-transparent bg-ground'
+      className={`fixed inset-x-0 top-0 z-50 border-b transition-colors duration-200 ${
+        transparent ? 'border-transparent bg-transparent' : 'border-[var(--border-subtle)] bg-ground'
       }`}
     >
-      <div className="mx-auto flex h-16 w-full max-w-[1320px] items-center gap-6 px-4 sm:px-6 lg:px-8">
-        <Link href="/" aria-label="Skewvy home" className="shrink-0">
+      <div className="mx-auto flex h-[68px] w-full max-w-[1440px] items-center px-4 sm:px-6 lg:px-8">
+        <Link href="/" aria-label="skewvy.com home" className="shrink-0">
           <Wordmark />
         </Link>
 
-        <nav aria-label="Primary" className="hidden items-center gap-1 md:flex">
+        {/* Centred navigation, absolutely placed so it stays centred whatever
+            the width of the two side groups. */}
+        <nav
+          aria-label="Primary"
+          className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex"
+        >
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.href);
             return (
@@ -60,23 +70,18 @@ export function SiteHeader({ user }: { user: PublicUser | null }) {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
-                className={`relative px-3 py-2 text-sm transition-colors duration-150 ${
+                className={`relative px-3.5 py-2 text-sm transition-colors duration-150 ${
                   active ? 'text-primary' : 'text-secondary hover:text-primary'
                 }`}
               >
                 {item.label}
-                {active && (
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-x-3 -bottom-px h-px bg-brand"
-                  />
-                )}
+                {active && <span aria-hidden="true" className="absolute inset-x-3.5 -bottom-px h-px bg-brand" />}
               </Link>
             );
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-2">
           <Link
             href="/search"
             aria-label="Search"
@@ -86,7 +91,7 @@ export function SiteHeader({ user }: { user: PublicUser | null }) {
           </Link>
 
           {user ? (
-            <div className="hidden items-center gap-1.5 sm:flex">
+            <div className="hidden items-center gap-2 sm:flex">
               {user.isAdmin && (
                 <Link
                   href="/admin"
@@ -97,7 +102,7 @@ export function SiteHeader({ user }: { user: PublicUser | null }) {
               )}
               <Link
                 href="/profile"
-                className="rounded-md border border-[var(--border-default)] px-3 py-1.5 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)]"
+                className="rounded-md border border-[var(--border-default)] px-3.5 py-2 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)]"
               >
                 {user.displayName}
               </Link>
@@ -119,15 +124,14 @@ export function SiteHeader({ user }: { user: PublicUser | null }) {
               </Link>
               <Link
                 href={`/register?redirectTo=${encodeURIComponent(pathname)}`}
-                className="rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
+                className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium uppercase tracking-[0.04em] text-ground transition-opacity duration-150 hover:opacity-90"
               >
-                Create account
+                Get started
               </Link>
             </div>
           )}
 
           <button
-            ref={menuButtonRef}
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
             aria-expanded={menuOpen}
@@ -142,7 +146,7 @@ export function SiteHeader({ user }: { user: PublicUser | null }) {
 
       {menuOpen && (
         <div id="mobile-nav" className="border-t border-[var(--border-subtle)] bg-ground md:hidden">
-          <nav aria-label="Mobile" className="mx-auto w-full max-w-[1320px] px-4 py-2 sm:px-6">
+          <nav aria-label="Mobile" className="mx-auto w-full max-w-[1440px] px-4 py-2 sm:px-6">
             {[...NAV_ITEMS, { href: '/search', label: 'Search' }].map((item) => (
               <Link
                 key={item.href}
@@ -177,9 +181,9 @@ export function SiteHeader({ user }: { user: PublicUser | null }) {
                 <>
                   <Link
                     href={`/register?redirectTo=${encodeURIComponent(pathname)}`}
-                    className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-ground"
+                    className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium uppercase tracking-[0.04em] text-ground"
                   >
-                    Create account
+                    Get started
                   </Link>
                   <Link
                     href={`/login?redirectTo=${encodeURIComponent(pathname)}`}

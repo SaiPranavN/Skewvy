@@ -251,11 +251,10 @@ export async function seedDatabase(options: SeedOptions = {}): Promise<{
       const negative = random() < artifact.eggBias;
       const quantity = reactionQuantity(random, artifact.intensity);
 
-      // A minority also tapped the other side before settling; their single
-      // opinion still reflects only where they ended up.
-      const crossover = random() < 0.07 ? Math.max(1, Math.round(quantity * 0.2)) : 0;
-      const eggs = negative ? quantity : crossover;
-      const medals = negative ? crossover : quantity;
+      // Seeded people obey the same rule as live ones: a side, once taken, is
+      // final, so nobody holds reactions on both sides of an artifact.
+      const eggs = negative ? quantity : 0;
+      const medals = negative ? 0 : quantity;
 
       eggTotal += eggs;
       medalTotal += medals;

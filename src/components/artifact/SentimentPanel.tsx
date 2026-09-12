@@ -53,6 +53,33 @@ export function SentimentPanel({
         />
       </div>
 
+      {/*
+        * The rule stated before the controls, not after: someone should know a
+        * side is permanent before they pick one.
+        */}
+      <div className="rounded-[var(--radius-control)] border border-[var(--border-subtle)] bg-surface px-4 py-3">
+        <div className="flex items-start gap-3">
+          <span className="emoji mt-0.5 text-sm" aria-hidden="true">
+            🥚
+          </span>
+          <p className="text-sm leading-relaxed text-secondary">
+            <span className="text-primary">Tap as many times as you like.</span> Every tap adds to the public reaction
+            total.
+          </p>
+        </div>
+        <div className="mt-2.5 flex items-start gap-3">
+          <span className="mt-0.5 text-sm" aria-hidden="true">
+            ⚖
+          </span>
+          <p className="text-sm leading-relaxed text-secondary">
+            <span className="text-primary">Pick a side once.</span>{' '}
+            {own.stance
+              ? `You reacted ${own.stance === 'negative' ? 'critically' : 'appreciatively'}, so the other side is now closed to you here.`
+              : 'Your first reaction sets your opinion for good — you cannot switch to the other side afterwards.'}
+          </p>
+        </div>
+      </div>
+
       <div id={anchorId} className="grid grid-cols-2 gap-3">
         <ReactionControl
           artifactType={card.type}
@@ -92,22 +119,35 @@ export function SentimentPanel({
       <div className="panel p-5">
         <h3 className="text-sm font-medium text-primary">Your contribution</h3>
 
-        <dl className="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 text-sm">
-          <div className="flex items-baseline gap-2">
-            <dt className="text-secondary">Rotten Eggs</dt>
-            <dd className="numeric font-medium text-egg">
-              {formatCount(own.rottenEggCount)} <span className="emoji text-xs">🥚</span>
+        <dl className="mt-4 space-y-3 text-sm">
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-secondary">
+              Reactions you sent <span className="text-tertiary">— unlimited</span>
+            </dt>
+            <dd className="numeric shrink-0 font-medium">
+              <span className="text-egg">
+                {formatCount(own.rottenEggCount)} <span className="emoji text-xs">🥚</span>
+              </span>
+              <span className="mx-2 text-disabled">/</span>
+              <span className="text-medal">
+                {formatCount(own.medalCount)} <span className="emoji text-xs">🏅</span>
+              </span>
             </dd>
           </div>
-          <div className="flex items-baseline gap-2">
-            <dt className="text-secondary">Medals</dt>
-            <dd className="numeric font-medium text-medal">
-              {formatCount(own.medalCount)} <span className="emoji text-xs">🏅</span>
+
+          <div className="flex items-baseline justify-between gap-4 border-t border-[var(--border-subtle)] pt-3">
+            <dt className="text-secondary">
+              Your opinion <span className="text-tertiary">— one, final</span>
+            </dt>
+            <dd className="flex shrink-0 items-center gap-1.5 font-medium text-primary">
+              {own.stance && (
+                <span
+                  aria-hidden="true"
+                  className={`h-1.5 w-1.5 rounded-full ${own.stance === 'negative' ? 'bg-egg' : 'bg-medal'}`}
+                />
+              )}
+              {stanceLabel}
             </dd>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <dt className="text-secondary">Your opinion</dt>
-            <dd className="font-medium text-primary">{stanceLabel}</dd>
           </div>
         </dl>
 
@@ -116,7 +156,8 @@ export function SentimentPanel({
         )}
         {hasContributed && (
           <p className="mt-3 text-xs leading-relaxed text-tertiary">
-            Changing sides moves your single opinion across. Reactions you have already sent are not withdrawn.
+            You can keep adding {own.stance === 'negative' ? 'Rotten Eggs' : 'Medals'} to this for as long as you like.
+            Your opinion is already recorded and will not change.
           </p>
         )}
       </div>

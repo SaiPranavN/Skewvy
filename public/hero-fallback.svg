@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" preserveAspectRatio="xMidYMid slice" role="presentation">
+  <!--
+    Stand-in hero photograph.
+
+    Drop a real image at public/hero.jpg (or .png / .webp / .avif) and the hero
+    picks it up automatically; this file is only used while none is present.
+    It deliberately mirrors the intended frame: a near-black interior cut by a
+    single hard light source, so the centred headline sits on the dark side.
+  -->
+  <defs>
+    <radialGradient id="room" cx="62%" cy="18%" r="95%">
+      <stop offset="0%" stop-color="#20222a"/>
+      <stop offset="42%" stop-color="#101218"/>
+      <stop offset="100%" stop-color="#05060a"/>
+    </radialGradient>
+
+    <linearGradient id="shaft" x1="0.85" y1="0" x2="0.1" y2="0.85">
+      <stop offset="0%" stop-color="#cfe2ff" stop-opacity="0.55"/>
+      <stop offset="35%" stop-color="#9fb6d8" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#6d7f9c" stop-opacity="0"/>
+    </linearGradient>
+
+    <radialGradient id="source" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="45%" stop-color="#dce9ff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#aac4e8" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0b0d12" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.85"/>
+    </linearGradient>
+
+    <filter id="soften"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="soften-hard"><feGaussianBlur stdDeviation="8"/></filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" seed="7"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#room)"/>
+
+  <!-- Structural masses, barely readable — depth without detail. -->
+  <g opacity="0.5">
+    <rect x="980" y="0" width="150" height="1080" fill="#0a0c11"/>
+    <rect x="0" y="620" width="1920" height="460" fill="#07080c"/>
+    <rect x="1480" y="120" width="440" height="620" fill="#0d1016" opacity="0.7"/>
+    <rect x="120" y="330" width="560" height="300" fill="#0a0c11" opacity="0.6"/>
+  </g>
+
+  <!-- The single light source and its volumetric rays. -->
+  <g transform="rotate(-24 1180 90)">
+    <rect x="1120" y="58" width="128" height="26" rx="13" fill="#f4f8ff" opacity="0.92" filter="url(#soften-hard)"/>
+  </g>
+  <ellipse cx="1184" cy="92" rx="230" ry="150" fill="url(#source)" filter="url(#soften)"/>
+
+  <g opacity="0.85">
+    <polygon points="1210,70 1160,50 240,900 470,1010" fill="url(#shaft)"/>
+    <polygon points="1240,84 1206,72 620,940 810,1010" fill="url(#shaft)" opacity="0.6"/>
+    <polygon points="1270,96 1246,88 980,980 1120,1030" fill="url(#shaft)" opacity="0.4"/>
+  </g>
+
+  <!-- Faint spectral separation where the beam grazes an edge. -->
+  <g opacity="0.3" filter="url(#soften-hard)">
+    <polygon points="1206,66 1196,62 700,760 730,790" fill="#7fd0ff"/>
+    <polygon points="1216,72 1208,68 726,776 752,802" fill="#ffb37f"/>
+  </g>
+
+  <rect y="540" width="1920" height="540" fill="url(#floor)"/>
+  <rect width="1920" height="1080" filter="url(#grain)" opacity="0.05"/>
+</svg>

@@ -63,6 +63,15 @@ export function ReactionControl({
   const total = isEgg ? state.totals.rottenEggTotal : state.totals.medalTotal;
   const own = isEgg ? state.contribution.rottenEggCount : state.contribution.medalCount;
 
+  /*
+   * A side, once taken, is final. This control is the other side, so it is
+   * disabled rather than merely refused on tap — the person should be able to
+   * see the rule before they run into it.
+   */
+  const stanceForThis = isEgg ? 'negative' : 'positive';
+  const locked = isAuthenticated && state.contribution.stance !== null && state.contribution.stance !== stanceForThis;
+  const isChosenSide = state.contribution.stance === stanceForThis;
+
   /** At most one announcement every 1.5s, so a burst cannot flood a reader. */
   const scheduleAnnouncement = useCallback(
     (nextTotal: number) => {
@@ -128,7 +137,15 @@ export function ReactionControl({
 
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
-    event.currentTarget.setPointerCapture?.(event.pointerId);
+
+    // Capture keeps a hold-and-drag streaming from this control, but it throws
+    // if the pointer is already gone. Losing the capture is survivable; losing
+    // the tap is not.
+    try {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    } catch {
+      // Continue without capture.
+    }
 
     const rect = event.currentTarget.getBoundingClientRect();
     const originX = Math.max(12, Math.min(rect.width - 12, event.clientX - rect.left));
@@ -152,8 +169,18 @@ export function ReactionControl({
   };
 
   const tone = isEgg
-    ? { control: 'reaction-control-egg', number: 'text-egg', own: 'text-egg' }
-    : { control: 'reaction-control-medal', number: 'text-medal', own: 'text-medal' };
+    ? {
+        control: 'reaction-control-egg',
+        number: 'text-egg',
+        own: 'text-egg',
+        chosen: 'border-egg/45',
+      }
+    : {
+        control: 'reaction-control-medal',
+        number: 'text-medal',
+        own: 'text-medal',
+        chosen: 'border-medal/45',
+      };
 
   const layout = {
     sm: { pad: 'px-3 py-2.5', gap: 'gap-2', number: 'text-base', emoji: 'text-sm', label: 'text-[0.6875rem]' },
@@ -168,6 +195,7 @@ export function ReactionControl({
       <button
         type="button"
         data-pressed={pressed}
+        disabled={locked}
         aria-labelledby={labelId}
         aria-describedby={`${labelId}-status`}
         onPointerDown={handlePointerDown}
@@ -178,7 +206,9 @@ export function ReactionControl({
         onKeyUp={stopHold}
         onBlur={stopHold}
         onContextMenu={(event) => event.preventDefault()}
-        className={`reaction-control ${tone.control} flex w-full touch-manipulation select-none flex-col items-start ${layout.gap} ${layout.pad} rounded-[var(--radius-control)] text-left`}
+        className={`reaction-control ${tone.control} flex w-full touch-manipulation select-none flex-col items-start ${layout.gap} ${layout.pad} rounded-[var(--radius-control)] text-left ${
+          locked ? 'cursor-not-allowed opacity-45' : ''
+        } ${isChosenSide ? tone.chosen : ''}`}
         style={{ minHeight: size === 'lg' ? 108 : 44 }}
       >
         <span className="flex items-baseline gap-2">
@@ -203,7 +233,11 @@ export function ReactionControl({
       <span id={`${labelId}-status`} className="sr-only">
         {formatCount(total)} {isEgg ? 'Rotten Eggs' : 'Medals'} recorded for {artifactTitle}. You have sent{' '}
         {formatCount(own)}.{' '}
-        {isAuthenticated ? 'Press and hold to send more.' : 'Sign in to record a reaction.'}
+        {locked
+          ? `Unavailable: you already reacted ${state.contribution.stance === 'negative' ? 'critically' : 'appreciatively'} to this, and a side cannot be changed.`
+          : isAuthenticated
+            ? 'Press and hold to send more.'
+            : 'Sign in to record a reaction.'}
       </span>
 
       {state.syncState === 'retrying' && (

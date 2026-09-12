@@ -14,10 +14,11 @@
 | | What it counts | Where it lives | Behaviour |
 |---|---|---|---|
 | **Reaction** | Individual taps — emotional *intensity* | `reaction_aggregates` (one row per person per artifact) | Accumulates without limit |
-| **Opinion** | *People* — one position per person per artifact | `opinions`, unique on `(user_id, artifact_type, artifact_id)` | Upserted; switching sides moves the row, never duplicates it |
+| **Opinion** | *People* — one position per person per artifact | `opinions`, unique on `(user_id, artifact_type, artifact_id)` | Written once and never changed; the opposite side is refused |
 
 If one person sends 100 Rotten Eggs: the Rotten Egg counter rises by 100, **one** aggregate row records
-100 units, and **one** opinion row records them as negative. No row is written per tap, ever.
+100 units, and **one** opinion row records them as negative. No row is written per tap, ever. That
+person can send 100 more, but they cannot award this artifact a Medal.
 
 ---
 
@@ -197,6 +198,12 @@ appears to go backwards.
 participant total — it opens the sign-in sheet instead. The number on screen only ever reflects
 reactions that will actually be saved.
 
+**A side, once taken, is final.** Your first reaction to an artifact fixes your opinion. You can keep
+adding to that side without limit, but the opposite control is then disabled, and a batch that
+contradicts your recorded stance is refused with `409 opinion_locked`. This is why
+`positive_opinion_total` and `negative_opinion_total` only ever grow: the split reflects where people
+first landed, not where they last clicked.
+
 ---
 
 ## Realtime
@@ -241,6 +248,21 @@ data obeys exactly the same invariants the live path does.
 The sample content ships without images. Rather than manufacture artwork for events that never
 happened, a card with no image falls back to a neutral charcoal block carrying the Entity's initials
 or the category. Real images can be uploaded or linked per item from the admin area.
+
+---
+
+## The hero image
+
+The landing hero looks for `public/hero.jpg` (or `.jpeg` / `.png` / `.webp` / `.avif`) and uses the
+first one it finds. Drop a photograph in and it appears on the next render — no code change.
+
+Until then a dark stand-in (`public/hero-fallback.svg`) is used, so the hero is never empty. Pick a
+photograph that is dark on the left and centre: the headline sits centred over it with a neutral
+black scrim and nothing else.
+
+Vector sources bypass Next's image optimiser, which answers `400` for SVG unless
+`dangerouslyAllowSVG` is enabled. A vector gains nothing from rasterisation, so it is served as-is
+rather than loosening the optimiser for every image on the site.
 
 ---
 

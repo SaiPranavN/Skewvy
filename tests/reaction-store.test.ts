@@ -106,19 +106,22 @@ describe('signed in', () => {
     expect(state.totals.uniqueParticipantTotal).toBe(1);
   });
 
-  it('moves the opinion across when the person switches sides', () => {
+  it('refuses the opposite side once a side is taken, and moves nothing', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
     reactionStore.setAuthenticated(true);
 
     reactionStore.react(ARTIFACT.type, ARTIFACT.id, 'rotten_egg', 1);
-    reactionStore.react(ARTIFACT.type, ARTIFACT.id, 'medal', 1);
+    const crossing = reactionStore.react(ARTIFACT.type, ARTIFACT.id, 'medal', 1);
+
+    expect(crossing).toBe(false);
 
     const state = reactionStore.get(ARTIFACT.type, ARTIFACT.id)!;
-    expect(state.totals.negativeOpinionTotal).toBe(0);
-    expect(state.totals.positiveOpinionTotal).toBe(1);
-    // Still one person, and the Rotten Egg already sent is not withdrawn.
+    expect(state.totals.medalTotal).toBe(40);
+    expect(state.totals.positiveOpinionTotal).toBe(0);
+    expect(state.totals.negativeOpinionTotal).toBe(1);
+    expect(state.contribution.medalCount).toBe(0);
+    expect(state.contribution.stance).toBe('negative');
     expect(state.totals.uniqueParticipantTotal).toBe(1);
-    expect(state.contribution.rottenEggCount).toBe(1);
   });
 
   it('collapses a burst of taps into a single batched request', async () => {

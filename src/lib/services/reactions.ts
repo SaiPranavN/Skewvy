@@ -23,25 +23,25 @@ export interface ApplyBatchResult {
   totals: ArtifactTotals;
   contribution: UserContribution;
   stance: Stance;
-}
-
-/** Opinion transitions expressed as signed deltas on the two opinion counters. */
-function opinionDelta(previous: Stance | null, next: Stance): { positive: number; negative: number } {
-  if (previous === next) return { positive: 0, negative: 0 };
-  const delta = { positive: 0, negative: 0 };
-  if (previous === 'positive') delta.positive -= 1;
-  if (previous === 'negative') delta.negative -= 1;
-  if (next === 'positive') delta.positive += 1;
-  else delta.negative += 1;
-  return delta;
+  /**
+   * Set when the batch was refused because it contradicts the side this person
+   * already took on this artifact. Carries the stance they are held to.
+   */
+  lockedTo?: Stance;
 }
 
 /**
  * Records one batch of taps.
  *
- * Reactions accumulate (a person can send hundreds) while the Opinion is
- * upserted to exactly one row per person per artifact. The two are never mixed:
- * `rotten_egg_total` counts taps, `negative_opinion_total` counts people.
+ * Reactions accumulate (a person can send hundreds) while the Opinion is one
+ * row per person per artifact. The two are never mixed: `rotten_egg_total`
+ * counts taps, `negative_opinion_total` counts people.
+ *
+ * **A side, once taken, is final.** The first reaction to an artifact fixes
+ * that person's opinion, and every later reaction must agree with it. A batch
+ * that contradicts it is refused outright rather than moving the opinion across
+ * — so `positive_opinion_total` and `negative_opinion_total` only ever grow, and
+ * the split reflects where people first landed.
  *
  * The whole thing is idempotent on `(user_id, client_batch_id)`, so a retried
  * request can never double-count.
@@ -51,6 +51,18 @@ export async function applyReactionBatch(input: ApplyBatchInput): Promise<ApplyB
   const now = new Date().toISOString();
 
   const result = await transaction(async (tx) => {
+    const existingOpinion = await tx.query<{ stance: string }>(
+      'SELECT stance FROM opinions WHERE user_id = $1 AND artifact_type = $2 AND artifact_id = $3',
+      [input.userId, input.artifactType, input.artifactId],
+    );
+    const previousStance = (existingOpinion[0]?.stance as Stance | undefined) ?? null;
+
+    // Checked before the batch is claimed, so a refused reaction does not burn
+    // its client batch id and the client can safely resend the correct side.
+    if (previousStance && previousStance !== stance) {
+      return { locked: previousStance } as const;
+    }
+
     const claimed = await claimBatch(tx, input, now);
     if (!claimed) {
       // Already processed. Return authoritative state without touching counters.
@@ -62,12 +74,6 @@ export async function applyReactionBatch(input: ApplyBatchInput): Promise<ApplyB
       [input.userId, input.artifactType, input.artifactId],
     );
     const isNewParticipant = existingAggregate.length === 0;
-
-    const existingOpinion = await tx.query<{ stance: string }>(
-      'SELECT stance FROM opinions WHERE user_id = $1 AND artifact_type = $2 AND artifact_id = $3',
-      [input.userId, input.artifactType, input.artifactId],
-    );
-    const previousStance = (existingOpinion[0]?.stance as Stance | undefined) ?? null;
 
     const eggDelta = input.reactionType === 'rotten_egg' ? input.quantity : 0;
     const medalDelta = input.reactionType === 'medal' ? input.quantity : 0;
@@ -83,21 +89,22 @@ export async function applyReactionBatch(input: ApplyBatchInput): Promise<ApplyB
       [newId(), input.userId, input.artifactType, input.artifactId, eggDelta, medalDelta, now],
     );
 
-    // The opinion row is updated in place — never incremented, never duplicated.
+    // One opinion row per person per artifact. It is written once and then left
+    // alone: a contradicting batch never reaches here, and a matching one has
+    // nothing to change.
     await tx.execute(
       `INSERT INTO opinions (id, user_id, artifact_type, artifact_id, stance, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $6)
-       ON CONFLICT (user_id, artifact_type, artifact_id) DO UPDATE SET
-         stance = $5, updated_at = $6`,
+       ON CONFLICT (user_id, artifact_type, artifact_id) DO NOTHING`,
       [newId(), input.userId, input.artifactType, input.artifactId, stance, now],
     );
 
-    const opinionShift = opinionDelta(previousStance, stance);
+    const isNewOpinion = previousStance === null;
     const totals = await applyTotalsDelta(tx, input.artifactType, input.artifactId, {
       rottenEggs: eggDelta,
       medals: medalDelta,
-      positiveOpinions: opinionShift.positive,
-      negativeOpinions: opinionShift.negative,
+      positiveOpinions: isNewOpinion && stance === 'positive' ? 1 : 0,
+      negativeOpinions: isNewOpinion && stance === 'negative' ? 1 : 0,
       participants: isNewParticipant ? 1 : 0,
     });
 
@@ -111,12 +118,18 @@ export async function applyReactionBatch(input: ApplyBatchInput): Promise<ApplyB
     };
   });
 
-  if (!result) {
+  if (!result || 'locked' in result) {
     const [totals, contribution] = await Promise.all([
       getTotals(input.artifactType, input.artifactId),
       getContribution(input.userId, input.artifactType, input.artifactId),
     ]);
-    return { applied: false, totals, contribution, stance };
+    return {
+      applied: false,
+      totals,
+      contribution,
+      stance,
+      ...(result && 'locked' in result ? { lockedTo: result.locked } : {}),
+    };
   }
 
   publishArtifactEvent({
