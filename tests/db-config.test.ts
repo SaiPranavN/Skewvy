@@ -2,6 +2,8 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { schemaTables, postgresHardeningSql, schemaStatements } from '@/lib/db/schema';
 import { resolveSsl, isPooledConnection, isTransactionPooler } from '@/lib/db/postgres';
 import { resolveUrl, isPostgresUrl } from '@/lib/db';
+import { migrationFileContents, MIGRATION_PATH } from '@/lib/db/migration-file';
+import { readFileSync } from 'node:fs';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -95,5 +97,16 @@ describe('connection handling', () => {
     vi.stubEnv('DATABASE_URL', '');
     vi.stubEnv('NODE_ENV', 'development');
     expect(resolveUrl()).toBe('sqlite:./data/skewvy.db');
+  });
+});
+
+describe('the committed Supabase migration', () => {
+  /*
+   * Two copies of a schema drift apart. The file is what gets pasted into the
+   * Supabase dashboard, so a stale one means the deployed database and the
+   * application disagree — including about which tables have RLS on.
+   */
+  it('matches the schema module', () => {
+    expect(readFileSync(MIGRATION_PATH, 'utf8')).toBe(migrationFileContents());
   });
 });

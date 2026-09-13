@@ -1,7 +1,7 @@
 -- Skewvy — initial schema for Supabase.
 --
 -- Generated from src/lib/db/schema.ts, which is the source of truth. Do not
--- edit this file by hand; change the schema module and regenerate.
+-- edit this file by hand; run `npm run db:generate` instead.
 --
 -- Apply with either:
 --   npm run db:migrate            (uses DATABASE_URL)
