@@ -3,6 +3,7 @@ import type { SqlExecutor } from '@/lib/db';
 import { migrate } from '@/lib/db/migrate';
 import { newId } from '@/lib/services/crypto';
 import { hashPin } from '@/lib/services/pin';
+import { hourBucket } from '@/lib/services/timeline';
 import { SEED_ENTITIES, SEED_FLASH_NEWS } from './data';
 
 /**
@@ -84,6 +85,9 @@ export async function seedDatabase(options: SeedOptions = {}): Promise<{
   if (options.reset) {
     log('Clearing existing content and counters…');
     for (const table of [
+      'comment_votes',
+      'comments',
+      'reaction_timeline',
       'reaction_batches',
       'reaction_aggregates',
       'opinions',
@@ -238,6 +242,8 @@ export async function seedDatabase(options: SeedOptions = {}): Promise<{
     const aggregateRows: unknown[][] = [];
     const opinionRows: unknown[][] = [];
     const batchRows: unknown[][] = [];
+    /** Hourly rollup, so the trend chart has a real history to draw. */
+    const timeline = new Map<string, { eggs: number; medals: number }>();
 
     const participantCount = Math.min(artifact.participants, userIds.length);
     // A rotating offset so different artifacts draw overlapping but distinct crowds.
@@ -260,6 +266,12 @@ export async function seedDatabase(options: SeedOptions = {}): Promise<{
       medalTotal += medals;
 
       const createdAt = new Date(now - random() * artifact.ageHours * 3600000).toISOString();
+      const bucket = hourBucket(createdAt);
+      const existing = timeline.get(bucket) ?? { eggs: 0, medals: 0 };
+      existing.eggs += eggs;
+      existing.medals += medals;
+      timeline.set(bucket, existing);
+
       aggregateRows.push([newId(), userId, artifact.type, artifact.id, eggs, medals, createdAt, createdAt]);
       opinionRows.push([newId(), userId, artifact.type, artifact.id, negative ? 'negative' : 'positive', createdAt, createdAt]);
 
@@ -299,6 +311,18 @@ export async function seedDatabase(options: SeedOptions = {}): Promise<{
         ['id', 'user_id', 'artifact_type', 'artifact_id', 'reaction_type', 'quantity', 'client_batch_id', 'created_at'],
         batchRows,
       );
+      await bulkInsert(
+        tx,
+        'reaction_timeline',
+        ['artifact_type', 'artifact_id', 'bucket_start', 'rotten_egg_count', 'medal_count'],
+        [...timeline.entries()].map(([bucket, counts]) => [
+          artifact.type,
+          artifact.id,
+          bucket,
+          counts.eggs,
+          counts.medals,
+        ]),
+      );
     });
 
     totalParticipants += participantCount;
@@ -328,7 +352,7 @@ export async function rebuildAllTotals(): Promise<void> {
 
 /** Admin action: clears all reaction and opinion data, keeps the content. */
 export async function resetDemoTotals(): Promise<void> {
-  for (const table of ['reaction_batches', 'reaction_aggregates', 'opinions']) {
+  for (const table of ['reaction_timeline', 'reaction_batches', 'reaction_aggregates', 'opinions']) {
     await execute(`DELETE FROM ${table}`);
   }
   await execute('DELETE FROM artifact_totals');

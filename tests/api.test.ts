@@ -34,6 +34,8 @@ const { POST: requestResetRoute } = await import('@/app/api/auth/request-pin-res
 const { POST: resetPinRoute } = await import('@/app/api/auth/reset-pin/route');
 const { POST: batchRoute } = await import('@/app/api/reactions/batch/route');
 const { GET: totalsRoute } = await import('@/app/api/artifacts/[type]/[id]/totals/route');
+const { GET: commentsGet, POST: commentsPost } = await import('@/app/api/comments/route');
+const { POST: votePost } = await import('@/app/api/comments/[id]/vote/route');
 
 beforeAll(async () => {
   process.env.REQUIRE_EMAIL_VERIFICATION = '1';
@@ -411,5 +413,80 @@ describe('GET /api/artifacts/[type]/[id]/totals', () => {
       params: Promise.resolve({ type: 'moment', id: 'x' }),
     });
     expect(response.status).toBe(400);
+  });
+});
+
+describe('/api/comments', () => {
+  it('refuses an anonymous post but serves the list to anyone', async () => {
+    const artifactId = await createTestFlashNews();
+
+    const refused = await commentsPost(
+      post('/api/comments', { artifactType: 'flash_news', artifactId, body: 'Signed out.' }),
+    );
+    expect(refused.status).toBe(401);
+
+    const listed = await commentsGet(
+      new NextRequest(`http://localhost:3000/api/comments?artifactType=flash_news&artifactId=${artifactId}`),
+    );
+    expect(listed.status).toBe(200);
+    await expect(listed.json()).resolves.toMatchObject({ total: 0 });
+  });
+
+  it('accepts a comment from an account that has never reacted', async () => {
+    const artifactId = await createTestFlashNews();
+    const cookie = await signUp();
+
+    const response = await commentsPost(
+      post('/api/comments', { artifactType: 'flash_news', artifactId, body: 'Not reacted, still opinionated.' }, { cookie }),
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { comment: { authorStance: string | null; body: string } };
+    expect(body.comment.authorStance).toBeNull();
+    expect(body.comment.body).toBe('Not reacted, still opinionated.');
+  });
+
+  it('rejects an empty comment', async () => {
+    const artifactId = await createTestFlashNews();
+    const cookie = await signUp();
+
+    const response = await commentsPost(
+      post('/api/comments', { artifactType: 'flash_news', artifactId, body: ' ' }, { cookie }),
+    );
+    expect(response.status).toBe(422);
+  });
+
+  it('records a like and withdraws it when sent again', async () => {
+    const artifactId = await createTestFlashNews();
+    const cookie = await signUp();
+
+    const created = await commentsPost(
+      post('/api/comments', { artifactType: 'flash_news', artifactId, body: 'Vote on me.' }, { cookie }),
+    );
+    const { comment } = (await created.json()) as { comment: { id: string } };
+
+    const liked = await votePost(post(`/api/comments/${comment.id}/vote`, { value: 1 }, { cookie }), {
+      params: Promise.resolve({ id: comment.id }),
+    });
+    await expect(liked.json()).resolves.toMatchObject({ likeCount: 1, viewerVote: 1 });
+
+    const withdrawn = await votePost(post(`/api/comments/${comment.id}/vote`, { value: 1 }, { cookie }), {
+      params: Promise.resolve({ id: comment.id }),
+    });
+    await expect(withdrawn.json()).resolves.toMatchObject({ likeCount: 0, viewerVote: 0 });
+  });
+
+  it('refuses an anonymous vote', async () => {
+    const artifactId = await createTestFlashNews();
+    const cookie = await signUp();
+    const created = await commentsPost(
+      post('/api/comments', { artifactType: 'flash_news', artifactId, body: 'Guarded.' }, { cookie }),
+    );
+    const { comment } = (await created.json()) as { comment: { id: string } };
+
+    const response = await votePost(post(`/api/comments/${comment.id}/vote`, { value: -1 }), {
+      params: Promise.resolve({ id: comment.id }),
+    });
+    expect(response.status).toBe(401);
   });
 });

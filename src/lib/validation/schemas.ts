@@ -94,6 +94,24 @@ export const reactionBatchSchema = z.object({
   clientBatchId: z.string().min(8).max(80),
 });
 
+/** Comments are open to anyone signed in, whether or not they have reacted. */
+export const COMMENT_MAX_LENGTH = 1000;
+
+export const commentInputSchema = z.object({
+  artifactType: artifactTypeSchema,
+  artifactId: z.string().min(1).max(64),
+  body: z
+    .string()
+    .trim()
+    .min(2, 'Write at least a couple of characters.')
+    .max(COMMENT_MAX_LENGTH, `Comments are limited to ${COMMENT_MAX_LENGTH} characters.`),
+});
+
+/** 1 likes, -1 dislikes, 0 withdraws. Sending the current value also withdraws it. */
+export const commentVoteSchema = z.object({
+  value: z.union([z.literal(-1), z.literal(0), z.literal(1)]),
+});
+
 export const contentStatusSchema = z.enum(['draft', 'published', 'archived']);
 
 export const entityInputSchema = z.object({

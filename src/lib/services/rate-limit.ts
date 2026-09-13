@@ -59,4 +59,7 @@ export const RATE_RULES = {
   reactionBatch: { limit: 240, windowSeconds: 60 },
   reactionQuantity: { limit: 6000, windowSeconds: 60 },
   adminWrite: { limit: 120, windowSeconds: 60 },
+  /** Writing takes time; a person posting faster than this is not writing. */
+  commentPost: { limit: 8, windowSeconds: 120 },
+  commentVote: { limit: 90, windowSeconds: 60 },
 } satisfies Record<string, RateLimitRule>;

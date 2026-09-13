@@ -130,7 +130,13 @@ export function ShowcaseCarousel({ cards }: { cards: ArtifactCardModel[] }) {
 
       <div
         ref={trackRef}
-        className="relative mx-auto flex h-[540px] w-full max-w-[1440px] items-center justify-center sm:h-[560px]"
+        /*
+         * `overflow-x-clip`: every card in the deck is positioned, including the
+         * ones parked far off to the side at zero opacity, and without this they
+         * push the document's scroll width past the viewport and give the whole
+         * page a horizontal scrollbar.
+         */
+        className="relative mx-auto flex h-[540px] w-full max-w-[1440px] items-center justify-center overflow-x-clip sm:h-[560px]"
         style={{ touchAction: 'pan-y' }}
       >
         {cards.map((card, position) => {

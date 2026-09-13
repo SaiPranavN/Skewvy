@@ -144,6 +144,49 @@ CREATE TABLE IF NOT EXISTS reaction_batches (
 CREATE INDEX IF NOT EXISTS idx_reaction_batches_recent ON reaction_batches(artifact_type, artifact_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_reaction_batches_created ON reaction_batches(created_at);
 
+-- Hourly rollup of reactions per artifact, written alongside the totals in the
+-- same transaction. One row per artifact per hour, never one per tap: it exists
+-- so the trend chart has a real history to draw without scanning the ledger.
+-- Hourly rather than daily because a Flash News item can be nine hours old, and
+-- a chart of it needs more than one point. Days are a GROUP BY away.
+CREATE TABLE IF NOT EXISTS reaction_timeline (
+  artifact_type    TEXT NOT NULL CHECK (artifact_type IN ('entity', 'flash_news')),
+  artifact_id      TEXT NOT NULL,
+  bucket_start     TEXT NOT NULL,
+  rotten_egg_count INTEGER NOT NULL DEFAULT 0,
+  medal_count      INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (artifact_type, artifact_id, bucket_start)
+);
+CREATE INDEX IF NOT EXISTS idx_reaction_timeline_artifact ON reaction_timeline(artifact_type, artifact_id, bucket_start);
+
+-- Open discussion on an artifact. Unlike reactions, commenting has nothing to
+-- do with having taken a side: anyone signed in may post, whether or not they
+-- have ever sent an Egg or a Medal.
+CREATE TABLE IF NOT EXISTS comments (
+  id            TEXT PRIMARY KEY,
+  artifact_type TEXT NOT NULL CHECK (artifact_type IN ('entity', 'flash_news')),
+  artifact_id   TEXT NOT NULL,
+  user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body          TEXT NOT NULL,
+  like_count    INTEGER NOT NULL DEFAULT 0,
+  dislike_count INTEGER NOT NULL DEFAULT 0,
+  created_at    TEXT NOT NULL,
+  updated_at    TEXT NOT NULL,
+  deleted_at    TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_comments_artifact ON comments(artifact_type, artifact_id, created_at);
+
+-- One vote per person per comment. Switchable and removable, unlike a stance.
+CREATE TABLE IF NOT EXISTS comment_votes (
+  comment_id TEXT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  value      INTEGER NOT NULL CHECK (value IN (-1, 1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (comment_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_comment_votes_user ON comment_votes(user_id);
+
 -- Server-side rate limiting; a fixed window keyed by action + subject.
 CREATE TABLE IF NOT EXISTS rate_limits (
   bucket_key   TEXT PRIMARY KEY,

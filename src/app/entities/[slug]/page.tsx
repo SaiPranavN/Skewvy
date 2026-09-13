@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import { ArtifactHeader } from '@/components/artifact/ArtifactHeader';
 import { SentimentPanel } from '@/components/artifact/SentimentPanel';
 import { StickyReactionTray } from '@/components/artifact/StickyReactionTray';
+import { ReactionTrendChart } from '@/components/artifact/ReactionTrendChart';
+import { CommentSection } from '@/components/artifact/CommentSection';
 import { HydrateArtifacts } from '@/components/reactions/HydrateArtifacts';
 import { CardGrid } from '@/components/cards/CardGrid';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -11,6 +13,8 @@ import { getCurrentUser } from '@/lib/auth/current-user';
 import { getEntityBySlug, listFlashNews, toCards } from '@/lib/services/content';
 import { recentActivity } from '@/lib/services/reactions';
 import { recentVelocity } from '@/lib/services/totals';
+import { reactionTrend } from '@/lib/services/timeline';
+import { listComments } from '@/lib/services/comments';
 import { formatCount } from '@/lib/domain/format';
 
 export const dynamic = 'force-dynamic';
@@ -34,13 +38,15 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
   const entity = await getEntityBySlug(slug);
   if (!entity) notFound();
 
-  const [cards, relatedFlashNews, activity, velocity] = await Promise.all([
+  const [cards, relatedFlashNews, activity, velocity, trend, comments] = await Promise.all([
     toCards({ entities: [entity] }, { viewerId }),
     listFlashNews({ entityId: entity.id, limit: 12 }).then((items) =>
       toCards({ flashNews: items }, { viewerId, withVelocity: true }),
     ),
     recentActivity('entity', entity.id, 6),
     recentVelocity(24 * 60),
+    reactionTrend('entity', entity.id),
+    listComments('entity', entity.id, { viewerId, viewerIsAdmin: user?.isAdmin ?? false }),
   ]);
 
   const card = cards[0];
@@ -55,6 +61,9 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-12">
           <div className="space-y-8">
             <ArtifactHeader card={card} timeLabel="Updated" shareUrl={shareUrl} />
+
+            {/* The space the logo used to take, now carrying the history. */}
+            <ReactionTrendChart trend={trend} />
 
             {/*
              * Lifetime and recent sentiment are labelled separately, and neither
@@ -117,6 +126,13 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
                 separately on those pages.
               </p>
             </section>
+
+            <CommentSection
+              artifactType="entity"
+              artifactId={entity.id}
+              initial={comments}
+              viewerName={user?.displayName ?? null}
+            />
           </div>
 
           <div className="lg:sticky lg:top-24 lg:self-start">

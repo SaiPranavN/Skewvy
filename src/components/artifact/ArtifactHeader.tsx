@@ -1,13 +1,17 @@
 import Link from 'next/link';
-import { Media, initialsFor } from '@/components/ui/Media';
 import { TypeLabel, MetaRow, MetaDot } from '@/components/ui/SentimentMarker';
 import { LocalDateTime } from '@/components/ui/TimeAgo';
 import { ShareReceipt } from '@/components/share/ShareReceipt';
 import type { ArtifactCard } from '@/lib/domain/types';
 
 /**
- * Editorial detail header. Context, image and metadata live here; public
- * reaction is a separate column, so fact and sentiment never blur together.
+ * Editorial detail header. Context and metadata live here; public reaction is a
+ * separate column, so fact and sentiment never blur together.
+ *
+ * There is deliberately no picture. A 16:9 image was pushing everything worth
+ * reading below the fold, and the space now carries the reaction trend and the
+ * discussion instead — both of which are about this artifact rather than
+ * decoration of it.
  */
 export function ArtifactHeader({
   card,
@@ -41,17 +45,6 @@ export function ArtifactHeader({
       {card.subtitle && (
         <p className="max-w-2xl text-base leading-relaxed text-secondary">{card.subtitle}</p>
       )}
-
-      <Media
-        src={card.imageUrl}
-        alt={card.type === 'entity' ? `${card.title} logo` : `Image for: ${card.title}`}
-        fallbackLabel={card.type === 'entity' ? initialsFor(card.title) : card.category}
-        fallbackKind={card.type === 'entity' ? 'initials' : 'category'}
-        sizes="(max-width: 1024px) 100vw, 760px"
-        priority
-        scrim={card.imageUrl ? 'card' : 'none'}
-        className="aspect-[16/9] w-full rounded-[var(--radius-card)] border border-[var(--border-subtle)]"
-      />
 
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <MetaRow>

@@ -4,6 +4,8 @@ import type { Metadata } from 'next';
 import { ArtifactHeader } from '@/components/artifact/ArtifactHeader';
 import { SentimentPanel } from '@/components/artifact/SentimentPanel';
 import { StickyReactionTray } from '@/components/artifact/StickyReactionTray';
+import { ReactionTrendChart } from '@/components/artifact/ReactionTrendChart';
+import { CommentSection } from '@/components/artifact/CommentSection';
 import { HydrateArtifacts } from '@/components/reactions/HydrateArtifacts';
 import { CardGrid } from '@/components/cards/CardGrid';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -11,6 +13,8 @@ import { Media, initialsFor } from '@/components/ui/Media';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { getFlashNewsBySlug, entitiesForFlashNews, listFlashNews, toCards } from '@/lib/services/content';
 import { recentActivity } from '@/lib/services/reactions';
+import { reactionTrend } from '@/lib/services/timeline';
+import { listComments } from '@/lib/services/comments';
 import { formatCount } from '@/lib/domain/format';
 
 export const dynamic = 'force-dynamic';
@@ -34,10 +38,12 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
   const item = await getFlashNewsBySlug(slug);
   if (!item) notFound();
 
-  const [cards, relatedEntities, activity] = await Promise.all([
+  const [cards, relatedEntities, activity, trend, comments] = await Promise.all([
     toCards({ flashNews: [item] }, { viewerId }),
     entitiesForFlashNews(item.id),
     recentActivity('flash_news', item.id, 6),
+    reactionTrend('flash_news', item.id),
+    listComments('flash_news', item.id, { viewerId, viewerIsAdmin: user?.isAdmin ?? false }),
   ]);
 
   const card = cards[0];
@@ -67,6 +73,9 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
               sourceLabel={item.sourceLabel}
               sourceUrl={item.sourceUrl}
             />
+
+            {/* The space the picture used to take, now carrying the history. */}
+            <ReactionTrendChart trend={trend} />
 
             {item.body && (
               <section aria-labelledby="context-heading" className="divider pt-6">
@@ -129,6 +138,13 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
                 </ul>
               </section>
             )}
+
+            <CommentSection
+              artifactType="flash_news"
+              artifactId={item.id}
+              initial={comments}
+              viewerName={user?.displayName ?? null}
+            />
           </div>
 
           {/* Public reaction */}

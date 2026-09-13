@@ -2,6 +2,7 @@ import { transaction, queryOne } from '@/lib/db';
 import type { SqlExecutor } from '@/lib/db';
 import { newId } from './crypto';
 import { applyTotalsDelta, getTotals, getContribution } from './totals';
+import { recordTimelineBatch } from './timeline';
 import { publishArtifactEvent } from './realtime';
 import type { ArtifactTotals, ArtifactType, ReactionType, Stance, UserContribution } from '@/lib/domain/types';
 import { stanceForReaction } from '@/lib/domain/types';
@@ -98,6 +99,10 @@ export async function applyReactionBatch(input: ApplyBatchInput): Promise<ApplyB
        ON CONFLICT (user_id, artifact_type, artifact_id) DO NOTHING`,
       [newId(), input.userId, input.artifactType, input.artifactId, stance, now],
     );
+
+    // Rolled up in the same transaction as the totals, so the trend chart can
+    // never drift from the numbers it sits beside.
+    await recordTimelineBatch(tx, input.artifactType, input.artifactId, input.reactionType, input.quantity, now);
 
     const isNewOpinion = previousStance === null;
     const totals = await applyTotalsDelta(tx, input.artifactType, input.artifactId, {

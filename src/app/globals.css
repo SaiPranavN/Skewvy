@@ -78,6 +78,15 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+
+  /*
+   * Nothing on this site is meant to scroll sideways. `clip` rather than
+   * `hidden` on purpose: `hidden` would turn the root into a scroll container
+   * and break every `position: sticky` element on the site — the masthead, the
+   * reaction panel, the mobile tray. `clip` trims the overhang without
+   * creating one.
+   */
+  overflow-x: clip;
 }
 
 body {

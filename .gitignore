@@ -13,3 +13,6 @@ data/*.db-shm
 coverage
 next-env.d.ts
 tsconfig.tsbuildinfo
+
+# Images uploaded through the admin area at runtime.
+public/uploads/
