@@ -26,12 +26,14 @@ person can send 100 more, but they cannot award this artifact a Medal.
 
 ```bash
 npm install
-npm run db:reset   # creates the schema and seeds the demo world
-npm run dev        # http://localhost:3000
+cp .env.example .env.local      # then set DATABASE_URL
+npm run db:migrate              # create the schema
+npm run db:doctor               # confirm the connection and the lockdown
+npm run dev                     # http://localhost:3000
 ```
 
-That is the whole setup. No Docker, no database server, no API keys — every service has a working
-development default. Node 22.5 or newer is required.
+Node 22.5 or newer is required. The site starts empty: there is no sample content and no simulated
+crowd. Make yourself an admin, publish an Entity or a Flash News item, and the pages fill in.
 
 To make yourself an administrator:
 
@@ -59,7 +61,7 @@ Add `--admin` to grant the admin flag at the same time. This talks to the databa
 | Framework | Next.js 15 (App Router), React 19, TypeScript |
 | Styling | Tailwind CSS v4, design tokens as CSS custom properties |
 | Typeface | Geist, self-hosted — one family throughout |
-| Database | One adapter, two drivers — `node:sqlite` locally, PostgreSQL (`pg`) in production |
+| Database | Supabase PostgreSQL (`pg`) in production; `node:sqlite` locally, behind one adapter |
 | PIN hashing | Argon2id (`@node-rs/argon2`), scrypt fallback |
 | Bot check | Cloudflare Turnstile, verified server-side |
 | Realtime | Server-sent events + an in-process bus (PostgreSQL `LISTEN/NOTIFY` across instances) |
@@ -79,7 +81,9 @@ Copy `.env.example` to `.env.local`. Everything is optional locally.
 
 | Variable | Default | Notes |
 |---|---|---|
-| `DATABASE_URL` | `sqlite:./data/skewvy.db` | A `postgres://…` URL switches drivers automatically |
+| `DATABASE_URL` | `sqlite:./data/skewvy.db` in dev | The Supabase pooler URI. **Required in production** |
+| `DATABASE_CA_CERT` | unset | Supabase's CA. Without it TLS is on but the certificate is unverified |
+| `DATABASE_POOL_MAX` | 6 pooled / 10 direct | Per instance. Multiply by instances against your budget |
 | `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` | Base for emailed links — **must be set in production** |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare test key | Public site key |
 | `TURNSTILE_SECRET_KEY` | Cloudflare test key | **Set both in production** |
@@ -89,40 +93,77 @@ Copy `.env.example` to `.env.local`. Everything is optional locally.
 | `IP_HASH_PEPPER` | dev value | **Set a long random value in production** |
 | `ADMIN_EMAILS` | unset | Comma-separated; these get the admin flag at registration |
 | `REALTIME_PG_NOTIFY` | unset | `1` relays realtime events between instances (PostgreSQL only) |
-| `ALLOW_SIMULATOR` | unset | `1` permits the demo simulator outside development |
+| `REALTIME_DATABASE_URL` | falls back to `DATABASE_URL` | Session-pooler URI for `LISTEN`; the transaction pooler cannot hold one |
+| `NEXT_PUBLIC_SUPABASE_URL` | unset | Project identity. Not used by the server |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | unset | Browser-side only, for Storage and Realtime later |
 
 ---
 
 ## Database
 
-### Local (default)
+Supabase in production, over plain PostgreSQL. Skewvy does not use the Supabase client: the data
+model, the auth model and the invariants that matter here are all expressed in SQL, and the server
+holds a privileged connection, so PostgREST would add a hop without adding anything. The publishable
+key is not part of the server path at all.
 
-SQLite through Node's built-in `node:sqlite`, which still sits behind a flag — the npm scripts pass
-`--experimental-sqlite` for you. The file lives at `data/skewvy.db` and is gitignored.
+### Connecting
 
-```bash
-npm run db:migrate   # apply the schema (idempotent)
-npm run db:seed      # add demo content on top of what is there
-npm run db:reset     # delete the file and rebuild from scratch
+Copy the URI from **Project Settings → Database → Connection string** and put it in `DATABASE_URL`.
+Use the **transaction pooler** (port 6543) for the app — it is the one that survives many
+short-lived instances and is reachable over IPv4. Note the username is `postgres.<project-ref>`:
+
+```
+postgresql://postgres.<ref>:PASSWORD@aws-0-<region>.pooler.supabase.com:6543/postgres
 ```
 
-### PostgreSQL
+```bash
+npm run db:migrate   # apply the schema and the lockdown (idempotent)
+npm run db:doctor    # connection, TLS, tables, API exposure, row counts
+npm run db:wipe      # delete data — see below
+```
 
-Point `DATABASE_URL` at a PostgreSQL instance and run the same commands — the schema is written to be
-valid on both engines (application-generated UUID text ids, ISO-8601 text timestamps, 0/1 integers for
-booleans). Add `?sslmode=require` for a managed provider.
+### Keeping the tables off the public API
+
+This is the part of a Supabase setup that is easy to get wrong. Every table in the `public` schema is
+served by PostgREST to anyone holding the publishable key, which ships in the browser. Skewvy stores
+PIN hashes, session tokens and email addresses.
+
+So `migrate()` also enables row-level security on every Skewvy table and revokes the `anon` and
+`authenticated` grants. With RLS on and no policies, PostgREST returns nothing; the owning role the
+application connects as bypasses RLS and is unaffected. It re-runs on every migration, so a table
+added later or a switch flipped in the dashboard is corrected rather than left open, and
+`npm run db:doctor` reports any table that is still reachable.
+
+The `service_role` key bypasses all of this by design. It has no place in this application.
+
+### Local development
+
+Omit `DATABASE_URL` and the app uses SQLite through Node's built-in `node:sqlite` at
+`data/skewvy.db`. The schema is written to be valid on both engines (application-generated UUID text
+ids, ISO-8601 text timestamps, 0/1 integers for booleans). In production a missing `DATABASE_URL` is
+a startup error rather than a silent fallback.
+
+### Deleting data
+
+`npm run db:wipe` is the only destructive tool, and it only deletes:
 
 ```bash
-DATABASE_URL=postgres://user:pass@host:5432/skewvy npm run db:migrate
-DATABASE_URL=postgres://user:pass@host:5432/skewvy npm run db:seed
+npm run db:wipe -- --reactions --yes   # reactions, opinions, comments
+npm run db:wipe -- --content --yes     # the above plus Entities and Flash News
+npm run db:wipe -- --all --yes         # the above plus every account
 ```
+
+It prints the target host first and refuses to run without `--yes`.
 
 ### Tables
 
 `users`, `sessions`, `auth_tokens`, `entities`, `flash_news`, `flash_news_entities`, `opinions`,
-`reaction_aggregates`, `artifact_totals`, `reaction_batches`, `rate_limits`, `app_settings`.
+`reaction_aggregates`, `artifact_totals`, `reaction_batches`, `reaction_timeline`, `comments`,
+`comment_votes`, `rate_limits`, `app_settings`.
 
-The schema is the string in [`src/lib/db/schema.ts`](src/lib/db/schema.ts).
+The schema is the string in [`src/lib/db/schema.ts`](src/lib/db/schema.ts), which is the source of
+truth; [`supabase/migrations/`](supabase/migrations) is generated from it for the Supabase CLI and
+the dashboard SQL editor.
 
 ---
 
@@ -213,7 +254,10 @@ first landed, not where they last clicked.
 Remote changes roll the counters more gently than your own taps and surface as an occasional pulse
 (`+284 🥚 just landed`) — never a particle per remote reaction.
 
-For multiple instances, set `REALTIME_PG_NOTIFY=1` with a PostgreSQL `DATABASE_URL`.
+For multiple instances, set `REALTIME_PG_NOTIFY=1` and point `REALTIME_DATABASE_URL` at the Supabase
+*session* pooler (port 5432). `LISTEN` holds a connection open for the life of the process, which
+the transaction pooler cannot provide — it hands the connection back after every statement. The
+relay reconnects on its own if the connection drops.
 
 ---
 
@@ -225,29 +269,22 @@ Create, edit, preview, publish, unpublish and archive Entities and Flash News; u
 images; link a Flash News item to zero, one or many Entities; search; and see reaction and opinion
 totals per item.
 
-**Development-only tools**, refused when `NODE_ENV=production` unless `ALLOW_SIMULATOR=1`:
-
-- **Simulated demo activity** — small batches from demo accounts at irregular intervals, written
-  through the same service real reactions use. Labelled as simulated everywhere it appears.
-- **Reset demo totals** — clears every aggregate, opinion and batch, then recomputes totals to zero.
+There are no demo or simulation tools. Data is created by people using the site, and removed with
+`npm run db:wipe` from a terminal.
 
 ---
 
-## Sample content
+## Content
 
-18 Flash News items across 8 Entities, spanning technology, gaming, sports, culture, entertainment,
-business, community and controversy — positive, negative and genuinely split. One item links to two
-Entities; one links to none.
+The site ships empty. Entities and Flash News are created from `/admin`, and nothing appears on the
+public pages until an item is published.
 
-**Everything is fictional.** No claims are made about real people or organisations.
+There is no seeder and no crowd simulator. Every number on the site comes from a real reaction sent
+by a real account.
 
-Seeded counters are not written straight into `artifact_totals`: the seeder creates 9,000 demo
-participants with real aggregate and opinion rows and derives the totals from them, so the sample
-data obeys exactly the same invariants the live path does.
-
-The sample content ships without images. Rather than manufacture artwork for events that never
-happened, a card with no image falls back to a neutral charcoal block carrying the Entity's initials
-or the category. Real images can be uploaded or linked per item from the admin area.
+An item without an image falls back to a neutral charcoal block carrying the Entity's initials or the
+category, rather than manufactured artwork. Images can be uploaded or linked per item from the admin
+area.
 
 ---
 
@@ -342,20 +379,32 @@ stubbed, so no test depends on the network.
 
 ## Production checklist
 
-1. Set `DATABASE_URL` to PostgreSQL and run `npm run db:migrate`.
-2. Set `NEXT_PUBLIC_APP_URL` to the real origin — emailed links are built from it.
-3. Set real Turnstile keys and leave `TURNSTILE_DISABLED` unset.
-4. Set `RESEND_API_KEY` and `EMAIL_FROM`, or swap the transport in `src/lib/services/email.ts`.
-5. Set a long random `IP_HASH_PEPPER`.
-6. Leave `ALLOW_SIMULATOR` unset.
-7. Terminate TLS — session cookies set `Secure` automatically when `NODE_ENV=production`.
-8. Image uploads write to `public/uploads`; on a read-only or serverless host, use external image
-   URLs or point the upload action at object storage.
+1. `DATABASE_URL` → the Supabase transaction pooler URI, then `npm run db:migrate`.
+2. `npm run db:doctor` — it must report TLS on, all tables present, and no table reachable from the
+   public API.
+3. `NEXT_PUBLIC_APP_URL` → the real origin. Emailed links and share URLs are built from it.
+4. Real Turnstile keys in `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`.
+5. `RESEND_API_KEY` and `EMAIL_FROM`, or swap the transport in `src/lib/services/email.ts`.
+6. A long random `IP_HASH_PEPPER`, set once and not rotated casually.
+7. `DATABASE_POOL_MAX` × the number of instances must stay inside the project's connection budget.
+8. Terminate TLS — session cookies set `Secure` automatically when `NODE_ENV=production`.
+9. More than one instance: set `REALTIME_PG_NOTIFY=1` and point `REALTIME_DATABASE_URL` at the
+   *session* pooler (5432). `LISTEN` cannot run on the transaction pooler.
+
+### Known gaps before this is fully production-grade
+
+- **Image uploads write to `public/uploads`**, which does not survive a serverless deploy or scale
+  past one instance. Supabase Storage is the natural home; the upload action in
+  `src/app/admin/actions.ts` is the only thing that has to change.
+- **`images.remotePatterns` allows any HTTPS host**, so the Next image optimiser will proxy anything
+  an admin pastes. Narrow it to the hosts you actually use.
+- **Email verification is off** unless `REQUIRE_EMAIL_VERIFICATION=1`, which is right for a prototype
+  and wrong for a public launch.
 
 ---
 
 ## Not in this iteration
 
-Public content creation, user-generated Entities or Flash News, comments, following, direct messages,
+Public content creation, user-generated Entities or Flash News, following, direct messages,
 moderation systems, reputation scores, multiple admin roles, configurable animation, collision or
 impact effects, time-bound battles, recommendation algorithms, payments.

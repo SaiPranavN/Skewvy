@@ -15,8 +15,6 @@ import {
   slugExists,
   slugify,
 } from '@/lib/services/content';
-import { setSimulatorEnabled, simulatorAllowed, runSimulationTick } from '@/lib/services/simulator';
-import { resetDemoTotals } from '@/lib/seed/seeder';
 import { consumeRateLimit, RATE_RULES } from '@/lib/services/rate-limit';
 import { newId } from '@/lib/services/crypto';
 
@@ -193,35 +191,4 @@ export async function uploadImageAction(_previous: ActionResult, formData: FormD
   }
 
   return { ok: true, url: `/uploads/${filename}`, message: 'Image uploaded.' };
-}
-
-/* ----------------------------- development only ---------------------------- */
-
-export async function toggleSimulatorAction(enabled: boolean): Promise<ActionResult> {
-  const blocked = await guard();
-  if (blocked) return blocked;
-
-  if (!simulatorAllowed()) {
-    return { ok: false, message: 'The simulator is disabled in this environment.' };
-  }
-
-  await setSimulatorEnabled(enabled);
-  if (enabled) await runSimulationTick();
-
-  revalidatePath('/admin');
-  return { ok: true, message: enabled ? 'Simulated demo activity started.' : 'Simulated demo activity stopped.' };
-}
-
-export async function resetTotalsAction(): Promise<ActionResult> {
-  const blocked = await guard();
-  if (blocked) return blocked;
-
-  if (!simulatorAllowed()) {
-    return { ok: false, message: 'Resetting totals is only available in development.' };
-  }
-
-  await resetDemoTotals();
-  revalidatePath('/admin');
-  revalidatePath('/');
-  return { ok: true, message: 'All reaction and opinion data cleared.' };
 }

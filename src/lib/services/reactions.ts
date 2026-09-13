@@ -14,8 +14,6 @@ export interface ApplyBatchInput {
   reactionType: ReactionType;
   quantity: number;
   clientBatchId: string;
-  /** Simulated crowd activity is written the same way but never broadcast as a personal tap. */
-  source?: 'user' | 'simulator';
 }
 
 export interface ApplyBatchResult {
@@ -143,7 +141,6 @@ export async function applyReactionBatch(input: ApplyBatchInput): Promise<ApplyB
     reactionType: input.reactionType,
     quantity: input.quantity,
     totals: result.totals,
-    source: input.source ?? 'user',
     actorId: input.userId,
   });
 

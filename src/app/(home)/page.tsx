@@ -47,7 +47,7 @@ export default async function HomePage() {
       <div className="mx-auto w-full max-w-[1320px] px-4 py-20 sm:px-6 lg:px-8">
         <EmptyState
           title="No published content yet"
-          description="Seed the demo data with npm run db:seed, or publish an Entity or Flash News item from the admin area."
+          description="Publish an Entity or a Flash News item from the admin area and it appears here."
           action={{ href: '/admin', label: 'Open admin' }}
         />
       </div>

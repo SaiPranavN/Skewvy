@@ -35,7 +35,7 @@ export function SiteFooter() {
           <ul className="space-y-2 text-secondary">
             <li>Reactions count taps. Opinions count people.</li>
             <li>Sentiment applies to decisions and events, not private individuals.</li>
-            <li>All sample content is fictional.</li>
+            <li>A side, once taken, is final. Reactions after it must agree with it.</li>
           </ul>
         </div>
       </div>

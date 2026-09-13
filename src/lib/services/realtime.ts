@@ -1,3 +1,4 @@
+import { isTransactionPooler, resolveSsl } from '@/lib/db/postgres';
 import type { ArtifactTotals, ArtifactType, ReactionType } from '@/lib/domain/types';
 
 export interface ArtifactEvent {
@@ -6,7 +7,6 @@ export interface ArtifactEvent {
   reactionType: ReactionType;
   quantity: number;
   totals: ArtifactTotals;
-  source: 'user' | 'simulator';
   actorId: string;
 }
 
@@ -47,8 +47,20 @@ export function publishArtifactEvent(event: ArtifactEvent): void {
   void relayToPostgres(event);
 }
 
+/**
+ * `LISTEN` holds a connection open for the life of the process, which a
+ * transaction-mode pooler cannot provide — it hands the server connection back
+ * after every statement, so the listener would never receive anything. Session
+ * mode (port 5432) or a direct connection is required, and `REALTIME_DATABASE_URL`
+ * exists so the relay can use one while ordinary queries keep using the pooler.
+ */
+function relayConnectionString(): string | null {
+  const url = process.env.REALTIME_DATABASE_URL?.trim() || process.env.DATABASE_URL?.trim() || '';
+  return /^postgres/.test(url) ? url : null;
+}
+
 function pgRelayEnabled(): boolean {
-  return process.env.REALTIME_PG_NOTIFY === '1' && /^postgres/.test(process.env.DATABASE_URL ?? '');
+  return process.env.REALTIME_PG_NOTIFY === '1' && relayConnectionString() !== null;
 }
 
 async function relayToPostgres(event: ArtifactEvent): Promise<void> {
@@ -61,26 +73,68 @@ async function relayToPostgres(event: ArtifactEvent): Promise<void> {
   }
 }
 
-/** Opens a dedicated LISTEN connection once per process when enabled. */
+const RELAY_RETRY_MS = 5_000;
+
+/**
+ * Opens a dedicated LISTEN connection once per process when enabled, and keeps
+ * it open.
+ *
+ * A long-lived connection will be dropped eventually — a pooler recycling it, a
+ * deploy on the database side, a network blip — and without reconnection
+ * realtime would go quiet for the life of the process while everything else
+ * carried on working, which is the kind of failure nobody notices for a week.
+ */
 function ensurePostgresRelay(): void {
   if (!pgRelayEnabled() || globalForBus.__skewvyPgRelay) return;
 
+  const connectionString = relayConnectionString()!;
+  if (isTransactionPooler(connectionString)) {
+    console.warn(
+      '[realtime] REALTIME_PG_NOTIFY is on but the connection is a transaction-mode pooler (port 6543), ' +
+        'which cannot hold a LISTEN. Set REALTIME_DATABASE_URL to a session-mode connection (port 5432).',
+    );
+    return;
+  }
+
   globalForBus.__skewvyPgRelay = (async () => {
     const { Client } = await import('pg');
-    const client = new Client({ connectionString: process.env.DATABASE_URL });
-    await client.connect();
-    await client.query('LISTEN skewvy_reactions');
-    // Inbound events go straight to local listeners, so relaying never loops.
-    client.on('notification', (message) => {
-      if (!message.payload) return;
-      try {
-        const event = JSON.parse(message.payload) as ArtifactEvent;
-        for (const listener of listeners()) listener(event);
-      } catch {
-        // Ignore malformed payloads.
-      }
-    });
-  })().catch(() => {
+
+    const connect = async (): Promise<void> => {
+      const client = new Client({
+        connectionString,
+        application_name: 'skewvy-realtime',
+        ssl: resolveSsl(connectionString),
+      });
+
+      const reconnect = () => {
+        client.removeAllListeners();
+        setTimeout(() => void connect().catch(() => scheduleRetry()), RELAY_RETRY_MS);
+      };
+      const scheduleRetry = () => setTimeout(() => void connect().catch(() => scheduleRetry()), RELAY_RETRY_MS);
+
+      // Without a listener here, a dropped connection raises an unhandled
+      // 'error' event and takes the process with it.
+      client.on('error', reconnect);
+      client.on('end', reconnect);
+
+      // Inbound events go straight to local listeners, so relaying never loops.
+      client.on('notification', (message) => {
+        if (!message.payload) return;
+        try {
+          const event = JSON.parse(message.payload) as ArtifactEvent;
+          for (const listener of listeners()) listener(event);
+        } catch {
+          // Ignore malformed payloads.
+        }
+      });
+
+      await client.connect();
+      await client.query('LISTEN skewvy_reactions');
+    };
+
+    await connect();
+  })().catch((error: Error) => {
+    console.warn(`[realtime] relay unavailable: ${error.message}`);
     globalForBus.__skewvyPgRelay = undefined;
   });
 }

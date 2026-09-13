@@ -1,12 +1,14 @@
-/**
- * Source of truth for the Skewvy schema.
- *
- * Kept as a TypeScript string rather than a `.sql` file so the migration runs
- * unchanged inside the Next.js server bundle, where relative file reads break.
- * `npm run db:migrate` also mirrors it to `db/schema.sql` for anyone applying it
- * to PostgreSQL by hand.
- */
-export const SCHEMA_SQL = `-- Skewvy schema. Written to be valid on both SQLite and PostgreSQL:
+-- Skewvy — initial schema for Supabase.
+--
+-- Generated from src/lib/db/schema.ts, which is the source of truth. Do not
+-- edit this file by hand; change the schema module and regenerate.
+--
+-- Apply with either:
+--   npm run db:migrate            (uses DATABASE_URL)
+--   supabase db push              (Supabase CLI)
+--   or paste into the SQL editor in the Supabase dashboard.
+
+-- Skewvy schema. Written to be valid on both SQLite and PostgreSQL:
 -- ids are application-generated UUID text, timestamps are ISO-8601 UTC text,
 -- and booleans are stored as 0/1 integers.
 
@@ -199,41 +201,17 @@ CREATE TABLE IF NOT EXISTS app_settings (
   value      TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
-`;
 
-/** Every table the schema defines, in creation order. */
-export function schemaTables(): string[] {
-  return [...SCHEMA_SQL.matchAll(/CREATE TABLE IF NOT EXISTS\s+(\w+)/gi)].map((match) => match[1]);
-}
 
-/**
- * Locks the tables away from Supabase's public API.
- *
- * Supabase exposes every table in the `public` schema through PostgREST, and
- * the publishable key that reaches it is meant to be public — it ships in the
- * browser. A table sitting there without row-level security is world-readable
- * and, depending on its grants, world-writable. Skewvy holds password hashes,
- * session tokens and email addresses, so that is not a risk worth carrying.
- *
- * Enabling RLS with no policies denies every request that arrives through the
- * API, while the owning role the application connects as bypasses RLS and is
- * unaffected. The grants are revoked as well, so neither mechanism alone has to
- * be the only thing standing between the anon key and the users table.
- *
- * PostgreSQL only. Applied by `migrate()` when the dialect is `postgres`, and
- * written into the Supabase migration file.
- */
-export function postgresHardeningSql(): string {
-  const tables = schemaTables()
-    .map((table) => `'${table}'`)
-    .join(', ');
-
-  return `DO $skewvy$
+-- ---------------------------------------------------------------------------
+-- Keep these tables out of the public API. See postgresHardeningSql().
+-- ---------------------------------------------------------------------------
+DO $skewvy$
 DECLARE
   target text;
   supabase_roles boolean := EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon');
 BEGIN
-  FOREACH target IN ARRAY ARRAY[${tables}]
+  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'comments', 'comment_votes', 'rate_limits', 'app_settings']
   LOOP
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = target) THEN
       EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', target);
@@ -247,20 +225,4 @@ BEGIN
     EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated';
   END IF;
 END
-$skewvy$;`;
-}
-
-/** Splits the schema into individually executable statements. */
-export function schemaStatements(): string[] {
-  return SCHEMA_SQL.split(/;\s*(?:\r?\n|$)/)
-    .map((statement) =>
-      statement
-        // Drop whole-line comments so a comment above a statement never
-        // swallows the statement itself.
-        .split('\n')
-        .filter((line) => !/^\s*--/.test(line))
-        .join('\n')
-        .trim(),
-    )
-    .filter((statement) => statement.length > 0);
-}
+$skewvy$;

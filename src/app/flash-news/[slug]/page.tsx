@@ -85,7 +85,6 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
                 <p className="mt-3 max-w-2xl whitespace-pre-line text-[0.9375rem] leading-[1.7] text-secondary">
                   {item.body}
                 </p>
-                <p className="mt-4 text-xs text-tertiary">This is fictional sample content.</p>
               </section>
             )}
 

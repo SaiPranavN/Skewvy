@@ -3,8 +3,6 @@ import type { Metadata } from 'next';
 import { query } from '@/lib/db';
 import { formatCount } from '@/lib/domain/format';
 import { StatBlock, type Stat } from '@/components/ui/StatBlock';
-import { SimulatorControls } from '@/components/admin/SimulatorControls';
-import { simulatorAllowed, simulatorEnabled, simulatorRunning } from '@/lib/services/simulator';
 import { pinAlgorithm } from '@/lib/services/pin';
 import { getDb } from '@/lib/db';
 
@@ -45,8 +43,6 @@ export default async function AdminOverviewPage() {
             (SELECT COUNT(*) FROM opinions) AS opinions,
             (SELECT COUNT(*) FROM reaction_aggregates) AS aggregates`,
   );
-
-  const enabled = await simulatorEnabled();
 
   const stats: Stat[] = [
     { label: 'Rotten Eggs', value: Number(totals?.eggs ?? 0), emoji: '🥚', tone: 'egg' },
@@ -128,12 +124,6 @@ export default async function AdminOverviewPage() {
           </dl>
         </section>
       </div>
-
-      <SimulatorControls
-        allowed={simulatorAllowed()}
-        enabled={enabled}
-        running={simulatorRunning()}
-      />
     </div>
   );
 }

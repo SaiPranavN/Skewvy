@@ -44,7 +44,7 @@ export default async function FlashNewsPage({ searchParams }: { searchParams: Pr
           description={
             category
               ? `No published Flash News in ${category}.`
-              : 'No published Flash News. Seed the demo data or publish an item from the admin area.'
+              : 'No published Flash News yet. Publish an item from the admin area and it appears here.'
           }
           action={{ href: '/flash-news', label: 'Show everything' }}
         />

@@ -48,7 +48,6 @@ export async function POST(request: NextRequest) {
     reactionType,
     quantity,
     clientBatchId,
-    source: 'user',
   });
 
   void ip;

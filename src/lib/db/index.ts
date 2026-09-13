@@ -10,15 +10,35 @@ export type { Database, SqlExecutor };
  */
 const globalForDb = globalThis as unknown as { __skewvyDb?: Promise<Database> };
 
-function resolveUrl(): string {
-  return process.env.DATABASE_URL?.trim() || 'sqlite:./data/skewvy.db';
+const LOCAL_SQLITE_URL = 'sqlite:./data/skewvy.db';
+
+export function resolveUrl(): string {
+  const configured = process.env.DATABASE_URL?.trim();
+  if (configured) return configured;
+
+  /*
+   * A production deployment that quietly fell back to a local SQLite file would
+   * come up healthy, serve an empty site and lose every write when the instance
+   * recycled. Refusing to start is the kinder failure.
+   */
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'DATABASE_URL is not set. Point it at the Supabase connection string ' +
+        '(Project Settings → Database → Connection string → URI).',
+    );
+  }
+
+  return LOCAL_SQLITE_URL;
+}
+
+export function isPostgresUrl(url: string): boolean {
+  return url.startsWith('postgres://') || url.startsWith('postgresql://');
 }
 
 async function connect(): Promise<Database> {
   const url = resolveUrl();
-  if (url.startsWith('postgres://') || url.startsWith('postgresql://')) {
-    return createPostgresDatabase(url);
-  }
+  if (isPostgresUrl(url)) return createPostgresDatabase(url);
+
   const file = url.replace(/^sqlite:(\/\/)?/, '') || './data/skewvy.db';
   return createSqliteDatabase(file);
 }

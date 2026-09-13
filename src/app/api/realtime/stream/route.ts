@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
 import { subscribeToArtifactEvents } from '@/lib/services/realtime';
-import { resumeSimulatorIfEnabled } from '@/lib/services/simulator';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -17,9 +16,6 @@ const FLUSH_INTERVAL_MS = 700;
 const HEARTBEAT_MS = 25_000;
 
 export async function GET(request: NextRequest) {
-  // If the demo simulator was left on, a fresh server process restarts it here.
-  await resumeSimulatorIfEnabled();
-
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream<Uint8Array>({
@@ -49,7 +45,6 @@ export async function GET(request: NextRequest) {
             artifactId: event.artifactId,
             reactionType: event.reactionType,
             totals: event.totals,
-            source: event.source,
           }),
         });
       });

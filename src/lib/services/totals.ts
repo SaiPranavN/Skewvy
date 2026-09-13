@@ -164,8 +164,13 @@ export async function getContributionsFor(
 }
 
 /**
- * Rebuilds the denormalised totals from the aggregate and opinion tables.
- * Used by the seeder and by the admin "reset demo totals" action.
+ * Rebuilds the denormalised totals for one artifact from the aggregate and
+ * opinion tables, which are the authoritative record.
+ *
+ * A maintenance operation, not part of the write path: totals are moved by
+ * deltas inside the same transaction as the reaction. This is here for the
+ * cases where that is not enough — restoring from a backup, correcting a row
+ * edited by hand, or verifying the two agree.
  */
 export async function recomputeTotals(artifactType: ArtifactType, artifactId: string): Promise<ArtifactTotals> {
   const reactions = await queryOne<{ eggs: number | null; medals: number | null; participants: number | null }>(
@@ -206,6 +211,17 @@ export async function recomputeTotals(artifactType: ArtifactType, artifactId: st
   );
 
   return mapTotals(rows[0]);
+}
+
+/** Recomputes every artifact's totals. Safe to run at any time; not cheap. */
+export async function rebuildAllTotals(): Promise<number> {
+  const entities = await query<{ id: string }>('SELECT id FROM entities');
+  const flashNews = await query<{ id: string }>('SELECT id FROM flash_news');
+
+  for (const row of entities) await recomputeTotals('entity', row.id);
+  for (const row of flashNews) await recomputeTotals('flash_news', row.id);
+
+  return entities.length + flashNews.length;
 }
 
 /** Reactions received inside the trailing window — the input to trending velocity. */
