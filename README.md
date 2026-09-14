@@ -165,6 +165,26 @@ The schema is the string in [`src/lib/db/schema.ts`](src/lib/db/schema.ts), whic
 truth; [`supabase/migrations/`](supabase/migrations) is generated from it for the Supabase CLI and
 the dashboard SQL editor.
 
+### Images
+
+Uploads go to the Supabase Storage bucket `artifact-images`, created by
+`npm run db:migrate` alongside the schema. The bucket is public to read — these images are published
+on the site, so signing every URL would buy nothing — and closed to write: no policy grants `anon`
+or `authenticated` any access, so the only way in is `SUPABASE_SECRET_KEY`, which is server-side
+only and never reaches the browser.
+
+Size and type limits are declared twice on purpose: the upload action checks before sending a byte,
+and the bucket enforces them again on arrival, so a request that bypasses the action still cannot
+put a 200 MB file in the bucket. Filenames are generated, never taken from the upload.
+
+Without those credentials, development falls back to writing into `public/uploads`. That fallback is
+refused when `NODE_ENV=production`, because a serverless filesystem would accept the write and then
+lose the file when the instance recycled.
+
+The Next.js image optimiser only fetches from the Supabase Storage host plus anything listed in
+`IMAGE_HOSTS`. An open allowlist would make the deployment a free image proxy for anyone who
+guessed an optimiser URL.
+
 ---
 
 ## Authentication
@@ -382,22 +402,18 @@ stubbed, so no test depends on the network.
 1. `DATABASE_URL` → the Supabase transaction pooler URI, then `npm run db:migrate`.
 2. `npm run db:doctor` — it must report TLS on, all tables present, and no table reachable from the
    public API.
-3. `NEXT_PUBLIC_APP_URL` → the real origin. Emailed links and share URLs are built from it.
-4. Real Turnstile keys in `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`.
-5. `RESEND_API_KEY` and `EMAIL_FROM`, or swap the transport in `src/lib/services/email.ts`.
-6. A long random `IP_HASH_PEPPER`, set once and not rotated casually.
-7. `DATABASE_POOL_MAX` × the number of instances must stay inside the project's connection budget.
-8. Terminate TLS — session cookies set `Secure` automatically when `NODE_ENV=production`.
-9. More than one instance: set `REALTIME_PG_NOTIFY=1` and point `REALTIME_DATABASE_URL` at the
+3. `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SECRET_KEY` → image uploads fail without them.
+4. `NEXT_PUBLIC_APP_URL` → the real origin. Emailed links and share URLs are built from it.
+5. Real Turnstile keys in `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`.
+6. `RESEND_API_KEY` and `EMAIL_FROM`, or swap the transport in `src/lib/services/email.ts`.
+7. A long random `IP_HASH_PEPPER`, set once and not rotated casually.
+8. `DATABASE_POOL_MAX` × the number of instances must stay inside the project's connection budget.
+9. Terminate TLS — session cookies set `Secure` automatically when `NODE_ENV=production`.
+10. More than one instance: set `REALTIME_PG_NOTIFY=1` and point `REALTIME_DATABASE_URL` at the
    *session* pooler (5432). `LISTEN` cannot run on the transaction pooler.
 
 ### Known gaps before this is fully production-grade
 
-- **Image uploads write to `public/uploads`**, which does not survive a serverless deploy or scale
-  past one instance. Supabase Storage is the natural home; the upload action in
-  `src/app/admin/actions.ts` is the only thing that has to change.
-- **`images.remotePatterns` allows any HTTPS host**, so the Next image optimiser will proxy anything
-  an admin pastes. Narrow it to the hosts you actually use.
 - **Email verification is off** unless `REQUIRE_EMAIL_VERIFICATION=1`, which is right for a prototype
   and wrong for a public launch.
 

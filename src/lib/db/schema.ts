@@ -250,6 +250,45 @@ END
 $skewvy$;`;
 }
 
+/** The Supabase Storage bucket holding uploaded Entity and Flash News images. */
+export const IMAGE_BUCKET = 'artifact-images';
+
+/** Matches the limits the upload action enforces before a byte is sent. */
+export const IMAGE_MAX_BYTES = 6 * 1024 * 1024;
+export const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/avif', 'image/svg+xml'] as const;
+
+/**
+ * Creates the image bucket.
+ *
+ * Public read: these images are published on the site, so signing every URL
+ * would buy nothing and cost a round trip. Writes are a different matter —
+ * no policy grants `anon` or `authenticated` any access to `storage.objects`,
+ * so the only way in is the secret key held by the server.
+ *
+ * The size and type limits are repeated here on purpose. The upload action
+ * checks them before sending, and Storage enforces them again on arrival, so a
+ * request that skips the action cannot put a 200 MB file in the bucket.
+ *
+ * Skipped when the `storage` schema is absent, which is every PostgreSQL that
+ * is not Supabase.
+ */
+export function storageSetupSql(): string {
+  const mimeTypes = IMAGE_MIME_TYPES.map((type) => `'${type}'`).join(', ');
+
+  return `DO $skewvy_storage$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'storage') THEN
+    INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    VALUES ('${IMAGE_BUCKET}', '${IMAGE_BUCKET}', true, ${IMAGE_MAX_BYTES}, ARRAY[${mimeTypes}])
+    ON CONFLICT (id) DO UPDATE SET
+      public = true,
+      file_size_limit = ${IMAGE_MAX_BYTES},
+      allowed_mime_types = ARRAY[${mimeTypes}];
+  END IF;
+END
+$skewvy_storage$;`;
+}
+
 /** Splits the schema into individually executable statements. */
 export function schemaStatements(): string[] {
   return SCHEMA_SQL.split(/;\s*(?:\r?\n|$)/)

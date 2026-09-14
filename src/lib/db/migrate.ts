@@ -1,5 +1,5 @@
 import { getDb } from './index';
-import { schemaStatements, postgresHardeningSql } from './schema';
+import { schemaStatements, postgresHardeningSql, storageSetupSql } from './schema';
 
 /**
  * Applies the schema. Every statement is idempotent, so this is safe to re-run.
@@ -19,5 +19,6 @@ export async function migrate(): Promise<void> {
 
   if (db.dialect === 'postgres') {
     await db.execute(postgresHardeningSql());
+    await db.execute(storageSetupSql());
   }
 }

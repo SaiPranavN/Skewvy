@@ -226,3 +226,19 @@ BEGIN
   END IF;
 END
 $skewvy$;
+
+-- ---------------------------------------------------------------------------
+-- Storage bucket for uploaded images. See storageSetupSql().
+-- ---------------------------------------------------------------------------
+DO $skewvy_storage$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'storage') THEN
+    INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    VALUES ('artifact-images', 'artifact-images', true, 6291456, ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/avif', 'image/svg+xml'])
+    ON CONFLICT (id) DO UPDATE SET
+      public = true,
+      file_size_limit = 6291456,
+      allowed_mime_types = ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/avif', 'image/svg+xml'];
+  END IF;
+END
+$skewvy_storage$;

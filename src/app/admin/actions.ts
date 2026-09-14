@@ -17,6 +17,7 @@ import {
 } from '@/lib/services/content';
 import { consumeRateLimit, RATE_RULES } from '@/lib/services/rate-limit';
 import { newId } from '@/lib/services/crypto';
+import { storageConfig, uploadImage, validateImage } from '@/lib/services/storage';
 
 /**
  * Admin mutations. Every one of these re-checks the admin flag on the server —
@@ -154,11 +155,17 @@ export async function setStatusAction(
 }
 
 /**
- * Image upload. Files land in `public/uploads`, which works for local
- * development and any deployment with a writable disk. On a read-only or
- * serverless host, paste an external image URL instead.
+ * Image upload.
+ *
+ * Files go to Supabase Storage. A local-disk fallback remains for development
+ * without Supabase credentials, but it is refused in production: a serverless
+ * filesystem is ephemeral, so writing there would appear to work and then lose
+ * the image the moment the instance recycled.
  */
-export async function uploadImageAction(_previous: ActionResult, formData: FormData): Promise<ActionResult & { url?: string }> {
+export async function uploadImageAction(
+  _previous: ActionResult,
+  formData: FormData,
+): Promise<ActionResult & { url?: string }> {
   const blocked = await guard();
   if (blocked) return blocked;
 
@@ -166,29 +173,34 @@ export async function uploadImageAction(_previous: ActionResult, formData: FormD
   if (!(file instanceof File) || file.size === 0) {
     return { ok: false, message: 'Choose an image file first.' };
   }
-  if (file.size > 6 * 1024 * 1024) {
-    return { ok: false, message: 'Images must be 6 MB or smaller.' };
+
+  const validated = validateImage(file);
+  if (!validated.ok) return { ok: false, message: validated.message };
+
+  const config = storageConfig();
+  if (config) {
+    const result = await uploadImage(file, config);
+    return result.ok
+      ? { ok: true, url: result.url, message: 'Image uploaded.' }
+      : { ok: false, message: result.message };
   }
 
-  const allowed: Record<string, string> = {
-    'image/png': 'png',
-    'image/jpeg': 'jpg',
-    'image/webp': 'webp',
-    'image/avif': 'avif',
-    'image/svg+xml': 'svg',
-  };
-  const extension = allowed[file.type];
-  if (!extension) return { ok: false, message: 'Use a PNG, JPEG, WebP, AVIF or SVG image.' };
+  if (process.env.NODE_ENV === 'production') {
+    return {
+      ok: false,
+      message: 'Image storage is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY.',
+    };
+  }
 
-  const filename = `${newId()}.${extension}`;
+  const filename = `${newId()}.${validated.extension}`;
   const directory = path.join(process.cwd(), 'public', 'uploads');
 
   try {
     await mkdir(directory, { recursive: true });
     await writeFile(path.join(directory, filename), Buffer.from(await file.arrayBuffer()));
   } catch {
-    return { ok: false, message: 'This deployment has a read-only filesystem. Paste an image URL instead.' };
+    return { ok: false, message: 'Could not write the file locally. Configure Supabase Storage instead.' };
   }
 
-  return { ok: true, url: `/uploads/${filename}`, message: 'Image uploaded.' };
+  return { ok: true, url: `/uploads/${filename}`, message: 'Image uploaded to local disk (development only).' };
 }

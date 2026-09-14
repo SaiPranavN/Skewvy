@@ -1,4 +1,4 @@
-import { SCHEMA_SQL, postgresHardeningSql } from './schema';
+import { SCHEMA_SQL, postgresHardeningSql, storageSetupSql } from './schema';
 
 /**
  * The Supabase migration file, generated from the schema module.
@@ -27,5 +27,10 @@ ${SCHEMA_SQL}
 -- Keep these tables out of the public API. See postgresHardeningSql().
 -- ---------------------------------------------------------------------------
 ${postgresHardeningSql()}
+
+-- ---------------------------------------------------------------------------
+-- Storage bucket for uploaded images. See storageSetupSql().
+-- ---------------------------------------------------------------------------
+${storageSetupSql()}
 `;
 }
