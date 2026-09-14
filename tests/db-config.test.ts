@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { schemaTables, postgresHardeningSql, schemaStatements } from '@/lib/db/schema';
-import { resolveSsl, isPooledConnection, isTransactionPooler } from '@/lib/db/postgres';
+import { resolveSsl, isPooledConnection, isTransactionPooler, withoutSslMode } from '@/lib/db/postgres';
 import { resolveUrl, isPostgresUrl } from '@/lib/db';
 import { migrationFileContents, MIGRATION_PATH } from '@/lib/db/migration-file';
 import { readFileSync } from 'node:fs';
@@ -71,6 +71,29 @@ describe('connection handling', () => {
     expect(resolveSsl('postgresql://postgres:postgres@localhost:5432/skewvy?sslmode=require')).toEqual({
       rejectUnauthorized: false,
     });
+  });
+
+  /*
+   * Regression: `pg` reads sslmode=require from the URL as verify-full, which
+   * silently overrides the explicit ssl option and rejects Supabase's own CA
+   * with "self-signed certificate in certificate chain". TLS is decided in one
+   * place, so the parameter must not survive into the connection string.
+   */
+  it('strips sslmode so it cannot override the explicit TLS settings', () => {
+    expect(withoutSslMode(`${SUPABASE_SESSION}?sslmode=require`)).not.toContain('sslmode');
+    expect(withoutSslMode(`${SUPABASE_SESSION}?sslmode=require`)).toContain('pooler.supabase.com');
+    // Untouched when it was never there.
+    expect(withoutSslMode(SUPABASE_SESSION)).toBe(SUPABASE_SESSION);
+    // Other parameters survive.
+    expect(withoutSslMode(`${SUPABASE_SESSION}?sslmode=require&application_name=x`)).toContain('application_name=x');
+  });
+
+  it('still honours sslmode when deciding whether to use TLS', () => {
+    // Read before it is stripped: the decision is made from the original url.
+    expect(resolveSsl('postgresql://postgres:x@localhost:5432/db?sslmode=require')).toEqual({
+      rejectUnauthorized: false,
+    });
+    expect(resolveSsl('postgresql://postgres:x@db.example.com:5432/db?sslmode=disable')).toBe(false);
   });
 
   it('tells the two Supabase poolers apart', () => {

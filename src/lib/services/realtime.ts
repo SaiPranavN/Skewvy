@@ -1,4 +1,4 @@
-import { isTransactionPooler, resolveSsl } from '@/lib/db/postgres';
+import { isTransactionPooler, resolveSsl, withoutSslMode } from '@/lib/db/postgres';
 import type { ArtifactTotals, ArtifactType, ReactionType } from '@/lib/domain/types';
 
 export interface ArtifactEvent {
@@ -101,7 +101,7 @@ function ensurePostgresRelay(): void {
 
     const connect = async (): Promise<void> => {
       const client = new Client({
-        connectionString,
+        connectionString: withoutSslMode(connectionString),
         application_name: 'skewvy-realtime',
         ssl: resolveSsl(connectionString),
       });

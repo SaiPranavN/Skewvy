@@ -114,7 +114,9 @@ if (missing.length === 0) {
     console.info(`   ${table.padEnd(20)} ${Number(value).toLocaleString()}`);
   }
 
-  const admins = await query<{ email: string }>('SELECT email FROM users WHERE is_admin = 1 OR is_admin = true');
+  // `is_admin` is an INTEGER on both engines — the schema stores booleans as
+  // 0/1 so one set of SQL works against SQLite and PostgreSQL alike.
+  const admins = await query<{ email: string }>('SELECT email FROM users WHERE is_admin = 1');
   console.info(
     admins.length > 0
       ? `\n👤 Admins: ${admins.map((row) => row.email).join(', ')}`

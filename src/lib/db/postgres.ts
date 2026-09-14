@@ -29,6 +29,28 @@ function hostOf(connectionString: string): string {
 }
 
 /**
+ * Removes `sslmode` from the connection string, having already read it.
+ *
+ * `pg` treats `sslmode=require` in a URL as `verify-full` — stricter than libpq,
+ * and strict enough to reject Supabase, whose certificate is signed by its own
+ * CA. Worse, it silently overrides the explicit `ssl` option, so a connection
+ * string copied from the dashboard with `?sslmode=require` appended fails with
+ * "self-signed certificate in certificate chain" no matter what the code asks
+ * for. TLS is decided here, in one place, and the parameter is taken out of the
+ * string so it cannot contradict that.
+ */
+export function withoutSslMode(connectionString: string): string {
+  try {
+    const url = new URL(connectionString);
+    if (!url.searchParams.has('sslmode')) return connectionString;
+    url.searchParams.delete('sslmode');
+    return url.toString();
+  } catch {
+    return connectionString;
+  }
+}
+
+/**
  * TLS is required for anything that is not a local socket.
  *
  * Supabase presents a certificate signed by its own CA. Verifying it properly
@@ -66,7 +88,7 @@ export async function createPostgresDatabase(connectionString: string): Promise<
    * refusing connections for the whole project.
    */
   const pool = new Pool({
-    connectionString,
+    connectionString: withoutSslMode(connectionString),
     application_name: 'skewvy',
     max: positiveInt(process.env.DATABASE_POOL_MAX, isPooledConnection(connectionString) ? 6 : 10),
     idleTimeoutMillis: positiveInt(process.env.DATABASE_IDLE_TIMEOUT_MS, 15_000),
