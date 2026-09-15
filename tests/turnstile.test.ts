@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   verifyTurnstile,
+  turnstileUnavailable,
+  TURNSTILE_UNAVAILABLE_MESSAGE,
   turnstileConfigured,
   turnstileDisabled,
   turnstileSiteKey,
@@ -75,5 +77,24 @@ describe('token verification', () => {
     const result = await verifyTurnstile(TURNSTILE_FALLBACK_TOKEN);
     expect(result.success).toBe(false);
     expect(result.errorCodes).toContain('fallback-token-rejected');
+  });
+});
+
+describe('a widget that could not load', () => {
+  /*
+   * Opposite problems needing opposite answers. A failed challenge means try
+   * again. A widget that never loaded means trying again fails identically
+   * forever, and the person is locked out of the site having done nothing
+   * wrong — so they need to be told what to change, not told to retry.
+   */
+  it('is told apart from a failed challenge', () => {
+    expect(turnstileUnavailable({ success: false, errorCodes: ['fallback-token-rejected'] })).toBe(true);
+    expect(turnstileUnavailable({ success: false, errorCodes: ['invalid-input-response'] })).toBe(false);
+    expect(turnstileUnavailable({ success: false, errorCodes: [] })).toBe(false);
+  });
+
+  it('says what to do instead of telling them to retry', () => {
+    expect(TURNSTILE_UNAVAILABLE_MESSAGE).not.toMatch(/try it again/i);
+    expect(TURNSTILE_UNAVAILABLE_MESSAGE).toMatch(/extension|browser/i);
   });
 });

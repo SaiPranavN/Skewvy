@@ -1,4 +1,5 @@
 import { getDb, query, queryOne, resolveUrl, isPostgresUrl } from '@/lib/db';
+import { isPooledConnection, isTransactionPooler } from '@/lib/db/postgres';
 import { schemaTables } from '@/lib/db/schema';
 
 /**
@@ -28,16 +29,25 @@ try {
 console.info(`✅ Connected in ${Date.now() - started}ms (${db.dialect}).`);
 
 if (isPostgresUrl(url)) {
-  const server = await queryOne<{ version: string; ssl: string | null; db: string; usr: string }>(
-    `SELECT version() AS version,
-            (SELECT ssl::text FROM pg_stat_ssl WHERE pid = pg_backend_pid()) AS ssl,
-            current_database() AS db,
-            current_user AS usr`,
+  const server = await queryOne<{ version: string; db: string; usr: string }>(
+    `SELECT version() AS version, current_database() AS db, current_user AS usr`,
   );
   console.info(`   ${server?.version?.split(' on ')[0] ?? 'unknown version'}`);
-  console.info(`   database ${server?.db}, role ${server?.usr}, TLS ${server?.ssl === 'true' ? 'on' : 'OFF'}`);
-  if (server?.ssl !== 'true') {
-    console.warn('   ⚠️  This connection is not encrypted. Check sslmode in DATABASE_URL.');
+
+  /*
+   * Read from our own socket, not from pg_stat_ssl. Through a pooler the server
+   * describes the pooler's connection to PostgreSQL — inside Supabase's
+   * network, unencrypted, and none of our business. The hop that crosses the
+   * internet is this one.
+   */
+  const tls = db.clientTlsActive?.() ?? null;
+  const pooled = isPooledConnection(url);
+  console.info(
+    `   database ${server?.db}, role ${server?.usr}, TLS ${tls === null ? 'unknown' : tls ? 'on' : 'OFF'}` +
+      (pooled ? ' (via the connection pooler)' : ''),
+  );
+  if (tls === false) {
+    console.warn('   ⚠️  This connection is not encrypted. Remove sslmode=disable from DATABASE_URL.');
   }
 }
 
@@ -95,6 +105,13 @@ if (isPostgresUrl(url)) {
       console.error('   Run: npm run db:migrate');
     }
   }
+}
+
+if (isTransactionPooler(url) && process.env.REALTIME_PG_NOTIFY === '1' && !process.env.REALTIME_DATABASE_URL?.trim()) {
+  console.warn(
+    '\n⚠️  REALTIME_PG_NOTIFY is on with a transaction-mode pooler, which cannot hold a LISTEN.\n' +
+      '   Set REALTIME_DATABASE_URL to the session pooler (port 5432).',
+  );
 }
 
 /* -------------------------------- content --------------------------------- */

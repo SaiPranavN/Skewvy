@@ -46,6 +46,21 @@ export function storageHostname(): string | null {
   }
 }
 
+/**
+ * Builds the auth headers Storage accepts.
+ *
+ * Supabase has two generations of key. The legacy `service_role` key is a JWT
+ * and goes in `Authorization: Bearer`. The current `sb_secret_…` key is not a
+ * JWT, and sending it as a Bearer token is rejected with "Invalid Compact JWS"
+ * — it belongs in `apikey`, which both generations accept. So `apikey` is
+ * always sent, and the Bearer header only when the key really is a JWT.
+ */
+export function authHeaders(secretKey: string): Record<string, string> {
+  const headers: Record<string, string> = { apikey: secretKey };
+  if (secretKey.startsWith('eyJ')) headers.authorization = `Bearer ${secretKey}`;
+  return headers;
+}
+
 export type UploadResult =
   | { ok: true; url: string }
   | { ok: false; message: string };
@@ -89,7 +104,7 @@ export async function uploadImage(file: File, config: StorageConfig): Promise<Up
     response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        authorization: `Bearer ${config.secretKey}`,
+        ...authHeaders(config.secretKey),
         'content-type': file.type,
         // Never overwrite: every upload gets a fresh name, so a collision here
         // would mean something has gone wrong rather than something benign.
@@ -113,6 +128,9 @@ export async function uploadImage(file: File, config: StorageConfig): Promise<Up
 function storageErrorMessage(status: number, detail: string): string {
   if (status === 401 || status === 403) {
     return 'Supabase rejected the upload key. Check SUPABASE_SECRET_KEY.';
+  }
+  if (status === 400 && /compact jws/i.test(detail)) {
+    return 'Supabase rejected the upload key format. Check SUPABASE_SECRET_KEY.';
   }
   if (status === 404) {
     return `The "${IMAGE_BUCKET}" bucket does not exist. Run npm run db:migrate.`;

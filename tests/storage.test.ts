@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { storageConfig, storageHostname, validateImage, uploadImage } from '@/lib/services/storage';
+import { storageConfig, storageHostname, validateImage, uploadImage, authHeaders } from '@/lib/services/storage';
 import { storageSetupSql, IMAGE_BUCKET, IMAGE_MAX_BYTES, IMAGE_MIME_TYPES } from '@/lib/db/schema';
 
 afterEach(() => {
@@ -74,7 +74,9 @@ describe('uploading', () => {
       new RegExp(`^${CONFIG.url}/storage/v1/object/${IMAGE_BUCKET}/[0-9a-f-]{36}\\.jpg$`),
     );
     expect(endpoint).not.toContain('photo');
-    expect((init.headers as Record<string, string>).authorization).toBe(`Bearer ${CONFIG.secretKey}`);
+    // A modern secret key travels as apikey; Bearer would be parsed as a JWT.
+    expect((init.headers as Record<string, string>).apikey).toBe(CONFIG.secretKey);
+    expect((init.headers as Record<string, string>).authorization).toBeUndefined();
     expect((init.headers as Record<string, string>)['x-upsert']).toBe('false');
     expect((result as { url: string }).url).toContain(`/storage/v1/object/public/${IMAGE_BUCKET}/`);
   });
@@ -127,5 +129,26 @@ describe('bucket provisioning', () => {
     const sql = storageSetupSql();
     expect(sql).not.toMatch(/CREATE POLICY/i);
     expect(sql).not.toMatch(/TO anon/i);
+  });
+});
+
+describe('storage authentication', () => {
+  /*
+   * Supabase has two generations of key and Storage accepts them differently.
+   * Sending the current `sb_secret_…` key as a Bearer token is rejected with
+   * "Invalid Compact JWS", because Bearer is parsed as a JWT and that key is
+   * not one. `apikey` accepts both.
+   */
+  it('sends a modern secret key only as apikey', () => {
+    const headers = authHeaders('sb_secret_abc123');
+    expect(headers.apikey).toBe('sb_secret_abc123');
+    expect(headers.authorization).toBeUndefined();
+  });
+
+  it('still sends a legacy service_role JWT as a Bearer token', () => {
+    const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.payload.signature';
+    const headers = authHeaders(jwt);
+    expect(headers.apikey).toBe(jwt);
+    expect(headers.authorization).toBe(`Bearer ${jwt}`);
   });
 });

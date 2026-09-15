@@ -79,6 +79,10 @@ function positiveInt(value: string | undefined, fallback: number): number {
 
 export async function createPostgresDatabase(connectionString: string): Promise<Database> {
   const { Pool } = await import('pg');
+  const { TLSSocket } = await import('node:tls');
+
+  /** Observed from the socket itself; see `clientTlsActive` on Database. */
+  let tlsActive: boolean | null = null;
 
   /*
    * Supabase counts every pooler client against the project's connection
@@ -106,6 +110,11 @@ export async function createPostgresDatabase(connectionString: string): Promise<
    * process down. The pool discards the client on its own; all this has to do
    * is make sure someone is listening.
    */
+  pool.on('connect', (client) => {
+    const stream = (client as unknown as { connection?: { stream?: unknown } }).connection?.stream;
+    tlsActive = stream instanceof TLSSocket;
+  });
+
   pool.on('error', (error) => {
     console.error('[db] idle client error:', error.message);
   });
@@ -125,6 +134,8 @@ export async function createPostgresDatabase(connectionString: string): Promise<
   return {
     dialect: 'postgres',
     ...wrap(pool as never),
+
+    clientTlsActive: () => tlsActive,
 
     /*
      * A transaction has to run every statement on the same client. Taking one

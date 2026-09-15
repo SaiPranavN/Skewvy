@@ -43,6 +43,26 @@ export interface TurnstileResult {
   errorCodes: string[];
 }
 
+/**
+ * Whether the check failed because the widget never loaded, rather than because
+ * the challenge was failed.
+ *
+ * These are opposite problems. A failed challenge means try again; a widget
+ * that could not load means trying again will fail the same way forever, and
+ * the person is locked out of the site through no fault of their own — usually
+ * a privacy extension, a blocked iframe, or a network that filters Cloudflare.
+ * Telling them to "try again" in that state is the worst possible answer.
+ */
+export function turnstileUnavailable(result: TurnstileResult): boolean {
+  return result.errorCodes.includes('fallback-token-rejected');
+}
+
+/** The message shown when the widget could not load. */
+export const TURNSTILE_UNAVAILABLE_MESSAGE =
+  'The robot check could not load in this browser, so we cannot confirm you are human. ' +
+  'It is usually a privacy extension or a blocked iframe — try disabling content blocking for this site, ' +
+  'or use a different browser.';
+
 export async function verifyTurnstile(token: string, remoteIp?: string | null): Promise<TurnstileResult> {
   if (turnstileDisabled()) return { success: true, errorCodes: [] };
   if (!token) return { success: false, errorCodes: ['missing-input-response'] };

@@ -4,6 +4,14 @@ import { subscribeToArtifactEvents } from '@/lib/services/realtime';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+/*
+ * Vercel caps a function's lifetime, and this one deliberately holds its
+ * connection open. At the default cap the stream is cut every few seconds and
+ * the client spends its time reconnecting rather than listening. 300s is the
+ * Hobby/Pro ceiling; the client reconnects cleanly when it is reached.
+ */
+export const maxDuration = 300;
+
 /**
  * Server-sent events carrying crowd reaction updates.
  *

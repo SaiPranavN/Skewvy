@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { resetPinSchema, directResetPinSchema } from '@/lib/validation/schemas';
 import { resetPin, resetPinWithoutEmail, requiresEmailVerification } from '@/lib/services/auth';
-import { verifyTurnstile } from '@/lib/services/turnstile';
+import { verifyTurnstile, turnstileUnavailable, TURNSTILE_UNAVAILABLE_MESSAGE } from '@/lib/services/turnstile';
 import { consumeRateLimit, RATE_RULES } from '@/lib/services/rate-limit';
 import { SESSION_COOKIE, sessionCookieOptions } from '@/lib/services/sessions';
 import { apiError, validationError, rateLimited } from '@/lib/api/responses';
@@ -29,7 +29,9 @@ export async function POST(request: NextRequest) {
 
     const turnstile = await verifyTurnstile(parsed.data.turnstileToken, ip);
     if (!turnstile.success) {
-      return apiError(400, 'turnstile_failed', 'The robot check did not pass. Try it again.');
+      return turnstileUnavailable(turnstile)
+        ? apiError(400, 'turnstile_unavailable', TURNSTILE_UNAVAILABLE_MESSAGE)
+        : apiError(400, 'turnstile_failed', 'The robot check did not pass. Try it again.');
     }
 
     const result = await resetPinWithoutEmail(parsed.data.email, parsed.data.pin, { ip, userAgent });
@@ -49,7 +51,9 @@ export async function POST(request: NextRequest) {
 
   const turnstile = await verifyTurnstile(parsed.data.turnstileToken, ip);
   if (!turnstile.success) {
-    return apiError(400, 'turnstile_failed', 'The robot check did not pass. Try it again.');
+    return turnstileUnavailable(turnstile)
+      ? apiError(400, 'turnstile_unavailable', TURNSTILE_UNAVAILABLE_MESSAGE)
+      : apiError(400, 'turnstile_failed', 'The robot check did not pass. Try it again.');
   }
 
   // Resetting the PIN also revokes every existing session for the account.

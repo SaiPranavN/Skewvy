@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { requestPinResetSchema } from '@/lib/validation/schemas';
 import { requestPinReset } from '@/lib/services/auth';
-import { verifyTurnstile } from '@/lib/services/turnstile';
+import { verifyTurnstile, turnstileUnavailable, TURNSTILE_UNAVAILABLE_MESSAGE } from '@/lib/services/turnstile';
 import { consumeRateLimit, RATE_RULES } from '@/lib/services/rate-limit';
 import { apiError, validationError, rateLimited } from '@/lib/api/responses';
 import { requestContext } from '@/lib/api/request-context';
@@ -20,7 +20,9 @@ export async function POST(request: NextRequest) {
 
   const turnstile = await verifyTurnstile(parsed.data.turnstileToken, ip);
   if (!turnstile.success) {
-    return apiError(400, 'turnstile_failed', 'The robot check did not pass. Try it again.');
+    return turnstileUnavailable(turnstile)
+      ? apiError(400, 'turnstile_unavailable', TURNSTILE_UNAVAILABLE_MESSAGE)
+      : apiError(400, 'turnstile_failed', 'The robot check did not pass. Try it again.');
   }
 
   const outcome = await requestPinReset(parsed.data.email, ip);
