@@ -6,11 +6,12 @@ export const runtime = 'nodejs';
 
 /*
  * Vercel caps a function's lifetime, and this one deliberately holds its
- * connection open. At the default cap the stream is cut every few seconds and
- * the client spends its time reconnecting rather than listening. 300s is the
- * Hobby/Pro ceiling; the client reconnects cleanly when it is reached.
+ * connection open. 60s is accepted on every plan — asking for more than the
+ * plan allows fails the build rather than degrading — and the client
+ * reconnects cleanly when the cap is reached. Raise it on Pro if the
+ * once-a-minute reconnect ever shows.
  */
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 /**
  * Server-sent events carrying crowd reaction updates.
