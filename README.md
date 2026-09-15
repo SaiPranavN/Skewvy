@@ -189,6 +189,19 @@ guessed an optimiser URL.
 
 ## Authentication
 
+Sign-up is two steps, and the order matters: **prove the address, then set the PIN.**
+
+1. Name and email. A confirmation link is sent. **No row is written to `users`.**
+2. Open the link, choose a PIN. *That* creates the account, already verified, and signs you in.
+
+Nothing exists between the steps except a row in `pending_registrations` holding a name, an address
+and a hashed token. Signing up with someone else's address therefore creates no account for them to
+reclaim, an abandoned sign-up leaves the address free, and a PIN is never stored against an address
+nobody has shown they control. Requesting a new link retires the previous one, so the newest email in
+an inbox is the only one that works.
+
+
+
 Passwordless registration with a **user-chosen PIN** for everyday access.
 
 **Email is only required where it can actually be sent.** With no `RESEND_API_KEY` configured,

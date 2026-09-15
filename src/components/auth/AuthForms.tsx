@@ -244,20 +244,24 @@ export function LoginForm({
   );
 }
 
+/**
+ * Step one of sign-up: a name and an address.
+ *
+ * No PIN here. The address is proved first, and the PIN is chosen on the other
+ * side of the emailed link — so a PIN is never stored against an address
+ * nobody has shown they control.
+ */
 export function RegisterForm({
   siteKey,
   turnstileDisabled,
   turnstileRequired,
   emailVerificationRequired = true,
   redirectTo,
-  onAuthenticated,
   compact,
 }: AuthFormProps) {
   const router = useRouter();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
-  const [pin, setPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
   const [token, setToken] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -281,12 +285,10 @@ export function RegisterForm({
       const result = await postJson('/api/auth/register', {
         displayName,
         email,
-        pin,
-        confirmPin,
         turnstileToken: token,
         redirectTo,
       });
-      const data = result.data as ApiFailure & { status?: string; redirectTo?: string };
+      const data = result.data as ApiFailure & { status?: string; token?: string };
 
       if (!result.ok) {
         setFieldErrors(data.fields ?? {});
@@ -295,21 +297,19 @@ export function RegisterForm({
         return;
       }
 
-      // Where email verification is not required, the account is live now.
-      if (data.status === 'signed_in') {
-        completeAuth({
-          compact,
-          target: data.redirectTo || redirectTo || '/',
-          refresh: router.refresh,
-          onAuthenticated,
-        });
-        return;
-      }
-
       if (data.status === 'account_exists') {
         setFieldErrors({ email: 'That address already has an account.' });
         setError('You already have an account with that email. Sign in instead.');
         setToken(null);
+        return;
+      }
+
+      // No mail transport, so there is no inbox to wait on: go straight to the
+      // step the link would have opened. Production always sends the email.
+      if (data.status === 'ready_for_pin' && data.token) {
+        const next = new URLSearchParams({ token: data.token });
+        if (redirectTo) next.set('redirectTo', redirectTo);
+        router.push(`/auth/complete?${next.toString()}`);
         return;
       }
 
@@ -338,11 +338,22 @@ export function RegisterForm({
         <div>
           <h2 className="text-base font-medium text-primary">Check your email</h2>
           <p className="mt-2 text-sm leading-relaxed text-secondary">
-            If that address can be used, a one-time confirmation link is on its way to{' '}
-            <span className="text-primary">{email}</span>. Open it once — after that you sign in with your email and
-            PIN.
+            A confirmation link is on its way to <span className="text-primary">{email}</span>. Open it to choose your
+            PIN and finish setting up the account.
           </p>
         </div>
+
+        <ol className="space-y-2 text-sm text-tertiary">
+          <li>
+            <span className="text-secondary">1.</span> Name and email — done
+          </li>
+          <li>
+            <span className="text-primary">2. Confirm your email</span> — open the link we just sent
+          </li>
+          <li>
+            <span className="text-secondary">3.</span> Choose a PIN and finish
+          </li>
+        </ol>
 
         <FormNotice message={resendNotice} />
 
@@ -372,6 +383,7 @@ export function RegisterForm({
         value={displayName}
         error={fieldErrors.displayName}
         onChange={(event) => setDisplayName(event.target.value)}
+        hint="Shown next to your comments. Not your email address."
       />
 
       <TextField
@@ -386,30 +398,9 @@ export function RegisterForm({
         placeholder="you@example.com"
         hint={
           emailVerificationRequired
-            ? 'Confirmed once. You will not need your inbox to sign in again.'
+            ? 'We send one link here. You choose your PIN after opening it.'
             : 'Used to sign in. No confirmation email is sent.'
         }
-      />
-
-      <PinField
-        id="register-pin"
-        label="Create PIN"
-        autoComplete="new-password"
-        required
-        value={pin}
-        error={fieldErrors.pin}
-        onChange={(event) => setPin(event.target.value)}
-        hint={`At least ${PIN_MIN_LENGTH} characters. Digits, letters or both.`}
-      />
-
-      <PinField
-        id="register-confirm-pin"
-        label="Confirm PIN"
-        autoComplete="new-password"
-        required
-        value={confirmPin}
-        error={fieldErrors.confirmPin}
-        onChange={(event) => setConfirmPin(event.target.value)}
       />
 
       <RobotCheck
@@ -420,7 +411,7 @@ export function RegisterForm({
         onToken={setToken}
       />
 
-      <SubmitButton pending={pending}>Create account</SubmitButton>
+      <SubmitButton pending={pending}>Continue</SubmitButton>
 
       {!compact && (
         <p className="text-sm text-tertiary">
@@ -433,6 +424,121 @@ export function RegisterForm({
           </Link>
         </p>
       )}
+    </form>
+  );
+}
+
+/**
+ * Step two: the address is proved, so the PIN can be set and the account made.
+ *
+ * Reached only through the emailed link. The token is the authority — the name
+ * and address shown here came from the pending sign-up it points at, not from
+ * anything the browser supplied.
+ */
+export function CompleteRegistrationForm({
+  token,
+  displayName,
+  email,
+  redirectTo,
+  siteKey,
+  turnstileDisabled,
+  turnstileRequired,
+}: {
+  token: string;
+  displayName: string;
+  email: string;
+  redirectTo: string | null;
+  siteKey: string;
+  turnstileDisabled: boolean;
+  turnstileRequired: boolean;
+}) {
+  const router = useRouter();
+  const [pin, setPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setFieldErrors({});
+
+    if (!turnstileToken) {
+      setError('Complete the robot check before continuing.');
+      return;
+    }
+
+    setPending(true);
+    try {
+      const result = await postJson('/api/auth/complete-registration', {
+        token,
+        pin,
+        confirmPin,
+        turnstileToken,
+      });
+      const data = result.data as ApiFailure & { status?: string; redirectTo?: string };
+
+      if (!result.ok) {
+        setFieldErrors(data.fields ?? {});
+        setError(data.message ?? 'Something went wrong. Try again.');
+        setTurnstileToken(null);
+        return;
+      }
+
+      completeAuth({
+        target: data.redirectTo || redirectTo || '/',
+        refresh: router.refresh,
+      });
+    } catch {
+      setError('We could not reach Skewvy. Check your connection and try again.');
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4" noValidate>
+      <FormError message={error} />
+
+      <div className="rounded-[var(--radius-control)] border border-[var(--border-subtle)] bg-surface px-4 py-3">
+        <p className="text-sm text-secondary">
+          Confirmed as <span className="text-primary">{displayName}</span>
+        </p>
+        <p className="mt-0.5 text-xs text-tertiary">{email}</p>
+      </div>
+
+      <PinField
+        id="complete-pin"
+        label="Create PIN"
+        autoComplete="new-password"
+        required
+        value={pin}
+        error={fieldErrors.pin}
+        onChange={(event) => setPin(event.target.value)}
+        hint={`At least ${PIN_MIN_LENGTH} characters. Digits, letters or both. This is how you sign in from now on.`}
+      />
+
+      <PinField
+        id="complete-confirm-pin"
+        label="Confirm PIN"
+        autoComplete="new-password"
+        required
+        value={confirmPin}
+        error={fieldErrors.confirmPin}
+        onChange={(event) => setConfirmPin(event.target.value)}
+      />
+
+      <RobotCheck
+        siteKey={siteKey}
+        disabled={turnstileDisabled}
+        required={turnstileRequired}
+        action="complete-registration"
+        onToken={setTurnstileToken}
+      />
+
+      <SubmitButton pending={pending}>Finish and sign in</SubmitButton>
     </form>
   );
 }

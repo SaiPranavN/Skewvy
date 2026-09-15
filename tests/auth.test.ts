@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { setupTestDatabase, teardownTestDatabase, truncateAll, tokenFromLastEmail } from './helpers';
 import {
-  registerAccount,
+  setupTestDatabase,
+  teardownTestDatabase,
+  truncateAll,
+  tokenFromLastEmail,
+  registerFully,
+} from './helpers';
+import {
   verifyEmailToken,
   loginWithPin,
   requestPinReset,
@@ -27,20 +32,19 @@ beforeEach(truncateAll);
 
 const DEVICE = { userAgent: 'TestBrowser/1.0', ip: '198.51.100.10' };
 
+/** Sign-up now ends signed in, because the PIN is set after the link is opened. */
 async function registerAndVerify(email = 'person@example.test', pin = 'correct-horse-1') {
-  await registerAccount({ displayName: 'Person', email, pin, ip: DEVICE.ip });
-  const token = tokenFromLastEmail();
-  const result = await verifyEmailToken(token!, DEVICE);
-  if (!result.ok) throw new Error(`verification failed: ${result.reason}`);
+  const result = await registerFully({ displayName: 'Person', email, pin, ...DEVICE });
+  if (result.status !== 'signed_in') throw new Error(`sign-up ended in ${result.status}`);
   return result;
 }
 
-describe('registration and email verification', () => {
-  it('creates a pending account and emails a one-time link', async () => {
-    const result = await registerAccount({
+describe('registration: step one proves the address', () => {
+  it('creates no account at all until the link is opened', async () => {
+    const { beginRegistration } = await import('@/lib/services/registration');
+    const result = await beginRegistration({
       displayName: 'Person',
       email: 'person@example.test',
-      pin: 'correct-horse-1',
       ip: DEVICE.ip,
     });
 
@@ -48,82 +52,124 @@ describe('registration and email verification', () => {
     expect(outbox()).toHaveLength(1);
     expect(outbox()[0].subject).toMatch(/verify/i);
 
-    const users = await query<{ email_verified_at: string | null; pin_hash: string }>('SELECT * FROM users');
-    expect(users).toHaveLength(1);
-    expect(users[0].email_verified_at).toBeNull();
-    // The PIN itself is never persisted.
-    expect(users[0].pin_hash).not.toContain('correct-horse-1');
+    /*
+     * The heart of the two-step flow: signing up with an address you do not own
+     * leaves nothing behind for its owner to reclaim, and no PIN is ever stored
+     * against an unproven address.
+     */
+    expect(await query('SELECT id FROM users')).toHaveLength(0);
+    expect(await query('SELECT id FROM pending_registrations')).toHaveLength(1);
   });
 
   it('stores only a hash of the emailed token', async () => {
-    await registerAccount({ displayName: 'Person', email: 'person@example.test', pin: 'correct-horse-1' });
+    const { beginRegistration } = await import('@/lib/services/registration');
+    await beginRegistration({ displayName: 'Person', email: 'person@example.test' });
+
     const token = tokenFromLastEmail()!;
-    const rows = await query<{ token_hash: string }>('SELECT token_hash FROM auth_tokens');
+    const rows = await query<{ token_hash: string }>('SELECT token_hash FROM pending_registrations');
     expect(rows[0].token_hash).not.toBe(token);
     expect(rows[0].token_hash).toHaveLength(64);
   });
 
-  it('verifies the email and opens a session', async () => {
+  it('retires the previous link when a new one is requested', async () => {
+    const { beginRegistration, findPendingRegistration } = await import('@/lib/services/registration');
+
+    await beginRegistration({ displayName: 'Person', email: 'person@example.test' });
+    const first = tokenFromLastEmail()!;
+    await beginRegistration({ displayName: 'Person', email: 'person@example.test' });
+    const second = tokenFromLastEmail()!;
+
+    expect(first).not.toBe(second);
+    // An older link sitting in an inbox stops working the moment a newer one is sent.
+    expect(await findPendingRegistration(first)).toMatchObject({ ok: false, reason: 'already_used' });
+    expect(await findPendingRegistration(second)).toMatchObject({ ok: true });
+  });
+});
+
+describe('registration: step two sets the PIN', () => {
+  it('creates the account, marks the address proved and opens a session', async () => {
     const result = await registerAndVerify();
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
 
     const session = await resolveSession(result.sessionToken);
     expect(session?.user.email).toBe('person@example.test');
     expect(session?.user.emailVerifiedAt).not.toBeNull();
+
+    const users = await query<{ pin_hash: string }>('SELECT * FROM users');
+    expect(users).toHaveLength(1);
+    // The PIN itself is never persisted.
+    expect(users[0].pin_hash).not.toContain('correct-horse-1');
   });
 
-  it('burns the verification link after a single use', async () => {
-    await registerAccount({ displayName: 'Person', email: 'person@example.test', pin: 'correct-horse-1' });
+  it('burns the link after a single use', async () => {
+    const { beginRegistration } = await import('@/lib/services/registration');
+    const { completeRegistration } = await import('@/lib/services/auth');
+
+    await beginRegistration({ displayName: 'Person', email: 'person@example.test' });
     const token = tokenFromLastEmail()!;
 
-    await verifyEmailToken(token, DEVICE);
-    const second = await verifyEmailToken(token, DEVICE);
+    expect((await completeRegistration({ token, pin: 'correct-horse-1', ...DEVICE })).status).toBe('signed_in');
 
-    expect(second.ok).toBe(false);
-    if (!second.ok) expect(second.reason).toBe('already_used');
+    const second = await completeRegistration({ token, pin: 'another-pin-77', ...DEVICE });
+    expect(second.status).toBe('link_invalid');
+    if (second.status === 'link_invalid') expect(second.reason).toBe('already_used');
+
+    // And the replay created no second account.
+    expect(await query('SELECT id FROM users')).toHaveLength(1);
   });
 
-  it('rejects an expired verification link', async () => {
-    await registerAccount({ displayName: 'Person', email: 'person@example.test', pin: 'correct-horse-1' });
+  it('rejects an expired link', async () => {
+    const { beginRegistration } = await import('@/lib/services/registration');
+    const { completeRegistration } = await import('@/lib/services/auth');
+
+    await beginRegistration({ displayName: 'Person', email: 'person@example.test' });
     const token = tokenFromLastEmail()!;
-    await execute('UPDATE auth_tokens SET expires_at = $1', [new Date(Date.now() - 1000).toISOString()]);
+    await execute('UPDATE pending_registrations SET expires_at = $1', [new Date(Date.now() - 1000).toISOString()]);
 
-    const result = await verifyEmailToken(token, DEVICE);
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe('expired');
+    const result = await completeRegistration({ token, pin: 'correct-horse-1', ...DEVICE });
+    expect(result.status).toBe('link_invalid');
+    if (result.status === 'link_invalid') expect(result.reason).toBe('expired');
+    expect(await query('SELECT id FROM users')).toHaveLength(0);
   });
 
-  it('does not reveal that an address is already registered', async () => {
+  it('refuses a link whose address was claimed while it sat in the inbox', async () => {
+    const { beginRegistration } = await import('@/lib/services/registration');
+    const { completeRegistration } = await import('@/lib/services/auth');
+
+    await beginRegistration({ displayName: 'Slow', email: 'race@example.test' });
+    const slowToken = tokenFromLastEmail()!;
+
+    // Someone else finishes sign-up for the same address first.
+    await beginRegistration({ displayName: 'Quick', email: 'race@example.test' });
+    await completeRegistration({ token: tokenFromLastEmail()!, pin: 'quick-pin-11', ...DEVICE });
+
+    const late = await completeRegistration({ token: slowToken, pin: 'slow-pin-22', ...DEVICE });
+    expect(late.status).not.toBe('signed_in');
+    expect(await query('SELECT id FROM users')).toHaveLength(1);
+  });
+
+  it('tells someone with an account to sign in instead', async () => {
     await registerAndVerify();
     outbox().length = 0;
 
-    const second = await registerAccount({
-      displayName: 'Impostor',
-      email: 'person@example.test',
-      pin: 'different-pin-9',
-      ip: DEVICE.ip,
-    });
+    const { beginRegistration } = await import('@/lib/services/registration');
+    const second = await beginRegistration({ displayName: 'Impostor', email: 'person@example.test' });
 
-    // Same outward result; internally it becomes a PIN-reset email to the owner.
-    expect(second.status).toBe('verification_sent');
-    expect(outbox()[0].subject).toMatch(/reset/i);
+    expect(second.status).toBe('account_exists');
+    expect(outbox()).toHaveLength(0);
 
-    // The existing PIN still works — registration cannot overwrite it.
+    // The existing PIN still works — a sign-up attempt cannot overwrite it.
     const login = await loginWithPin({ email: 'person@example.test', pin: 'correct-horse-1', ...DEVICE });
     expect(login.status).toBe('success');
   });
 
-  it('lets a never-verified account be re-registered by whoever holds the inbox', async () => {
-    await registerAccount({ displayName: 'First', email: 'pending@example.test', pin: 'first-pin-11' });
-    await registerAccount({ displayName: 'Second', email: 'pending@example.test', pin: 'second-pin-22' });
+  it('resends a link for a sign-up still waiting on its email', async () => {
+    const { beginRegistration } = await import('@/lib/services/registration');
+    await beginRegistration({ displayName: 'Person', email: 'waiting@example.test' });
+    outbox().length = 0;
 
-    const token = tokenFromLastEmail()!;
-    const verified = await verifyEmailToken(token, DEVICE);
-    expect(verified.ok).toBe(true);
-
-    const login = await loginWithPin({ email: 'pending@example.test', pin: 'second-pin-22', ...DEVICE });
-    expect(login.status).toBe('success');
+    await resendVerification('waiting@example.test');
+    expect(outbox()).toHaveLength(1);
+    expect(outbox()[0].to).toBe('waiting@example.test');
   });
 
   it('silently ignores a resend for an unknown or already verified address', async () => {
@@ -150,7 +196,6 @@ describe('login', () => {
 
   it('restores a valid session without asking for credentials', async () => {
     const registered = await registerAndVerify();
-    if (!registered.ok) return;
 
     const session = await resolveSession(registered.sessionToken);
     expect(session).not.toBeNull();
@@ -158,7 +203,6 @@ describe('login', () => {
 
   it('requires the PIN once the session has expired, not a new email', async () => {
     const registered = await registerAndVerify();
-    if (!registered.ok) return;
 
     await execute('UPDATE sessions SET expires_at = $1', [new Date(Date.now() - 1000).toISOString()]);
     expect(await resolveSession(registered.sessionToken)).toBeNull();
@@ -172,7 +216,6 @@ describe('login', () => {
 
   it('rotates the session token after signing in', async () => {
     const registered = await registerAndVerify();
-    if (!registered.ok) return;
 
     const result = await loginWithPin({
       email: 'person@example.test',
@@ -281,19 +324,24 @@ describe('risk-based step-up verification', () => {
 });
 
 describe('forgot PIN', () => {
-  it('reveals nothing for an address without a verified account', async () => {
+  it('reveals nothing for an address without an account', async () => {
     await requestPinReset('ghost@example.test');
     expect(outbox()).toHaveLength(0);
 
-    await registerAccount({ displayName: 'Pending', email: 'pending@example.test', pin: 'first-pin-11' });
+    /*
+     * A sign-up that never opened its link is not an account, so there is no
+     * PIN to reset and nothing to disclose about the address.
+     */
+    const { beginRegistration } = await import('@/lib/services/registration');
+    await beginRegistration({ displayName: 'Pending', email: 'pending@example.test' });
     outbox().length = 0;
+
     await requestPinReset('pending@example.test');
     expect(outbox()).toHaveLength(0);
   });
 
   it('sets a new PIN and signs every existing session out', async () => {
     const registered = await registerAndVerify();
-    if (!registered.ok) return;
 
     const other = await createSession({ userId: registered.user.id, userAgent: 'Phone/1.0', ip: '198.51.100.20' });
     expect(await resolveSession(other.token)).not.toBeNull();
@@ -344,7 +392,6 @@ describe('forgot PIN', () => {
 describe('sessions', () => {
   it('drops a revoked session immediately', async () => {
     const registered = await registerAndVerify();
-    if (!registered.ok) return;
 
     await revokeSession(registered.sessionToken);
     expect(await resolveSession(registered.sessionToken)).toBeNull();
@@ -352,7 +399,6 @@ describe('sessions', () => {
 
   it('stores only a hash of the session token', async () => {
     const registered = await registerAndVerify();
-    if (!registered.ok) return;
 
     const rows = await query<{ token_hash: string }>('SELECT token_hash FROM sessions');
     expect(rows.some((row) => row.token_hash === registered.sessionToken)).toBe(false);
@@ -366,7 +412,6 @@ describe('sessions', () => {
 
   it('sets a sensible expiry', async () => {
     const registered = await registerAndVerify();
-    if (!registered.ok) return;
 
     const expiry = new Date(registered.expiresAt).getTime() - Date.now();
     expect(expiry).toBeGreaterThan(SESSION_TTL_SECONDS * 1000 * 0.9);

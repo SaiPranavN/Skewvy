@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
-import { setupTestDatabase, teardownTestDatabase, truncateAll } from './helpers';
 import {
-  registerAccount,
+  setupTestDatabase,
+  teardownTestDatabase,
+  truncateAll,
+  registerFully,
+} from './helpers';
+import {
   loginWithPin,
   requiresEmailVerification,
   requestPinReset,
@@ -63,7 +67,7 @@ describe('the requirement rule', () => {
 
 describe('registration', () => {
   it('signs the person in immediately and sends nothing', async () => {
-    const result = await registerAccount({
+    const result = await registerFully({
       displayName: 'Prototype Tester',
       email: 'anything@whatever.test',
       pin: 'letmein2026',
@@ -85,15 +89,15 @@ describe('registration', () => {
   it('accepts any address without checking it is reachable', async () => {
     for (const email of ['a@b.test', 'someone@example.invalid', 'test@localhost.dev']) {
       await truncateAll();
-      const result = await registerAccount({ displayName: 'Tester', email, pin: 'letmein2026', ...DEVICE });
+      const result = await registerFully({ displayName: 'Tester', email, pin: 'letmein2026', ...DEVICE });
       expect(result.status).toBe('signed_in');
     }
   });
 
   it('says so plainly when the address already has an account', async () => {
-    await registerAccount({ displayName: 'First', email: 'taken@whatever.test', pin: 'letmein2026', ...DEVICE });
+    await registerFully({ displayName: 'First', email: 'taken@whatever.test', pin: 'letmein2026', ...DEVICE });
 
-    const second = await registerAccount({
+    const second = await registerFully({
       displayName: 'Second',
       email: 'taken@whatever.test',
       pin: 'different2026',
@@ -112,7 +116,7 @@ describe('registration', () => {
 
 describe('sign-in', () => {
   it('skips step-up on an unrecognised device', async () => {
-    await registerAccount({ displayName: 'Tester', email: 'device@whatever.test', pin: 'letmein2026', ...DEVICE });
+    await registerFully({ displayName: 'Tester', email: 'device@whatever.test', pin: 'letmein2026', ...DEVICE });
     outbox().length = 0;
 
     const result = await loginWithPin({
@@ -127,7 +131,7 @@ describe('sign-in', () => {
   });
 
   it('still rejects a wrong PIN', async () => {
-    await registerAccount({ displayName: 'Tester', email: 'strict@whatever.test', pin: 'letmein2026', ...DEVICE });
+    await registerFully({ displayName: 'Tester', email: 'strict@whatever.test', pin: 'letmein2026', ...DEVICE });
 
     const result = await loginWithPin({ email: 'strict@whatever.test', pin: 'notthepin99', ...DEVICE });
     expect(result.status).toBe('invalid_credentials');
@@ -141,7 +145,7 @@ describe('sign-in', () => {
 
 describe('forgotten PIN', () => {
   it('offers a direct reset rather than an email nobody can receive', async () => {
-    await registerAccount({ displayName: 'Tester', email: 'forgot@whatever.test', pin: 'letmein2026', ...DEVICE });
+    await registerFully({ displayName: 'Tester', email: 'forgot@whatever.test', pin: 'letmein2026', ...DEVICE });
     outbox().length = 0;
 
     const outcome = await requestPinReset('forgot@whatever.test');
@@ -151,7 +155,7 @@ describe('forgotten PIN', () => {
   });
 
   it('sets the new PIN, signs other sessions out, and signs this one in', async () => {
-    const created = await registerAccount({
+    const created = await registerFully({
       displayName: 'Tester',
       email: 'recover@whatever.test',
       pin: 'letmein2026',
@@ -183,7 +187,7 @@ describe('forgotten PIN', () => {
   });
 
   it('is refused outright once email verification is required', async () => {
-    await registerAccount({ displayName: 'Tester', email: 'locked@whatever.test', pin: 'letmein2026', ...DEVICE });
+    await registerFully({ displayName: 'Tester', email: 'locked@whatever.test', pin: 'letmein2026', ...DEVICE });
 
     process.env.REQUIRE_EMAIL_VERIFICATION = '1';
     try {

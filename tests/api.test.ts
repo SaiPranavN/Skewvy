@@ -28,6 +28,7 @@ vi.mock('@/lib/services/turnstile', async (importOriginal) => {
 
 const { POST: registerRoute } = await import('@/app/api/auth/register/route');
 const { POST: verifyRoute } = await import('@/app/api/auth/verify/route');
+const { POST: completeRoute } = await import('@/app/api/auth/complete-registration/route');
 const { POST: loginRoute } = await import('@/app/api/auth/login/route');
 const { POST: logoutRoute } = await import('@/app/api/auth/logout/route');
 const { POST: requestResetRoute } = await import('@/app/api/auth/request-pin-reset/route');
@@ -65,36 +66,39 @@ function sessionCookieFrom(response: Response): string | null {
   return header?.match(new RegExp(`${SESSION_COOKIE}=([^;]+)`))?.[1] ?? null;
 }
 
-/** Registers, verifies, and returns the resulting session cookie. */
+/** Walks both sign-up steps and returns the resulting session cookie. */
 async function signUp(email = 'api@example.test', pin = 'correct-horse-1') {
   await registerRoute(
-    post('/api/auth/register', {
-      displayName: 'API Tester',
-      email,
+    post('/api/auth/register', { displayName: 'API Tester', email, turnstileToken: 'good-token' }),
+  );
+
+  const completed = await completeRoute(
+    post('/api/auth/complete-registration', {
+      token: tokenFromLastEmail(),
       pin,
       confirmPin: pin,
       turnstileToken: 'good-token',
     }),
   );
-
-  const verified = await verifyRoute(post('/api/auth/verify', { token: tokenFromLastEmail() }));
-  return sessionCookieFrom(verified)!;
+  return sessionCookieFrom(completed)!;
 }
 
-describe('POST /api/auth/register', () => {
-  it('accepts a valid registration', async () => {
+describe('POST /api/auth/register — step one', () => {
+  it('takes a name and an address, and asks for nothing else', async () => {
     const response = await registerRoute(
       post('/api/auth/register', {
         displayName: 'API Tester',
         email: 'api@example.test',
-        pin: 'correct-horse-1',
-        confirmPin: 'correct-horse-1',
         turnstileToken: 'good-token',
       }),
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ status: 'verification_sent' });
+    await expect(response.json()).resolves.toMatchObject({ status: 'verification_sent' });
+
+    // No account yet: the address has not been proved.
+    const { query } = await import('@/lib/db');
+    expect(await query('SELECT id FROM users')).toHaveLength(0);
   });
 
   it('refuses a failed robot check before touching the database', async () => {
@@ -102,45 +106,31 @@ describe('POST /api/auth/register', () => {
       post('/api/auth/register', {
         displayName: 'API Tester',
         email: 'api@example.test',
-        pin: 'correct-horse-1',
-        confirmPin: 'correct-horse-1',
         turnstileToken: 'bad-token',
       }),
     );
 
     expect(response.status).toBe(400);
     const { query } = await import('@/lib/db');
-    expect(await query('SELECT * FROM users')).toHaveLength(0);
+    expect(await query('SELECT * FROM pending_registrations')).toHaveLength(0);
   });
 
-  it('reports mismatched PINs per field', async () => {
-    const response = await registerRoute(
+  it('ignores a PIN sent to the first step', async () => {
+    // The field does not exist here any more, and a caller that supplies one
+    // must not have it stored or acted on.
+    await registerRoute(
       post('/api/auth/register', {
         displayName: 'API Tester',
         email: 'api@example.test',
-        pin: 'correct-horse-1',
-        confirmPin: 'different-pin-2',
+        pin: 'sneaky-pin-99',
         turnstileToken: 'good-token',
       }),
     );
 
-    expect(response.status).toBe(422);
-    const body = (await response.json()) as { fields: Record<string, string> };
-    expect(body.fields.confirmPin).toMatch(/do not match/i);
-  });
-
-  it('rejects a PIN below the minimum length', async () => {
-    const response = await registerRoute(
-      post('/api/auth/register', {
-        displayName: 'API Tester',
-        email: 'api@example.test',
-        pin: 'abc',
-        confirmPin: 'abc',
-        turnstileToken: 'good-token',
-      }),
-    );
-
-    expect(response.status).toBe(422);
+    const { query } = await import('@/lib/db');
+    expect(await query('SELECT id FROM users')).toHaveLength(0);
+    const rows = await query<Record<string, unknown>>('SELECT * FROM pending_registrations');
+    expect(JSON.stringify(rows)).not.toContain('sneaky-pin-99');
   });
 
   it('rate-limits repeated registrations from one address', async () => {

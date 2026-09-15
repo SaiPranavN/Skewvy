@@ -97,77 +97,90 @@ export interface RegisterOptions {
 export type RegisterResult =
   | { status: 'verification_sent' }
   | { status: 'account_exists' }
-  | { status: 'signed_in'; user: PublicUser; sessionToken: string; expiresAt: string; redirectTo: string | null };
+  | { status: 'ready_for_pin'; token: string }
+  | { status: 'delivery_failed'; detail: string };
 
-export async function registerAccount(options: RegisterOptions): Promise<RegisterResult> {
-  const existing = await findByEmail(options.email);
+/**
+ * Step one of sign-up: a name and an address, nothing more.
+ *
+ * No account is created here. See `registration.ts` — the row that is written
+ * holds only what the second step needs, and `users` is not touched until the
+ * emailed link has been opened.
+ */
+export async function registerAccount(options: {
+  displayName: string;
+  email: string;
+  ip?: string | null;
+  redirectTo?: string | null;
+}): Promise<RegisterResult> {
+  const { beginRegistration } = await import('./registration');
+  return beginRegistration(options);
+}
+
+export type CompleteRegistrationResult =
+  | { status: 'signed_in'; user: PublicUser; sessionToken: string; expiresAt: string; redirectTo: string | null }
+  | { status: 'link_invalid'; reason: 'not_found' | 'expired' | 'already_used' }
+  | { status: 'account_exists' };
+
+/**
+ * Step two: the address is proven, so now the account is made.
+ *
+ * The email is marked verified at creation rather than afterwards — opening the
+ * link is what proved it, and this row would not exist otherwise.
+ */
+export async function completeRegistration(options: {
+  token: string;
+  pin: string;
+  ip?: string | null;
+  userAgent?: string | null;
+}): Promise<CompleteRegistrationResult> {
+  const { claimPendingRegistration } = await import('./registration');
+
+  const claimed = await claimPendingRegistration(options.token);
+  if (!claimed.ok) return { status: 'link_invalid', reason: claimed.reason };
+
+  const { displayName, email, redirectTo } = claimed.pending;
+  const normalized = normalizeEmail(email);
   const now = new Date().toISOString();
-  const verifyByEmail = requiresEmailVerification();
+  const pinHash = await hashPin(options.pin);
+
+  const existing = await queryOne<UserRow>('SELECT * FROM users WHERE email_normalized = $1', [normalized]);
 
   if (existing?.email_verified_at) {
-    if (!verifyByEmail) {
-      // No inbox to send anyone to, and we will not hand out a session for an
-      // account nobody has authenticated. Say so directly and point at sign-in.
-      // This only runs where email verification is off, which production forbids,
-      // so it cannot become an address-enumeration hole on a live deployment.
-      return { status: 'account_exists' };
-    }
-    const reset = await issueAuthToken(existing.id, 'pin_reset', { ip: options.ip });
-    await sendPinResetEmail(existing.email, existing.display_name, buildLinkUrl('/auth/reset-pin', reset.token));
-    return { status: 'verification_sent' };
+    // Someone completed sign-up for this address between the link being sent
+    // and it being opened. The account is theirs; this link does nothing.
+    return { status: 'account_exists' };
   }
 
-  const pinHash = await hashPin(options.pin);
   let userId: string;
-
   if (existing) {
-    // The account was never proven, so whoever completes sign-up owns it.
+    // An unproven row from the older single-step flow. Opening the link proves
+    // the address, so whoever did it owns the account.
     userId = existing.id;
     await execute(
-      `UPDATE users SET display_name = $1, pin_hash = $2, pin_failed_attempts = 0,
-              pin_locked_until = NULL, updated_at = $3 WHERE id = $4`,
-      [options.displayName, pinHash, now, userId],
+      `UPDATE users SET display_name = $1, pin_hash = $2, email_verified_at = $3,
+              pin_failed_attempts = 0, pin_locked_until = NULL, updated_at = $3 WHERE id = $4`,
+      [displayName, pinHash, now, userId],
     );
   } else {
     userId = newId();
     await execute(
-      `INSERT INTO users (id, display_name, email, email_normalized, pin_hash, is_admin, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $7)`,
-      [userId, options.displayName, options.email.trim(), normalizeEmail(options.email), pinHash, isAdminEmail(options.email) ? 1 : 0, now],
+      `INSERT INTO users (id, display_name, email, email_normalized, pin_hash, email_verified_at, is_admin, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $6, $6)`,
+      [userId, displayName, email, normalized, pinHash, now, isAdminEmail(email) ? 1 : 0],
     );
   }
 
-  if (!verifyByEmail) {
-    // No mail transport: the account is usable immediately. The address is
-    // recorded but unproven, which is the honest state for a prototype.
-    await execute('UPDATE users SET email_verified_at = COALESCE(email_verified_at, $1), updated_at = $1 WHERE id = $2', [
-      now,
-      userId,
-    ]);
+  const row = (await queryOne<UserRow>('SELECT * FROM users WHERE id = $1', [userId]))!;
+  const session = await createSession({ userId, userAgent: options.userAgent, ip: options.ip });
 
-    const row = (await queryOne<UserRow>('SELECT * FROM users WHERE id = $1', [userId]))!;
-    const session = await createSession({ userId, userAgent: options.userAgent, ip: options.ip });
-
-    return {
-      status: 'signed_in',
-      user: toPublicUser(row),
-      sessionToken: session.token,
-      expiresAt: session.expiresAt,
-      redirectTo: options.redirectTo ?? null,
-    };
-  }
-
-  const verification = await issueAuthToken(userId, 'email_verification', {
-    ip: options.ip,
-    redirectTo: options.redirectTo ?? null,
-  });
-  await sendVerificationEmail(
-    options.email.trim(),
-    options.displayName,
-    buildLinkUrl('/auth/verify', verification.token, options.redirectTo),
-  );
-
-  return { status: 'verification_sent' };
+  return {
+    status: 'signed_in',
+    user: toPublicUser(row),
+    sessionToken: session.token,
+    expiresAt: session.expiresAt,
+    redirectTo,
+  };
 }
 
 export type VerifyResult =
@@ -203,6 +216,28 @@ export async function verifyEmailToken(
 }
 
 export async function resendVerification(email: string, ip?: string | null): Promise<void> {
+  const normalized = normalizeEmail(email);
+
+  /*
+   * A sign-up waiting on its email has no row in `users` yet, so the pending
+   * table is the first place to look. Starting it again issues a fresh token
+   * and retires the previous one, which is what makes the newest link in an
+   * inbox the only one that works.
+   */
+  const pending = await queryOne<{ display_name: string; email: string }>(
+    `SELECT display_name, email FROM pending_registrations
+      WHERE email_normalized = $1 AND consumed_at IS NULL
+      ORDER BY created_at DESC`,
+    [normalized],
+  );
+
+  if (pending) {
+    const { beginRegistration } = await import('./registration');
+    await beginRegistration({ displayName: pending.display_name, email: pending.email, ip });
+    return;
+  }
+
+  // An unproven account from the older single-step flow.
   const user = await findByEmail(email);
   // Silent no-op for unknown or already verified addresses: nothing is revealed.
   if (!user || user.email_verified_at) return;

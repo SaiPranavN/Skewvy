@@ -21,7 +21,7 @@ vi.mock('@/lib/services/turnstile', async (importOriginal) => {
 });
 
 const { POST: registerRoute } = await import('@/app/api/auth/register/route');
-const { POST: verifyRoute } = await import('@/app/api/auth/verify/route');
+const { POST: completeRoute } = await import('@/app/api/auth/complete-registration/route');
 const { POST: loginRoute } = await import('@/app/api/auth/login/route');
 const { POST: logoutRoute } = await import('@/app/api/auth/logout/route');
 const { POST: batchRoute } = await import('@/app/api/reactions/batch/route');
@@ -75,13 +75,11 @@ describe('full Skewvy journey', () => {
   it('goes from a new account to a moved public counter', async () => {
     const artifactId = await createTestFlashNews('the-journey-item');
 
-    /* 1. Register. The response says nothing about whether the address exists. */
+    /* 1. Step one: a name and an address. No account is created yet. */
     const registered = await registerRoute(
       request('/api/auth/register', {
         displayName: 'Journey Tester',
         email: 'journey@example.test',
-        pin: 'my-good-pin-42',
-        confirmPin: 'my-good-pin-42',
         turnstileToken: 'ok',
         redirectTo: '/flash-news/the-journey-item',
       }),
@@ -89,15 +87,23 @@ describe('full Skewvy journey', () => {
     expect(registered.status).toBe(200);
     expect(cookieFrom(registered)).toBeNull();
     expect(outbox()).toHaveLength(1);
+    expect(await query('SELECT id FROM users')).toHaveLength(0);
 
-    /* 2. Open the emailed link once. That verifies the address and signs in. */
-    const verified = await verifyRoute(request('/api/auth/verify', { token: tokenFromLastEmail() }));
-    expect(verified.status).toBe(200);
+    /* 2. Step two: open the link, choose a PIN. That is what makes the account. */
+    const completed = await completeRoute(
+      request('/api/auth/complete-registration', {
+        token: tokenFromLastEmail(),
+        pin: 'my-good-pin-42',
+        confirmPin: 'my-good-pin-42',
+        turnstileToken: 'ok',
+      }),
+    );
+    expect(completed.status).toBe(200);
 
-    const verifiedBody = (await verified.json()) as { redirectTo: string };
-    expect(verifiedBody.redirectTo).toBe('/flash-news/the-journey-item');
+    const completedBody = (await completed.json()) as { redirectTo: string };
+    expect(completedBody.redirectTo).toBe('/flash-news/the-journey-item');
 
-    const firstSession = cookieFrom(verified)!;
+    const firstSession = cookieFrom(completed)!;
     expect(firstSession).toBeTruthy();
 
     /* 3. React: three batches, the middle one retried after a "timeout". */
@@ -188,13 +194,18 @@ describe('full Skewvy journey', () => {
       request('/api/auth/register', {
         displayName: 'Second Voice',
         email: 'second@example.test',
+        turnstileToken: 'ok',
+      }),
+    );
+    const secondCompleted = await completeRoute(
+      request('/api/auth/complete-registration', {
+        token: tokenFromLastEmail(),
         pin: 'another-fine-pin-7',
         confirmPin: 'another-fine-pin-7',
         turnstileToken: 'ok',
       }),
     );
-    const secondVerified = await verifyRoute(request('/api/auth/verify', { token: tokenFromLastEmail() }));
-    const secondPerson = cookieFrom(secondVerified)!;
+    const secondPerson = cookieFrom(secondCompleted)!;
 
     await send(120, 'second-person-batch-1', 'rotten_egg', secondPerson);
 

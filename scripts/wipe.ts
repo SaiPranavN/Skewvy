@@ -41,7 +41,7 @@ const REACTION_TABLES = [
   'artifact_totals',
 ];
 const CONTENT_TABLES = ['flash_news_entities', 'flash_news', 'entities'];
-const ACCOUNT_TABLES = ['auth_tokens', 'sessions', 'rate_limits', 'app_settings', 'users'];
+const ACCOUNT_TABLES = ['auth_tokens', 'pending_registrations', 'sessions', 'rate_limits', 'app_settings', 'users'];
 
 const tables = [
   ...REACTION_TABLES,

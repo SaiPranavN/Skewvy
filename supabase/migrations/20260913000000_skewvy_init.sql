@@ -53,6 +53,26 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_auth_tokens_user_type ON auth_tokens(user_id, token_type);
 
+-- A sign-up that has not proved its email address yet.
+--
+-- Deliberately not a half-made row in the users table: until the address is
+-- proven, no account exists at all. Registering with someone else's address
+-- therefore creates nothing they have to reclaim, and an abandoned sign-up
+-- leaves the address free.
+CREATE TABLE IF NOT EXISTS pending_registrations (
+  id                TEXT PRIMARY KEY,
+  display_name      TEXT NOT NULL,
+  email             TEXT NOT NULL,
+  email_normalized  TEXT NOT NULL,
+  token_hash        TEXT NOT NULL UNIQUE,
+  expires_at        TEXT NOT NULL,
+  consumed_at       TEXT,
+  created_at        TEXT NOT NULL,
+  requested_ip_hash TEXT,
+  redirect_to       TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pending_registrations_email ON pending_registrations(email_normalized);
+
 CREATE TABLE IF NOT EXISTS entities (
   id          TEXT PRIMARY KEY,
   slug        TEXT NOT NULL UNIQUE,
@@ -211,7 +231,7 @@ DECLARE
   target text;
   supabase_roles boolean := EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon');
 BEGIN
-  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'comments', 'comment_votes', 'rate_limits', 'app_settings']
+  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'comments', 'comment_votes', 'rate_limits', 'app_settings']
   LOOP
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = target) THEN
       EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', target);

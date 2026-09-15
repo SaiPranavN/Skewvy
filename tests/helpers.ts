@@ -45,6 +45,7 @@ export async function truncateAll(): Promise<void> {
     'flash_news',
     'entities',
     'auth_tokens',
+    'pending_registrations',
     'sessions',
     'rate_limits',
     'app_settings',
@@ -97,4 +98,50 @@ export function tokenFromLastEmail(): string | null {
   const last = list[list.length - 1];
   if (!last) return null;
   return last.text.match(/token=([A-Za-z0-9_-]+)/)?.[1] ?? null;
+}
+
+/**
+ * Runs both halves of sign-up: request the link, then open it and set the PIN.
+ *
+ * Sign-up is two steps now, so a test that just wants an account has to walk
+ * both. The result is whatever the *final* step returned, so a call site can go
+ * on asking whether it ended in `signed_in` exactly as it did when sign-up was
+ * one call. A first step that never reaches the second returns its own answer.
+ */
+export async function registerFully(options: {
+  displayName?: string;
+  email: string;
+  pin: string;
+  ip?: string | null;
+  userAgent?: string | null;
+  redirectTo?: string | null;
+}) {
+  const { beginRegistration } = await import('@/lib/services/registration');
+  const { completeRegistration } = await import('@/lib/services/auth');
+
+  const begun = await beginRegistration({
+    displayName: options.displayName ?? 'Tester',
+    email: options.email,
+    ip: options.ip,
+    redirectTo: options.redirectTo,
+  });
+
+  if (begun.status === 'account_exists' || begun.status === 'delivery_failed') return begun;
+
+  const token = begun.status === 'ready_for_pin' ? begun.token : (await pendingTokenFor(options.email))!;
+
+  return completeRegistration({
+    token,
+    pin: options.pin,
+    ip: options.ip,
+    userAgent: options.userAgent,
+  });
+}
+
+/** The live link token for a sign-up that is waiting on its email. */
+export async function pendingTokenFor(email: string): Promise<string | null> {
+  const { outbox } = await import('@/lib/services/email');
+  const message = [...outbox()].reverse().find((item) => item.to === email);
+  const link = message?.text.match(/https?:\/\/\S+/)?.[0];
+  return link ? new URL(link).searchParams.get('token') : null;
 }

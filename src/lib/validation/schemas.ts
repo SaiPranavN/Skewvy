@@ -25,14 +25,21 @@ export const displayNameSchema = z
   .min(2, 'Display name must be at least 2 characters.')
   .max(40, 'Display name must be 40 characters or fewer.');
 
-export const registerSchema = z
+/** Step one of sign-up: who you are and where to reach you. No PIN yet. */
+export const registerSchema = z.object({
+  displayName: displayNameSchema,
+  email: emailSchema,
+  turnstileToken: z.string().min(1, 'Complete the robot check.'),
+  redirectTo: z.string().optional(),
+});
+
+/** Step two, reached only through the emailed link: choose the PIN. */
+export const completeRegistrationSchema = z
   .object({
-    displayName: displayNameSchema,
-    email: emailSchema,
+    token: z.string().min(10),
     pin: pinSchema,
     confirmPin: z.string(),
     turnstileToken: z.string().min(1, 'Complete the robot check.'),
-    redirectTo: z.string().optional(),
   })
   .refine((data) => data.pin === data.confirmPin, {
     message: 'The two PINs do not match.',
@@ -149,6 +156,7 @@ export const flashNewsInputSchema = z.object({
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type CompleteRegistrationInput = z.infer<typeof completeRegistrationSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ReactionBatchInput = z.infer<typeof reactionBatchSchema>;
 export type EntityInput = z.infer<typeof entityInputSchema>;
