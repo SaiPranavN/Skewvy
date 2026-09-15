@@ -5,21 +5,21 @@ import type { NextConfig } from 'next';
  *
  * `https://**` would let anyone with admin access — or anyone who guessed an
  * optimiser URL — use the deployment as an open image proxy, at our bandwidth
- * and against our IP reputation. Supabase Storage is where uploads go;
- * `IMAGE_HOSTS` is a comma-separated escape hatch for pasting an image from a
- * publisher's own CDN.
+ * and against our IP reputation. So the list is narrow.
+ *
+ * Supabase Storage is matched by wildcard rather than read from
+ * `NEXT_PUBLIC_SUPABASE_URL`, because variables from `.env` files are not
+ * visible inside this file — Next loads the config before it loads them. Deriving
+ * the allowlist from one produced an empty list and rejected every image, which
+ * is a miserable thing to debug: uploads succeed, the URL is right, and the page
+ * shows a broken image. A wildcard over `*.supabase.co` cannot silently become
+ * empty, and is still only Supabase.
+ *
+ * `IMAGE_HOSTS` is read from the real process environment for anything else —
+ * a publisher's CDN, say — and is genuinely optional.
  */
 function imageHosts(): string[] {
-  const hosts = new Set<string>();
-
-  const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  if (supabase) {
-    try {
-      hosts.add(new URL(supabase).hostname);
-    } catch {
-      // A malformed URL simply contributes no host.
-    }
-  }
+  const hosts = new Set<string>(['**.supabase.co']);
 
   for (const host of (process.env.IMAGE_HOSTS ?? '').split(',')) {
     const trimmed = host.trim();
