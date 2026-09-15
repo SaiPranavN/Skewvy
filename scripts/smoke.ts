@@ -24,6 +24,16 @@ function report(ok: boolean, label: string, detail = '') {
   console.info(`  ${ok ? '✅' : '❌'} ${label}${detail ? ` — ${detail}` : ''}`);
 }
 
+/*
+ * A refused host reads differently depending on who answered. The Next dev
+ * server says the url parameter is not allowed; Vercel's edge optimiser says
+ * INVALID_IMAGE_OPTIMIZE_REQUEST. Matching only the first reported the live
+ * site as an open image proxy when it was refusing correctly.
+ */
+function refusedByAllowlist(body: string): boolean {
+  return /not allowed|INVALID_IMAGE_OPTIMIZE_REQUEST/i.test(body);
+}
+
 async function get(path: string, init?: RequestInit) {
   return fetch(`${base}${path}`, { redirect: 'manual', ...init });
 }
@@ -86,32 +96,43 @@ try {
 /* ------------------------------ uploaded images ---------------------------- */
 
 console.info('\nImages');
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, '');
-if (!supabaseUrl) {
-  console.info('  –  skipped (set NEXT_PUBLIC_SUPABASE_URL to check the optimiser allowlist)');
-} else {
-  try {
-    const sample = `${supabaseUrl}/storage/v1/object/public/artifact-images/smoke-probe.png`;
-    const response = await get(`/_next/image?url=${encodeURIComponent(sample)}&w=64&q=75`);
+try {
+  /*
+   * Checked against an image the site is actually rendering, rather than a URL
+   * invented here. On Vercel a blocked host and a missing object produce the
+   * same error, so a probe for something that may not exist proves nothing —
+   * while an image the page is already asking for either loads or does not.
+   */
+  const pages = ['/entities', '/flash-news', '/'];
+  let optimised: string | null = null;
 
-    /*
-     * Both a blocked host and a missing object answer 400, so the status alone
-     * says nothing. The body is what tells them apart: "not allowed" is the
-     * allowlist refusing the host, while "upstream response is invalid" means
-     * the host was accepted and only this object is absent — which is expected,
-     * since nothing guarantees a particular image exists.
-     */
-    const body = response.ok ? '' : await response.text().catch(() => '');
-    const blocked = body.includes('not allowed');
-    report(!blocked, 'Supabase Storage host is on the optimiser allowlist', blocked ? 'host refused' : 'permitted');
-
-    // And the allowlist is still an allowlist.
-    const proxied = await get('/_next/image?url=https%3A%2F%2Fevil.example.invalid%2Fx.png&w=64&q=75');
-    const refused = (await proxied.text().catch(() => '')).includes('not allowed');
-    report(refused, 'arbitrary hosts refused — not an open image proxy');
-  } catch (error) {
-    report(false, 'image optimiser', (error as Error).message);
+  for (const page of pages) {
+    const html = await (await get(page)).text();
+    const match = html.match(/\/_next\/image\?url=[^"'\s]+/);
+    if (match) {
+      optimised = match[0].replace(/&amp;/g, '&');
+      break;
+    }
   }
+
+  if (!optimised) {
+    console.info('  –  skipped (no images published yet)');
+  } else {
+    const response = await get(optimised);
+    const remote = optimised.includes('supabase.co');
+    report(
+      response.ok,
+      `a published image loads through the optimiser${remote ? ' from Supabase Storage' : ''}`,
+      `HTTP ${response.status}`,
+    );
+  }
+
+  // And the allowlist is still an allowlist.
+  const proxied = await get('/_next/image?url=https%3A%2F%2Fevil.example.invalid%2Fx.png&w=64&q=75');
+  const refused = !proxied.ok && refusedByAllowlist(await proxied.text().catch(() => ''));
+  report(refused, 'arbitrary hosts refused — not an open image proxy');
+} catch (error) {
+  report(false, 'image optimiser', (error as Error).message);
 }
 
 /* --------------------------------- realtime -------------------------------- */

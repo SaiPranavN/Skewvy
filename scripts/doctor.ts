@@ -131,6 +131,22 @@ if (missing.length === 0) {
     console.info(`   ${table.padEnd(20)} ${Number(value).toLocaleString()}`);
   }
 
+  /*
+   * An image written to public/uploads exists only on the machine that uploaded
+   * it — the directory is gitignored, so it is never deployed and the live site
+   * shows a broken image while the row looks perfectly fine.
+   */
+  const localImages = await query<{ image_url: string }>(
+    `SELECT image_url FROM entities WHERE image_url LIKE '/uploads/%'
+     UNION ALL
+     SELECT image_url FROM flash_news WHERE image_url LIKE '/uploads/%'`,
+  );
+  if (localImages.length > 0) {
+    console.warn(`\n🖼️  ${localImages.length} image(s) still point at local disk and will 404 in production:`);
+    for (const row of localImages.slice(0, 5)) console.warn(`   ${row.image_url}`);
+    console.warn('   Run: npm run db:migrate-uploads -- --yes');
+  }
+
   // `is_admin` is an INTEGER on both engines — the schema stores booleans as
   // 0/1 so one set of SQL works against SQLite and PostgreSQL alike.
   const admins = await query<{ email: string }>('SELECT email FROM users WHERE is_admin = 1');

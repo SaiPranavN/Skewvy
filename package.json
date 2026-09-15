@@ -16,6 +16,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-sqlite vitest",
     "db:migrate": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/migrate.ts",
     "db:generate": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/generate-migration.ts",
+    "db:migrate-uploads": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/migrate-uploads.ts",
     "db:doctor": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/doctor.ts",
     "db:wipe": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/wipe.ts",
     "smoke": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/smoke.ts",
