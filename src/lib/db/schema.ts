@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS users (
   pin_failed_attempts INTEGER NOT NULL DEFAULT 0,
   pin_locked_until    TEXT,
   is_admin            INTEGER NOT NULL DEFAULT 0,
+  suspended_at        TEXT,
+  suspended_reason    TEXT,
   created_at          TEXT NOT NULL,
   updated_at          TEXT NOT NULL
 );
@@ -220,6 +222,19 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_at TEXT NOT NULL
 );
 `;
+
+/**
+ * Columns added after a table first shipped.
+ *
+ * `CREATE TABLE IF NOT EXISTS` does nothing to a table that already exists, so
+ * a new column has to be added explicitly or production keeps the old shape.
+ * Applied one at a time and only when missing, which both engines tolerate —
+ * SQLite has no `ADD COLUMN IF NOT EXISTS`.
+ */
+export const ADDED_COLUMNS: Array<{ table: string; column: string; definition: string }> = [
+  { table: 'users', column: 'suspended_at', definition: 'TEXT' },
+  { table: 'users', column: 'suspended_reason', definition: 'TEXT' },
+];
 
 /** Every table the schema defines, in creation order. */
 export function schemaTables(): string[] {

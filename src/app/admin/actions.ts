@@ -18,6 +18,12 @@ import {
 import { consumeRateLimit, RATE_RULES } from '@/lib/services/rate-limit';
 import { newId } from '@/lib/services/crypto';
 import { storageConfig, uploadImage, validateImage } from '@/lib/services/storage';
+import {
+  suspendAccount,
+  restoreAccount,
+  deleteAccount,
+  type AccountActionOutcome,
+} from '@/lib/services/accounts';
 
 /**
  * Admin mutations. Every one of these re-checks the admin flag on the server —
@@ -203,4 +209,62 @@ export async function uploadImageAction(
   }
 
   return { ok: true, url: `/uploads/${filename}`, message: 'Image uploaded to local disk (development only).' };
+}
+
+/* -------------------------------- accounts -------------------------------- */
+
+/**
+ * Account moderation.
+ *
+ * Suspension and deletion both refuse to touch an administrator or the person
+ * performing the action. Locking yourself out of the admin area is a mistake
+ * with no in-app remedy, and one admin quietly removing another is not a
+ * decision this UI should make easy.
+ */
+export async function suspendAccountAction(userId: string, reason: string): Promise<ActionResult> {
+  const blocked = await guard();
+  if (blocked) return blocked;
+
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, message: 'Administrator access required.' };
+
+  const outcome = await suspendAccount({ userId, actingAdminId: admin.id, reason });
+  revalidatePath('/admin/accounts');
+  return accountOutcome(outcome, 'Account suspended and signed out everywhere.');
+}
+
+export async function restoreAccountAction(userId: string): Promise<ActionResult> {
+  const blocked = await guard();
+  if (blocked) return blocked;
+
+  const outcome = await restoreAccount(userId);
+  revalidatePath('/admin/accounts');
+  return accountOutcome(outcome, 'Account restored. They can sign in again.');
+}
+
+export async function deleteAccountAction(userId: string): Promise<ActionResult> {
+  const blocked = await guard();
+  if (blocked) return blocked;
+
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, message: 'Administrator access required.' };
+
+  const outcome = await deleteAccount({ userId, actingAdminId: admin.id });
+  revalidatePath('/admin/accounts');
+  revalidatePath('/admin');
+  revalidatePath('/');
+  return accountOutcome(outcome, 'Account deleted. Public totals have been recalculated.');
+}
+
+function accountOutcome(outcome: AccountActionOutcome, success: string): ActionResult {
+  switch (outcome) {
+    case 'done':
+      return { ok: true, message: success };
+    case 'not_found':
+      return { ok: false, message: 'That account no longer exists.' };
+    case 'refused_self':
+      return { ok: false, message: 'You cannot do that to your own account.' };
+    case 'refused_admin':
+      return { ok: false, message: 'Remove the administrator flag first — admins are protected here.' };
+  }
 }

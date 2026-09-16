@@ -218,14 +218,17 @@ export function ReactionControl({
           <RollingNumber value={total} className={`reaction-total font-semibold ${tone.number} ${layout.number}`} />
         </span>
 
-        <span className="flex w-full items-baseline justify-between gap-2">
+        {/*
+          * The contribution sits under the action rather than opposite it. Side
+          * by side, a wrapping label ("Send Rotten / Eggs") left the count
+          * stranded against the far edge on a narrow control.
+          */}
+        <span className="flex w-full flex-col gap-0.5">
           <span id={labelId} className={`${layout.label} text-secondary`}>
             {actionLabel}
           </span>
           {own > 0 && (
-            <span className={`${layout.label} numeric ${tone.own}`}>
-              You: {formatCount(own)}
-            </span>
+            <span className={`numeric text-xs ${tone.own}`}>{formatCount(own)} from you</span>
           )}
         </span>
       </button>

@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS users (
   pin_failed_attempts INTEGER NOT NULL DEFAULT 0,
   pin_locked_until    TEXT,
   is_admin            INTEGER NOT NULL DEFAULT 0,
+  suspended_at        TEXT,
+  suspended_reason    TEXT,
   created_at          TEXT NOT NULL,
   updated_at          TEXT NOT NULL
 );

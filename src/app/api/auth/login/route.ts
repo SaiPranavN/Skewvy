@@ -52,6 +52,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ status: 'verification_required' });
     case 'rate_limited':
       return rateLimited(outcome.retryAfterSeconds);
+    case 'suspended':
+      // Reached only with the correct PIN, so this discloses nothing to someone
+      // guessing addresses — and the owner deserves to know why, not a lie
+      // about their credentials.
+      return apiError(
+        403,
+        'account_suspended',
+        outcome.reason
+          ? `This account has been suspended: ${outcome.reason}`
+          : 'This account has been suspended. Contact support if you think that is a mistake.',
+      );
     default:
       // Never distinguishes "no such account" from "wrong PIN".
       return apiError(401, 'invalid_credentials', 'That email and PIN combination did not work.');

@@ -78,7 +78,7 @@ export async function resolveSession(token: string | null | undefined): Promise<
 
   const row = await queryOne<UserRow & { session_id: string; expires_at: string; last_used_at: string }>(
     `SELECT s.id AS session_id, s.expires_at, s.last_used_at,
-            u.id, u.display_name, u.email, u.email_verified_at, u.is_admin, u.created_at
+            u.id, u.display_name, u.email, u.email_verified_at, u.is_admin, u.created_at, u.suspended_at
        FROM sessions s
        JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = $1 AND s.revoked_at IS NULL`,
@@ -89,6 +89,12 @@ export async function resolveSession(token: string | null | undefined): Promise<
   if (new Date(row.expires_at).getTime() <= Date.now()) return null;
   // An unverified email must never carry a usable session.
   if (!row.email_verified_at) return null;
+  /*
+   * Checked on every request rather than only at sign-in. Suspension revokes
+   * sessions as it happens, but this is what makes it hold for a session issued
+   * in the moment between the two, and for any token that outlives the sweep.
+   */
+  if ((row as { suspended_at?: string | null }).suspended_at) return null;
 
   const lastUsed = new Date(row.last_used_at).getTime();
   if (Date.now() - lastUsed > SLIDING_REFRESH_AFTER_SECONDS * 1000) {

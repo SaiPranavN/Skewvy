@@ -248,6 +248,7 @@ export async function resendVerification(email: string, ip?: string | null): Pro
 
 export type LoginOutcome =
   | { status: 'success'; user: PublicUser; sessionToken: string; expiresAt: string }
+  | { status: 'suspended'; reason: string | null }
   | { status: 'invalid_credentials' }
   | { status: 'rate_limited'; retryAfterSeconds: number }
   | { status: 'verification_required' }
@@ -314,6 +315,19 @@ export async function loginWithPin(options: LoginOptions): Promise<LoginOutcome>
     new Date().toISOString(),
     user.id,
   ]);
+
+  /*
+   * Checked only after the PIN has been proved correct. Answering "suspended"
+   * to anyone who guesses an address would turn this into a way to find out
+   * which addresses have accounts.
+   */
+  const suspension = await queryOne<{ suspended_at: string | null; suspended_reason: string | null }>(
+    'SELECT suspended_at, suspended_reason FROM users WHERE id = $1',
+    [user.id],
+  );
+  if (suspension?.suspended_at) {
+    return { status: 'suspended', reason: suspension.suspended_reason };
+  }
 
   if (!user.email_verified_at && requiresEmailVerification()) {
     const verification = await issueAuthToken(user.id, 'email_verification', { ip: options.ip });

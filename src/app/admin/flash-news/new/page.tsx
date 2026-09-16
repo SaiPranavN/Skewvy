@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { FlashNewsForm } from '@/components/admin/ContentForm';
 import { saveFlashNewsAction, type ActionResult } from '@/app/admin/actions';
 import { listEntities } from '@/lib/services/content';
-import { CATEGORIES } from '@/lib/domain/types';
+import { FLASH_NEWS_CATEGORIES } from '@/lib/domain/types';
 
 export const metadata: Metadata = { title: 'Admin · New Flash News' };
 export const dynamic = 'force-dynamic';
@@ -30,7 +30,7 @@ export default async function NewFlashNewsPage() {
           slug: '',
           summary: '',
           body: '',
-          category: CATEGORIES[0],
+          category: FLASH_NEWS_CATEGORIES[0],
           imageUrl: null,
           sourceLabel: null,
           sourceUrl: null,

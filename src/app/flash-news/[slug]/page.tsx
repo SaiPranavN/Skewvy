@@ -65,7 +65,7 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
       <div className="mx-auto w-full max-w-[1320px] px-4 pb-28 pt-8 sm:px-6 lg:px-8 lg:pb-16 lg:pt-10">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-12">
           {/* Factual context */}
-          <div className="space-y-8">
+          <div className="min-w-0 space-y-8">
             <ArtifactHeader
               card={card}
               timeLabel="Published"
@@ -74,11 +74,8 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
               sourceUrl={item.sourceUrl}
             />
 
-            {/* The space the picture used to take, now carrying the history. */}
-            <ReactionTrendChart trend={trend} />
-
             {item.body && (
-              <section aria-labelledby="context-heading" className="divider pt-6">
+              <section aria-labelledby="context-heading" className="pt-1">
                 <h2 id="context-heading" className="text-sm font-medium text-primary">
                   What happened
                 </h2>
@@ -87,6 +84,9 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
                 </p>
               </section>
             )}
+
+            {/* The space the picture used to take, now carrying the history. */}
+            <ReactionTrendChart trend={trend} artifactType="flash_news" artifactId={item.id} totals={card.totals} />
 
             {relatedEntities.length > 0 && (
               <section aria-labelledby="entity-heading" className="divider pt-6">
@@ -147,7 +147,7 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
           </div>
 
           {/* Public reaction */}
-          <div className="lg:sticky lg:top-24 lg:self-start">
+          <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
             <SentimentPanel card={card} activity={activity} anchorId="reaction-controls" />
           </div>
         </div>

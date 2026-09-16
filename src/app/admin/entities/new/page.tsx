@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { EntityForm } from '@/components/admin/ContentForm';
 import { saveEntityAction, type ActionResult } from '@/app/admin/actions';
-import { CATEGORIES } from '@/lib/domain/types';
+import { ENTITY_CATEGORIES } from '@/lib/domain/types';
 
 export const metadata: Metadata = { title: 'Admin · New Entity' };
 
@@ -26,7 +26,7 @@ export default function NewEntityPage() {
           name: '',
           slug: '',
           description: '',
-          category: CATEGORIES[0],
+          category: ENTITY_CATEGORIES[0],
           imageUrl: null,
           status: 'draft',
         }}

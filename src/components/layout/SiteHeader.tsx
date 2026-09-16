@@ -122,8 +122,9 @@ export function SiteHeader({ user }: { user: PublicUser | null }) {
               >
                 Sign in
               </Link>
+              {/* Straight to the catalogue. Signing in has its own control beside this. */}
               <Link
-                href={`/register?redirectTo=${encodeURIComponent(pathname)}`}
+                href="/flash-news"
                 className="rounded-md bg-primary px-5 py-2.5 text-sm font-medium uppercase tracking-[0.04em] text-ground transition-opacity duration-150 hover:opacity-90"
               >
                 Get started
@@ -180,7 +181,7 @@ export function SiteHeader({ user }: { user: PublicUser | null }) {
               ) : (
                 <>
                   <Link
-                    href={`/register?redirectTo=${encodeURIComponent(pathname)}`}
+                    href="/flash-news"
                     className="rounded-md bg-primary px-4 py-2.5 text-sm font-medium uppercase tracking-[0.04em] text-ground"
                   >
                     Get started

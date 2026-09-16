@@ -7,7 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { HydrateArtifacts } from '@/components/reactions/HydrateArtifacts';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { listEntities, toCards } from '@/lib/services/content';
-import { CATEGORIES } from '@/lib/domain/types';
+import { ENTITY_CATEGORIES } from '@/lib/domain/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +46,7 @@ export default async function EntitiesPage({
           <FilterTabs
             label="Filter by category"
             active={category ?? null}
-            options={[{ label: 'All', value: null }, ...CATEGORIES.map((value) => ({ label: value, value }))]}
+            options={[{ label: 'All', value: null }, ...ENTITY_CATEGORIES.map((value) => ({ label: value, value }))]}
           />
         </div>
       </PageHeader>

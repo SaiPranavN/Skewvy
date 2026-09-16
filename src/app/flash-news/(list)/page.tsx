@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { HydrateArtifacts } from '@/components/reactions/HydrateArtifacts';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { listFlashNews, toCards } from '@/lib/services/content';
-import { CATEGORIES } from '@/lib/domain/types';
+import { FLASH_NEWS_CATEGORIES } from '@/lib/domain/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +34,7 @@ export default async function FlashNewsPage({ searchParams }: { searchParams: Pr
         <FilterTabs
           label="Filter by category"
           active={category ?? null}
-          options={[{ label: 'All', value: null }, ...CATEGORIES.map((value) => ({ label: value, value }))]}
+          options={[{ label: 'All', value: null }, ...FLASH_NEWS_CATEGORIES.map((value) => ({ label: value, value }))]}
         />
       </PageHeader>
 

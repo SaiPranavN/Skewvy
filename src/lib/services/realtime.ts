@@ -20,7 +20,16 @@ type Listener = (event: ArtifactEvent) => void;
 const globalForBus = globalThis as unknown as {
   __skewvyListeners?: Set<Listener>;
   __skewvyPgRelay?: Promise<void>;
+  __skewvyOrigin?: string;
 };
+
+/*
+ * Identifies this process on the wire. An instance that publishes an event
+ * hands it to its own listeners immediately and also puts it on the channel for
+ * everyone else — so without this it would receive its own event back and show
+ * the crowd pulse twice for a single reaction.
+ */
+globalForBus.__skewvyOrigin ??= `${process.pid}-${Math.random().toString(36).slice(2, 10)}`;
 
 globalForBus.__skewvyListeners ??= new Set();
 
@@ -67,7 +76,12 @@ async function relayToPostgres(event: ArtifactEvent): Promise<void> {
   if (!pgRelayEnabled()) return;
   try {
     const { execute } = await import('@/lib/db');
-    await execute('SELECT pg_notify($1, $2)', ['skewvy_reactions', JSON.stringify(event)]);
+    // NOTIFY is fine through the transaction pooler: it commits with the
+    // statement. Only LISTEN needs a connection that outlives one.
+    await execute('SELECT pg_notify($1, $2)', [
+      'skewvy_reactions',
+      JSON.stringify({ ...event, origin: globalForBus.__skewvyOrigin }),
+    ]);
   } catch {
     // Realtime is best-effort; totals stay correct without it.
   }
@@ -121,7 +135,8 @@ function ensurePostgresRelay(): void {
       client.on('notification', (message) => {
         if (!message.payload) return;
         try {
-          const event = JSON.parse(message.payload) as ArtifactEvent;
+          const event = JSON.parse(message.payload) as ArtifactEvent & { origin?: string };
+          if (event.origin === globalForBus.__skewvyOrigin) return;
           for (const listener of listeners()) listener(event);
         } catch {
           // Ignore malformed payloads.

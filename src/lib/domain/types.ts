@@ -9,7 +9,10 @@ export type Stance = 'positive' | 'negative';
 
 export type ContentStatus = 'draft' | 'published' | 'archived';
 
-export const CATEGORIES = [
+/**
+ * Flash News is filed by subject matter — what the event was about.
+ */
+export const FLASH_NEWS_CATEGORIES = [
   'Technology',
   'Entertainment',
   'Sports',
@@ -21,7 +24,33 @@ export const CATEGORIES = [
   'Community',
 ] as const;
 
-export type Category = (typeof CATEGORIES)[number];
+/**
+ * An Entity is filed by what it *is*, not what it is about. "Technology" says
+ * nothing useful about a regulator, a footballer and a phone all at once, and
+ * those are the things people come here to hold to account.
+ */
+export const ENTITY_CATEGORIES = [
+  'People',
+  'Companies',
+  'Institutions',
+  'Governments',
+  'Products',
+  'Media',
+  'Sports Teams',
+  'Organisations',
+] as const;
+
+/** Retained for anything that still wants the union of both. */
+export const CATEGORIES = FLASH_NEWS_CATEGORIES;
+
+export type FlashNewsCategory = (typeof FLASH_NEWS_CATEGORIES)[number];
+export type EntityCategory = (typeof ENTITY_CATEGORIES)[number];
+export type Category = FlashNewsCategory | EntityCategory;
+
+/** The list that belongs to one artifact type. */
+export function categoriesFor(artifactType: ArtifactType): readonly string[] {
+  return artifactType === 'entity' ? ENTITY_CATEGORIES : FLASH_NEWS_CATEGORIES;
+}
 
 export interface ArtifactTotals {
   artifactType: ArtifactType;

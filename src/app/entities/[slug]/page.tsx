@@ -59,11 +59,11 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
 
       <div className="mx-auto w-full max-w-[1320px] px-4 pb-28 pt-8 sm:px-6 lg:px-8 lg:pb-16 lg:pt-10">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-12">
-          <div className="space-y-8">
+          <div className="min-w-0 space-y-8">
             <ArtifactHeader card={card} timeLabel="Updated" shareUrl={shareUrl} />
 
             {/* The space the logo used to take, now carrying the history. */}
-            <ReactionTrendChart trend={trend} />
+            <ReactionTrendChart trend={trend} artifactType="entity" artifactId={entity.id} totals={card.totals} />
 
             {/*
              * Lifetime and recent sentiment are labelled separately, and neither
@@ -135,7 +135,7 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
             />
           </div>
 
-          <div className="lg:sticky lg:top-24 lg:self-start">
+          <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
             <SentimentPanel card={card} activity={activity} anchorId="reaction-controls" />
           </div>
         </div>

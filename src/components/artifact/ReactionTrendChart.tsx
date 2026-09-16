@@ -2,7 +2,9 @@
 
 import { useId, useMemo, useState } from 'react';
 import { formatCount } from '@/lib/domain/format';
+import { useArtifact } from '@/components/reactions/useArtifact';
 import type { ReactionTrend, TrendPoint } from '@/lib/services/timeline';
+import type { ArtifactTotals, ArtifactType } from '@/lib/domain/types';
 
 /**
  * How the two reaction totals grew over time.
@@ -21,10 +23,33 @@ const PADDING = { top: 18, right: 16, bottom: 26, left: 48 };
 const PLOT_WIDTH = VIEW_WIDTH - PADDING.left - PADDING.right;
 const PLOT_HEIGHT = VIEW_HEIGHT - PADDING.top - PADDING.bottom;
 
-export function ReactionTrendChart({ trend }: { trend: ReactionTrend }) {
+export function ReactionTrendChart({
+  trend,
+  artifactType,
+  artifactId,
+  totals,
+}: {
+  trend: ReactionTrend;
+  artifactType: ArtifactType;
+  artifactId: string;
+  totals: ArtifactTotals;
+}) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const titleId = useId();
-  const points = trend.points;
+
+  /*
+   * The series is drawn from the server's history, but its final point is the
+   * artifact's lifetime total — which the reaction store keeps current as taps
+   * arrive, from this browser and from everyone else's. Rebuilding that last
+   * point from the live figure keeps the line ending exactly on the number
+   * printed beside it, without refetching the whole history for every tap.
+   */
+  const live = useArtifact(artifactType, artifactId, { totals });
+
+  const points = useMemo(
+    () => withLiveTail(trend.points, live.totals.rottenEggTotal, live.totals.medalTotal),
+    [trend.points, live.totals.rottenEggTotal, live.totals.medalTotal],
+  );
 
   const geometry = useMemo(() => build(points), [points]);
 
@@ -272,6 +297,31 @@ function Legend({
       <p className="mt-0.5 text-xs text-tertiary">{caption}</p>
     </div>
   );
+}
+
+/**
+ * Replaces the closing point with the totals as they stand now.
+ *
+ * Only the tail moves: everything before it is recorded history and does not
+ * change. The difference lands in the final bucket, which is where reactions
+ * arriving right now genuinely belong.
+ */
+function withLiveTail(points: TrendPoint[], eggs: number, medals: number): TrendPoint[] {
+  if (points.length === 0) return points;
+
+  const last = points[points.length - 1];
+  if (last.cumulativeEggs === eggs && last.cumulativeMedals === medals) return points;
+
+  return [
+    ...points.slice(0, -1),
+    {
+      ...last,
+      eggs: Math.max(0, last.eggs + (eggs - last.cumulativeEggs)),
+      medals: Math.max(0, last.medals + (medals - last.cumulativeMedals)),
+      cumulativeEggs: eggs,
+      cumulativeMedals: medals,
+    },
+  ];
 }
 
 interface Geometry {

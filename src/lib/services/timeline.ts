@@ -183,6 +183,44 @@ export async function reactionTrend(
 }
 
 /**
+ * Rebuilds one artifact's history from the aggregates that remain.
+ *
+ * Needed after an account is deleted: the cascade takes their reactions but a
+ * rollup cannot un-count what it already summed, so the chart would keep
+ * reporting contributions that no longer exist. Derived the same way as the
+ * backfill, which means hourly detail collapses to when each person first
+ * reacted — a fair trade for numbers that agree with the totals.
+ */
+export async function rebuildTimelineFor(artifactType: ArtifactType, artifactId: string): Promise<void> {
+  await execute('DELETE FROM reaction_timeline WHERE artifact_type = $1 AND artifact_id = $2', [
+    artifactType,
+    artifactId,
+  ]);
+
+  const rows = await query<{ created_at: string; rotten_egg_count: number; medal_count: number }>(
+    'SELECT created_at, rotten_egg_count, medal_count FROM reaction_aggregates WHERE artifact_type = $1 AND artifact_id = $2',
+    [artifactType, artifactId],
+  );
+
+  const buckets = new Map<string, { eggs: number; medals: number }>();
+  for (const row of rows) {
+    const at = hourBucket(row.created_at);
+    const bucket = buckets.get(at) ?? { eggs: 0, medals: 0 };
+    bucket.eggs += Number(row.rotten_egg_count);
+    bucket.medals += Number(row.medal_count);
+    buckets.set(at, bucket);
+  }
+
+  for (const [at, bucket] of buckets) {
+    await execute(
+      `INSERT INTO reaction_timeline (artifact_type, artifact_id, bucket_start, rotten_egg_count, medal_count)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [artifactType, artifactId, at, bucket.eggs, bucket.medals],
+    );
+  }
+}
+
+/**
  * Derives history for artifacts that have none.
  *
  * Reaction aggregates carry the moment each person first reacted, which is

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState } from 'react';
 import { ImageField } from './ImageField';
-import { CATEGORIES } from '@/lib/domain/types';
+import { ENTITY_CATEGORIES, FLASH_NEWS_CATEGORIES } from '@/lib/domain/types';
 import type { ActionResult } from '@/app/admin/actions';
 import type { ContentStatus } from '@/lib/domain/types';
 
@@ -195,8 +195,8 @@ export function EntityForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <FormField id="category" label="Category" error={state.fields?.category}>
-          <select id="category" name="category" defaultValue={values.category || CATEGORIES[0]} className={inputClass}>
-            {CATEGORIES.map((category) => (
+          <select id="category" name="category" defaultValue={values.category || ENTITY_CATEGORIES[0]} className={inputClass}>
+            {ENTITY_CATEGORIES.map((category) => (
               <option key={category} value={category}>
                 {category}
               </option>
@@ -287,8 +287,8 @@ export function FlashNewsForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <FormField id="category" label="Category" error={state.fields?.category}>
-          <select id="category" name="category" defaultValue={values.category || CATEGORIES[0]} className={inputClass}>
-            {CATEGORIES.map((category) => (
+          <select id="category" name="category" defaultValue={values.category || FLASH_NEWS_CATEGORIES[0]} className={inputClass}>
+            {FLASH_NEWS_CATEGORIES.map((category) => (
               <option key={category} value={category}>
                 {category}
               </option>
