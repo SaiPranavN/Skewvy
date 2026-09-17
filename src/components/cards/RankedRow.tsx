@@ -1,19 +1,20 @@
+'use client';
+
 import Link from 'next/link';
 import { Media, initialsFor } from '@/components/ui/Media';
-import { formatCount, formatCompact } from '@/lib/domain/format';
-import type { ArtifactCard, ReactionType } from '@/lib/domain/types';
-
-export interface RankedItem {
-  card: ArtifactCard;
-  primaryCount: number;
-  secondaryCount: number;
-  recentChange: number;
-}
+import { useArtifact } from '@/components/reactions/useArtifact';
+import { cardTone } from '@/lib/domain/copy';
+import { formatCount } from '@/lib/domain/format';
+import type { RankedIndexItem } from '@/lib/services/trending';
 
 /**
- * A ranking row, in the style of a published index: rank, thumbnail, title,
- * type, the primary total, the change inside the window, and the opposing total
- * kept compact. No card, no glow — just a list with hairline separators.
+ * One line of a standings table: rank, mark, name, and the figure it is ranked
+ * by at display scale.
+ *
+ * The number on the right is the whole point of the row, so it is the only
+ * thing set large. The line under it says how much arrived in the window —
+ * which is what the ranking is actually measuring, and rarely the same as the
+ * lifetime total beside it.
  */
 export function RankedRow({
   item,
@@ -21,71 +22,49 @@ export function RankedRow({
   metric,
   windowLabel,
 }: {
-  item: RankedItem;
+  item: RankedIndexItem;
   rank: number;
-  /** Which reaction the primary column is counting. */
-  metric: ReactionType | 'activity';
+  metric: 'rotten_egg' | 'medal' | 'activity';
   windowLabel: string;
 }) {
   const { card } = item;
-  const href = card.type === 'entity' ? `/entities/${card.slug}` : `/flash-news/${card.slug}`;
+  const state = useArtifact(card.type, card.id, { totals: card.totals, contribution: card.contribution });
+  const badge = cardTone(state.totals);
 
-  const primaryTone =
-    metric === 'rotten_egg' ? 'text-egg' : metric === 'medal' ? 'text-medal' : 'text-primary';
-  const secondaryEmoji = metric === 'rotten_egg' ? '🏅' : '🥚';
-  const primaryEmoji = metric === 'rotten_egg' ? '🥚' : metric === 'medal' ? '🏅' : '';
+  const href = card.type === 'entity' ? `/entities/${card.slug}` : `/flash-news/${card.slug}`;
+  const valueClass =
+    metric === 'rotten_egg' ? 'text-brand' : metric === 'medal' ? 'text-medal' : 'text-primary';
 
   return (
-    <li>
-      <Link
-        href={href}
-        className="media-hover group grid grid-cols-[1.75rem_3.5rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--border-subtle)] py-3 transition-colors duration-150 hover:bg-surface sm:gap-4 sm:py-4"
-      >
-        <span className="numeric text-sm text-tertiary tabular-nums">{String(rank).padStart(2, '0')}</span>
+    <li className={`tone-${badge.tone} flex items-center gap-4 border-b border-[var(--border-subtle)] py-3.5`}>
+      <span className="numeric w-6 flex-none text-xs text-tertiary">{rank}</span>
 
-        <Media
-          src={card.imageUrl}
-          alt=""
-          fallbackLabel={card.type === 'entity' ? initialsFor(card.title) : card.category.slice(0, 3)}
-          fallbackKind={card.type === 'entity' ? 'initials' : 'category'}
-          sizes="56px"
-          className="aspect-square w-14 rounded-md"
-        />
+      <Media
+        src={card.imageUrl}
+        alt=""
+        fallbackLabel={initialsFor(card.title)}
+        fallbackKind="initials"
+        sizes="48px"
+        className="h-12 w-12 flex-none border border-[var(--border-default)]"
+      />
 
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-medium text-primary">
-            {card.title}
-          </span>
-          <span className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-tertiary">
-            <span>{card.type === 'entity' ? 'Entity' : 'Flash News'}</span>
-            <span aria-hidden="true" className="text-disabled">
-              ·
-            </span>
-            <span>{card.category}</span>
-            <span aria-hidden="true" className="hidden text-disabled sm:inline">
-              ·
-            </span>
-            <span className="hidden sm:inline">
-              <span className="emoji">{secondaryEmoji}</span>{' '}
-              <span className="numeric">{formatCompact(item.secondaryCount)}</span>
-            </span>
-          </span>
+      <span className="min-w-0 flex-1">
+        <Link href={href} className="block truncate text-[15px] font-bold text-primary hover:text-brand">
+          {card.title}
+        </Link>
+        <span className="mt-1 block truncate text-xs text-tertiary">
+          {card.type === 'entity' ? 'Entity' : 'Flash News'} · {card.category} · {badge.flashLabel}
         </span>
+      </span>
 
-        <span className="shrink-0 text-right">
-          <span className={`numeric-lg block text-base font-semibold sm:text-lg ${primaryTone}`}>
-            {primaryEmoji && (
-              <span className="emoji mr-1.5 text-xs align-middle" aria-hidden="true">
-                {primaryEmoji}
-              </span>
-            )}
-            {formatCount(item.primaryCount)}
+      <span className="flex-none text-right">
+        <span className={`numeric-lg block text-[24px] ${valueClass}`}>{formatCount(item.primaryCount)}</span>
+        {item.recentChange > 0 && (
+          <span className="mt-1 block text-[10px] font-semibold uppercase leading-none tracking-[0.1em] text-tertiary">
+            +{formatCount(item.recentChange)} {windowLabel}
           </span>
-          <span className="numeric mt-0.5 block text-xs text-tertiary">
-            +{formatCompact(item.recentChange)} {windowLabel}
-          </span>
-        </span>
-      </Link>
+        )}
+      </span>
     </li>
   );
 }

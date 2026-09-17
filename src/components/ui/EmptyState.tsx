@@ -17,7 +17,7 @@ export function EmptyState({
       {action && (
         <Link
           href={action.href}
-          className="mt-5 inline-block rounded-md border border-[var(--border-default)] px-4 py-2.5 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)]"
+          className="mt-5 inline-block border border-[var(--border-default)] px-4 py-2.5 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)]"
         >
           {action.label}
         </Link>

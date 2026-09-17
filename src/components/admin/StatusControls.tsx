@@ -26,7 +26,7 @@ export function StatusBadge({ status }: { status: ContentStatus }) {
 
   return (
     <span className="inline-flex items-center gap-1.5 text-xs capitalize text-secondary">
-      <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
+      <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 ${dot}`} />
       {status}
     </span>
   );

@@ -1,79 +1,103 @@
 @import 'tailwindcss';
 
 /*
- * Skewvy — "Dark Editorial Signal".
+ * Skewvy — "Warm Brutalist".
  *
- * A restrained, near-black editorial surface. Hierarchy comes from typography,
- * spacing and the scale of the numbers — not from colour. Red is a brand
- * signal, terracotta means Rotten Eggs, antique gold means Medals, and nothing
- * else is tinted.
+ * A warm near-black ground carrying cream paper panels. Hierarchy comes from
+ * scale and hard edges: Archivo Black at display sizes, square corners
+ * everywhere, 2–3px ink borders, and offset solid shadows instead of blur.
+ *
+ * Orange is the egg, gold is the medal, indigo is the discussion. Nothing else
+ * is tinted.
  */
 
 @theme {
-  /* Grounds and surfaces */
-  --color-ground: #08090b;
-  --color-elevated: #0c0e11;
-  --color-surface: #101216;
-  --color-surface-2: #14171c;
-  --color-surface-3: #181b20;
+  /* Grounds and surfaces. The ground is warm, not neutral. */
+  --color-ground: #14110f;
+  --color-elevated: #1b1714;
+  --color-surface: #1f1a17;
+  --color-surface-2: #251f1b;
+  --color-surface-3: #2c2520;
 
-  /* Type */
-  --color-primary: #f2f2f0;
-  --color-secondary: #a4a6aa;
-  --color-tertiary: #70737a;
-  --color-disabled: #50535a;
+  /* Ink and paper — the cream panel and the near-black it prints in. */
+  --color-paper: #f7f2e7;
+  --color-ink: #17140f;
 
-  /* Brand and sentiment accents */
-  --color-brand: #e5484d;
-  --color-brand-muted: #9f3539;
+  /* Type on the ground. */
+  --color-primary: #f7f2e7;
+  --color-secondary: rgb(247 242 231 / 0.72);
+  --color-tertiary: rgb(247 242 231 / 0.54);
+  --color-disabled: rgb(247 242 231 / 0.38);
 
-  --color-egg: #bd7650;
-  --color-egg-muted: #76503c;
+  /* Brand and sentiment accents. */
+  --color-brand: #ff6b45;
+  --color-brand-muted: #8f3a26;
 
-  --color-medal: #c5a15a;
-  --color-medal-muted: #766442;
+  --color-egg: #ff6b45;
+  --color-egg-deep: #e0472a;
+  --color-egg-muted: #8f3a26;
 
-  --color-success: #70a889;
-  --color-warning: #c5a15a;
-  --color-error: #d76262;
+  --color-medal: #ffcb2f;
+  --color-medal-deep: #9a7100;
+  --color-medal-line: #b78a00;
+  --color-medal-muted: #6f5510;
 
-  /* One type family throughout. */
-  --font-sans:
-    var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-indigo: #4657ee;
+  --color-indigo-bright: #5a6cff;
+  --color-indigo-soft: #8e9bff;
+
+  --color-success: #7fb98a;
+  --color-warning: #ffcb2f;
+  --color-error: #ff6b45;
+
+  /* One family. Archivo for everything, Archivo Black for display. */
+  --font-sans: var(--font-archivo), system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --font-display: var(--font-archivo-black), var(--font-archivo), system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-emoji:
     'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Twemoji Mozilla', 'EmojiOne Color', sans-serif;
 
-  /* 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 80 */
   --spacing-section: 4rem;
   --spacing-section-lg: 5rem;
 
-  --radius-card: 10px;
-  --radius-control: 8px;
+  /* Square. All of it. */
+  --radius-card: 0px;
+  --radius-control: 0px;
 }
 
 :root {
   color-scheme: dark;
 
-  --border-subtle: rgb(255 255 255 / 0.07);
-  --border-default: rgb(255 255 255 / 0.11);
-  --border-strong: rgb(255 255 255 / 0.18);
+  /* Hairlines on the ground. */
+  --border-subtle: rgb(247 242 231 / 0.12);
+  --border-default: rgb(247 242 231 / 0.18);
+  --border-strong: rgb(247 242 231 / 0.3);
 
-  --egg-surface: rgb(189 118 80 / 0.09);
-  --medal-surface: rgb(197 161 90 / 0.09);
+  /* Hairlines on paper. */
+  --rule-subtle: rgb(23 20 15 / 0.16);
+  --rule-default: rgb(23 20 15 / 0.2);
+  --rule-strong: rgb(23 20 15 / 0.45);
 
-  /* One shared motion language. */
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --egg-surface: rgb(255 107 69 / 0.14);
+  --medal-surface: rgb(255 203 47 / 0.14);
+
+  /* The page gutter and rail, shared by every section. */
+  --rail: 1560px;
+  --gutter: clamp(16px, 2.4vw, 40px);
+
+  --ease-standard: cubic-bezier(0.2, 0.9, 0.2, 1);
   --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 
-  --duration-micro: 150ms;
+  --duration-micro: 140ms;
   --duration-control: 180ms;
   --duration-surface: 220ms;
   --duration-page: 240ms;
 
-  /* Reserved for temporary elevated surfaces only. */
-  --shadow-overlay: 0 16px 48px -12px rgb(0 0 0 / 0.7);
+  /* Offset solid shadow — the only elevation this system has. */
+  --shadow-slab: 12px 12px 0 var(--color-brand);
+  --shadow-slab-sm: 6px 6px 0 var(--color-brand);
+  --shadow-overlay: 0 10px 30px rgb(0 0 0 / 0.45);
 }
 
 html {
@@ -99,140 +123,553 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* ------------------------------- primitives ------------------------------ */
-
-/* A card is a surface, a hairline border and nothing else. No shadow, no glow. */
-.panel {
-  background-color: var(--color-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-card);
+::selection {
+  background: var(--color-indigo);
+  color: var(--color-paper);
 }
 
-.panel-interactive {
-  transition:
-    border-color var(--duration-surface) var(--ease-standard),
-    background-color var(--duration-surface) var(--ease-standard);
-}
+/*
+ * Component classes live in the `components` layer so plain utilities still
+ * win against them. Without it these rules sit after Tailwind's utilities at
+ * equal specificity, and a shorthand like `.field-dark { padding: … }` quietly
+ * overrides a `pl-10` sitting right next to it in the markup.
+ */
+@layer components {
+  /* ------------------------------- primitives ------------------------------ */
 
-@media (hover: hover) and (pointer: fine) {
-  .panel-interactive:hover {
-    border-color: var(--border-default);
-    background-color: var(--color-surface-2);
+  /* The page rail. Every top-level section sits on it. */
+  .rail {
+    max-width: var(--rail);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+    width: 100%;
   }
-}
 
-.divider {
-  border-top: 1px solid var(--border-subtle);
-}
+  /*
+   * Display type. Archivo Black, set tight and negative-tracked — the headline,
+   * the counters and the section titles all come from here.
+   */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 900;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    text-wrap: balance;
+  }
 
-.emoji {
-  font-family: var(--font-emoji);
-  font-variant-emoji: emoji;
-  line-height: 1;
-}
+  .display-sm {
+    font-family: var(--font-display);
+    font-weight: 900;
+    line-height: 0.98;
+    letter-spacing: -0.035em;
+  }
 
-/* Reaction totals: the signature numeric element. */
-.numeric {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1;
-  letter-spacing: -0.025em;
-}
+  /* A panel on the ground: hairline border, no fill. */
+  .panel {
+    background-color: transparent;
+    border: 1px solid var(--border-default);
+    border-radius: 0;
+  }
 
-.numeric-lg {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1;
-  letter-spacing: -0.035em;
-}
+  /* A panel of cream paper. The workhorse container. */
+  .paper {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    border: 1px solid var(--rule-subtle);
+    border-radius: 0;
+  }
 
-/* Small uppercase label, used sparingly. */
-.eyebrow {
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  color: var(--color-tertiary);
-}
+  /* Paper that has been shoved forward: thick ink edge, hard offset shadow. */
+  .slab {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    border: 3px solid var(--color-ink);
+    border-radius: 0;
+    box-shadow: var(--shadow-slab);
+  }
 
-/* Focus is always visible and never colour-only. */
-:where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
+  /*
+   * Paper is a colour context, not just a background.
+   *
+   * Every semantic token flips inside it, so a component written against the
+   * ground — `text-primary`, `bg-primary`, `border-[var(--border-default)]` —
+   * keeps meaning what it meant and simply lands in ink instead of cream. Without
+   * this, a cream button dropped onto a cream panel disappears, and each panel
+   * would need its own hand-written colour overrides.
+   *
+   * Add `on-paper` to any element that sets its own cream background without
+   * using the `.paper` or `.slab` classes.
+   */
+  .paper,
+  .slab,
+  .reaction-control,
+  .on-paper {
+    --color-ground: var(--color-paper);
+    --color-primary: var(--color-ink);
+    --color-secondary: rgb(23 20 15 / 0.68);
+    --color-tertiary: rgb(23 20 15 / 0.6);
+    --color-disabled: rgb(23 20 15 / 0.4);
 
-.reaction-control:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+    --color-elevated: transparent;
+    --color-surface: transparent;
+    --color-surface-2: rgb(23 20 15 / 0.05);
+    --color-surface-3: rgb(23 20 15 / 0.1);
+
+    --border-subtle: var(--rule-subtle);
+    --border-default: var(--rule-default);
+    --border-strong: var(--rule-strong);
+
+    /* Orange holds up as a fill on cream, but not as body text. */
+    --color-brand: var(--color-egg-deep);
+    --color-error: var(--color-egg-deep);
+  }
+
+  .panel-interactive {
+    transition:
+      border-color var(--duration-surface) var(--ease-standard),
+      background-color var(--duration-surface) var(--ease-standard);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .panel-interactive:hover {
+      border-color: var(--border-strong);
+      background-color: var(--color-elevated);
+    }
+  }
+
+  .divider {
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .emoji {
+    font-family: var(--font-emoji);
+    font-variant-emoji: emoji;
+    line-height: 1;
+  }
+
+  /* Reaction totals: the signature numeric element. */
+  .numeric {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+    letter-spacing: -0.025em;
+  }
+
+  .numeric-lg {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+    letter-spacing: -0.05em;
+    line-height: 0.86;
+  }
+
+  /* Small uppercase label. Used constantly in this system, unlike the last. */
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-tertiary);
+  }
+
+  .eyebrow-ink {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
+    color: rgb(23 20 15 / 0.6);
+  }
+
+  /* A solid category flag. Gold on ink, square, tight. */
+  .flag {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 700;
+    font-size: 0.6875rem;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-ink);
+    background-color: var(--color-medal);
+    padding: 7px 10px;
+  }
+
+  /* Focus is always visible and never colour-only. */
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid var(--color-indigo-bright);
+    outline-offset: 3px;
+    border-radius: 0;
+  }
+
+  .reaction-control:focus-visible {
+    outline: 3px solid var(--color-indigo-bright);
+    outline-offset: 3px;
+  }
+
+  /* ------------------------------- card tones ------------------------------- */
+
+  /*
+   * A card's tone is its record, not decoration: orange when the eggs won, gold
+   * when the medals did, indigo when neither did. `--tone` is set by the tone
+   * class and read by the tile, the badge and the split bar, so one value drives
+   * all three.
+   */
+  .tone-egg {
+    --tone: var(--color-egg);
+    --tone-ink: var(--color-ink);
+  }
+
+  .tone-medal {
+    --tone: var(--color-medal);
+    --tone-ink: var(--color-ink);
+  }
+
+  .tone-split {
+    --tone: var(--color-indigo);
+    --tone-ink: var(--color-paper);
+  }
+
+  /* The image well. Carries the tone when there is no picture to show. */
+  .tile {
+    background-color: var(--tone, var(--color-surface-2));
+    color: var(--tone-ink, var(--color-primary));
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* A printed-halftone dot field, so an imageless tile still has texture. */
+  .tile-dots::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgb(23 20 15 / 0.16) 1.2px, transparent 1.3px);
+    background-size: 10px 10px;
+    pointer-events: none;
+  }
+
+  .tone-split .tile-dots::before {
+    background-image: radial-gradient(circle, rgb(247 242 231 / 0.18) 1.2px, transparent 1.3px);
+  }
+
+  /* The status flag sitting on a tile: ink-edged, square, tone-coloured. */
+  .tone-badge {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 700;
+    font-size: 0.6875rem;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 9px;
+    background-color: var(--tone);
+    color: var(--tone-ink);
+    border: 1px solid var(--color-ink);
+  }
+
+  .tone-split .tone-badge {
+    border-color: var(--color-paper);
+  }
+
+  /* A neutral category chip on paper. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 700;
+    font-size: 0.6875rem;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 9px;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  /* The two-tone record bar: eggs from the left, medals filling the rest. */
+  .split-bar {
+    display: flex;
+    height: 5px;
+    width: 100%;
+    overflow: hidden;
+    background-color: var(--color-medal);
+  }
+
+  .split-bar > span {
+    display: block;
+    height: 100%;
+    background-color: var(--color-egg);
+  }
+
+  /* --------------------------------- buttons -------------------------------- */
+
+  /*
+   * Buttons press down rather than lighting up: `translateY` on :active is the
+   * whole interaction language, matched to the hard offset shadow.
+   */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    cursor: pointer;
+    border-radius: 0;
+    font-weight: 700;
+    line-height: 1;
+    text-align: left;
+    transition:
+      background-color var(--duration-control) var(--ease-standard),
+      border-color var(--duration-control) var(--ease-standard),
+      transform var(--duration-micro) var(--ease-standard);
+  }
+
+  .btn:active:not(:disabled) {
+    transform: translateY(2px);
+  }
+
+  .btn:disabled {
+    cursor: not-allowed;
+  }
+
+  /* Cream on the ground. */
+  .btn-paper {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    border: 0;
+    padding: 14px 18px;
+    font-size: 0.875rem;
+  }
+
+  /* Outlined on the ground. */
+  .btn-outline {
+    background-color: transparent;
+    color: var(--color-primary);
+    border: 1px solid var(--border-strong);
+    padding: 14px 18px;
+    font-size: 0.875rem;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-outline:hover {
+      border-color: var(--color-primary);
+    }
+  }
+
+  /* The egg. Orange, ink-edged, big. */
+  .btn-egg {
+    background-color: var(--color-egg);
+    color: var(--color-ink);
+    border: 2px solid var(--color-ink);
+    padding: 18px 16px;
+    font-weight: 800;
+    font-size: clamp(1rem, 1.4vw, 1.25rem);
+    min-height: 54px;
+    width: 100%;
+    justify-content: flex-start;
+    touch-action: manipulation;
+    user-select: none;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-egg:hover {
+      background-color: #ff7f5c;
+    }
+  }
+
+  .btn-egg:active:not(:disabled) {
+    transform: translateY(3px);
+  }
+
+  /* The medal. Gold, ink-edged. */
+  .btn-medal {
+    background-color: var(--color-medal);
+    color: var(--color-ink);
+    border: 2px solid var(--color-ink);
+    padding: 18px 16px;
+    font-weight: 800;
+    font-size: clamp(1rem, 1.4vw, 1.25rem);
+    min-height: 54px;
+    width: 100%;
+    justify-content: flex-start;
+    touch-action: manipulation;
+    user-select: none;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-medal:hover {
+      background-color: #ffd65c;
+    }
+  }
+
+  .btn-medal:active:not(:disabled) {
+    transform: translateY(3px);
+  }
+
+  /* A side that is closed to this viewer: dashed, flat, unpressable. */
+  .btn-locked {
+    background-color: rgb(23 20 15 / 0.09);
+    color: rgb(23 20 15 / 0.62);
+    border: 1px dashed var(--rule-strong);
+    padding: 16px;
+    font-weight: 800;
+    font-size: clamp(0.875rem, 1.2vw, 1.0625rem);
+    min-height: 52px;
+    width: 100%;
+    justify-content: flex-start;
+    cursor: not-allowed;
+  }
+
+  /* A small ink button sitting on paper — vote, reply, dismiss. */
+  .btn-ink {
+    background-color: transparent;
+    color: var(--color-ink);
+    border: 1px solid var(--rule-default);
+    padding: 8px 11px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    min-height: 36px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-ink:hover {
+      border-color: var(--color-indigo-soft);
+      color: #3b4bd8;
+    }
+  }
+
+  /* ------------------------------ segmented ------------------------------- */
+
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--rule-default);
+    flex: none;
+  }
+
+  .seg-opt {
+    font-weight: 700;
+    font-size: 0.78125rem;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    padding: 12px 14px;
+    min-height: 40px;
+    border: 0;
+    cursor: pointer;
+    background-color: transparent;
+    color: rgb(23 20 15 / 0.6);
+    transition: background-color var(--duration-control) var(--ease-standard);
+  }
+
+  .seg-opt[aria-pressed='true'],
+  .seg-opt[data-active='true'] {
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  /* -------------------------------- fields --------------------------------- */
+
+  /* A field on paper. Square, ink-edged, no fill of its own. */
+  .field-ink {
+    width: 100%;
+    display: block;
+    border: 1px solid var(--rule-default);
+    background-color: transparent;
+    color: var(--color-ink);
+    border-radius: 0;
+    padding: 14px 16px;
+    font: inherit;
+    caret-color: var(--color-egg-deep);
+  }
+
+  .field-ink::placeholder {
+    color: rgb(23 20 15 / 0.45);
+  }
+
+  .field-ink:focus-visible {
+    outline-color: var(--color-indigo);
+    outline-offset: 0;
+  }
+
+  /* A field on the ground. */
+  .field-dark {
+    width: 100%;
+    display: block;
+    border: 1px solid var(--border-default);
+    background-color: transparent;
+    color: var(--color-primary);
+    border-radius: 0;
+    padding: 14px 16px;
+    font: inherit;
+    caret-color: var(--color-egg);
+  }
+
+  .field-dark::placeholder {
+    color: var(--color-tertiary);
+  }
+
 }
 
 /* ------------------------------ reaction UI ------------------------------ */
 
 .reaction-control {
-  background-color: var(--color-surface);
-  border: 1px solid var(--border-subtle);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  border: 2px solid var(--color-ink);
+  border-radius: 0;
   transition:
-    border-color var(--duration-control) var(--ease-standard),
     background-color var(--duration-control) var(--ease-standard),
-    transform var(--duration-control) var(--ease-standard);
+    transform var(--duration-micro) var(--ease-standard);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .reaction-control-egg:hover {
-    border-color: color-mix(in oklab, var(--color-egg) 45%, transparent);
+    background-color: #ff7f5c;
   }
   .reaction-control-medal:hover {
-    border-color: color-mix(in oklab, var(--color-medal) 45%, transparent);
+    background-color: #ffd65c;
   }
 }
 
-/* Press: a small compression and a slightly stronger edge. Nothing else. */
+/* Press: the control travels down. No glow, no scale. */
 .reaction-control[data-pressed='true'] {
-  transform: scale(0.985);
+  transform: translateY(3px);
 }
 
 .reaction-control-egg[data-pressed='true'] {
-  background-color: var(--egg-surface);
-  border-color: color-mix(in oklab, var(--color-egg) 60%, transparent);
+  background-color: #ff7f5c;
 }
 
 .reaction-control-medal[data-pressed='true'] {
-  background-color: var(--medal-surface);
-  border-color: color-mix(in oklab, var(--color-medal) 60%, transparent);
-}
-
-/* The number brightens while held, rather than the whole control moving. */
-.reaction-control[data-pressed='true'] .reaction-total {
-  filter: brightness(1.18);
+  background-color: #ffd65c;
 }
 
 .reaction-total {
   transition: filter var(--duration-control) var(--ease-standard);
 }
 
-/* Floating reactions: upward drift, light rotation, quiet fade. */
+/*
+ * Flying reactions: thrown up and out with a real tumble, then gone. Much
+ * further and faster than the old drift — this system is loud on purpose.
+ */
 .particle {
-  position: absolute;
-  bottom: 0;
+  position: fixed;
   will-change: transform, opacity;
   pointer-events: none;
   user-select: none;
+  line-height: 1;
   animation-fill-mode: forwards;
 }
 
-@keyframes reaction-float {
+@keyframes skv-fly {
   0% {
-    transform: translate3d(0, 0, 0) scale(var(--p-scale, 1));
+    transform: translate(0, 0) rotate(0deg) scale(0.6);
     opacity: 0;
   }
-  10% {
-    opacity: 0.95;
-  }
-  72% {
-    opacity: 0.8;
+  16% {
+    opacity: 1;
+    transform: translate(calc(var(--p-drift, 0px) * 0.2), -20px) rotate(calc(var(--p-spin, 0deg) * 0.2)) scale(1.15);
   }
   100% {
-    transform: translate3d(var(--p-drift, 0), var(--p-rise, -180px), 0)
-      scale(calc(var(--p-scale, 1) * 0.9)) rotate(var(--p-spin, 8deg));
+    transform: translate(var(--p-drift, 0px), var(--p-rise, -220px)) rotate(var(--p-spin, 0deg)) scale(0.75);
     opacity: 0;
   }
 }
@@ -251,21 +688,72 @@ body {
   }
 }
 
-/* A counter that changed: a brief lift in weight, no bounce. */
-@keyframes total-emphasis {
-  0% {
-    filter: brightness(1);
+/* The sticky tray rises from the bottom edge. */
+@keyframes skv-tray {
+  from {
+    transform: translateY(120%);
   }
-  30% {
-    filter: brightness(1.35);
+  to {
+    transform: translateY(0);
+  }
+}
+
+.tray-in {
+  animation: skv-tray 220ms var(--ease-standard) both;
+}
+
+/* A small thing asserting itself: the nudge, a toast, a fresh comment. */
+@keyframes skv-pop {
+  0% {
+    transform: translateY(8px) scale(0.96);
+    opacity: 0;
   }
   100% {
-    filter: brightness(1);
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.pop-in {
+  animation: skv-pop 200ms var(--ease-standard) both;
+}
+
+/* A counter that changed: a brief punch, matched to the JS `punch()` on tap. */
+@keyframes total-emphasis {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  40% {
+    transform: scale(1.12) rotate(-2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
   }
 }
 
 .total-changed {
-  animation: total-emphasis 300ms var(--ease-standard);
+  animation: total-emphasis 240ms var(--ease-standard);
+  transform-origin: left center;
+}
+
+/* A locked side, shoved. */
+@keyframes skv-shake {
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-7px);
+  }
+  60% {
+    transform: translateX(6px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.shake {
+  animation: skv-shake 240ms ease-out;
 }
 
 /* Page entrance: 6px and a fade. Nothing travels further than that. */
@@ -313,7 +801,7 @@ body {
 
 .skeleton {
   background-color: var(--color-surface-2);
-  border-radius: 6px;
+  border-radius: 0;
   animation: skeleton-pulse 1.6s var(--ease-standard) infinite;
 }
 
@@ -329,13 +817,13 @@ body {
   }
 }
 
-/* Neutral black overlay, purely for text legibility over a photograph. */
+/* Warm black overlay, purely for text legibility over a photograph. */
 .media-scrim {
-  background: linear-gradient(to top, rgb(8 9 11 / 0.92) 0%, rgb(8 9 11 / 0.55) 45%, rgb(8 9 11 / 0.15) 100%);
+  background: linear-gradient(to top, rgb(20 17 15 / 0.94) 0%, rgb(20 17 15 / 0.55) 45%, rgb(20 17 15 / 0.15) 100%);
 }
 
 .media-scrim-hero {
-  background: linear-gradient(to top, rgb(8 9 11 / 0.96) 0%, rgb(8 9 11 / 0.7) 40%, rgb(8 9 11 / 0.35) 100%);
+  background: linear-gradient(to top, rgb(20 17 15 / 0.96) 0%, rgb(20 17 15 / 0.7) 40%, rgb(20 17 15 / 0.35) 100%);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -368,5 +856,11 @@ body {
 
   .page-enter {
     animation: none;
+  }
+
+  /* The press still registers; it just does not travel. */
+  .btn:active:not(:disabled),
+  .reaction-control[data-pressed='true'] {
+    transform: none;
   }
 }

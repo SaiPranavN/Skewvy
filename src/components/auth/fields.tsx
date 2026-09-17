@@ -3,8 +3,15 @@
 import { useId, useState } from 'react';
 import { PIN_MIN_LENGTH } from '@/lib/validation/schemas';
 
-const inputClass =
-  'w-full rounded-[var(--radius-control)] border border-[var(--border-default)] bg-elevated px-3.5 py-2.5 text-[0.9375rem] text-primary placeholder:text-disabled transition-colors duration-150 focus:border-[var(--border-strong)] focus:outline-none';
+/**
+ * Form controls for the authentication surfaces.
+ *
+ * Every auth panel is cream paper, so these are ink-on-paper controls: square,
+ * hairline-edged, no fill of their own. Nothing here rounds, and the only
+ * colour is the orange caret and the orange submit.
+ */
+
+const inputClass = 'field-ink text-[0.9375rem] transition-colors duration-150';
 
 export function Field({
   label,
@@ -21,17 +28,20 @@ export function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label htmlFor={htmlFor} className="block text-sm text-secondary">
+      <label
+        htmlFor={htmlFor}
+        className="block text-[11px] font-bold uppercase leading-none tracking-[0.12em] text-[rgb(23_20_15_/_0.6)]"
+      >
         {label}
       </label>
       {children}
       {hint && !error && (
-        <p id={`${htmlFor}-hint`} className="text-xs leading-relaxed text-tertiary">
+        <p id={`${htmlFor}-hint`} className="text-xs leading-relaxed text-[rgb(23_20_15_/_0.6)]">
           {hint}
         </p>
       )}
       {error && (
-        <p id={`${htmlFor}-error`} className="text-xs text-error">
+        <p id={`${htmlFor}-error`} className="text-xs font-bold text-[color:var(--color-egg-deep)]">
           {error}
         </p>
       )}
@@ -52,7 +62,7 @@ export function TextField({
         id={id}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
-        className={inputClass}
+        className={`${inputClass} ${error ? 'border-[color:var(--color-egg-deep)]' : ''}`}
         {...props}
       />
     </Field>
@@ -83,14 +93,14 @@ export function PinField({
           minLength={PIN_MIN_LENGTH}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
-          className={`${inputClass} pr-16 tracking-[0.12em]`}
+          className={`${inputClass} pr-[72px] tracking-[0.12em] ${error ? 'border-[color:var(--color-egg-deep)]' : ''}`}
           {...props}
         />
         <button
           type="button"
           id={toggleId}
           onClick={() => setVisible((value) => !value)}
-          className="absolute inset-y-0 right-1.5 my-auto h-8 rounded px-2 text-xs text-tertiary transition-colors duration-150 hover:text-primary"
+          className="absolute inset-y-0 right-2 my-auto h-8 px-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[rgb(23_20_15_/_0.6)] transition-colors duration-150 hover:text-ink"
         >
           {visible ? 'Hide' : 'Show'}
           <span className="sr-only"> PIN</span>
@@ -100,30 +110,37 @@ export function PinField({
   );
 }
 
-export function FormError({ message }: { message: string | null }) {
-  if (!message) return null;
+/** A banner on paper. The square marker carries the state, never colour alone. */
+function Banner({
+  role,
+  marker,
+  tone,
+  message,
+}: {
+  role: 'alert' | 'status';
+  marker: string;
+  tone: string;
+  message: string;
+}) {
   return (
-    <div
-      role="alert"
-      className="flex items-start gap-2.5 rounded-[var(--radius-control)] border border-[var(--border-default)] bg-elevated px-3.5 py-3 text-sm text-primary"
-    >
-      <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-error" />
-      {message}
+    <div role={role} className="flex items-start gap-3 border border-[var(--rule-default)] px-3.5 py-3 text-sm">
+      <span aria-hidden="true" className={`mt-[3px] h-2.5 w-2.5 shrink-0 ${tone}`} />
+      <span>
+        <span className="sr-only">{marker}: </span>
+        {message}
+      </span>
     </div>
   );
 }
 
+export function FormError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return <Banner role="alert" marker="Error" tone="bg-egg" message={message} />;
+}
+
 export function FormNotice({ message }: { message: string | null }) {
   if (!message) return null;
-  return (
-    <div
-      role="status"
-      className="flex items-start gap-2.5 rounded-[var(--radius-control)] border border-[var(--border-default)] bg-elevated px-3.5 py-3 text-sm text-secondary"
-    >
-      <span aria-hidden="true" className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-success" />
-      {message}
-    </div>
-  );
+  return <Banner role="status" marker="Notice" tone="bg-medal" message={message} />;
 }
 
 export function SubmitButton({
@@ -136,13 +153,13 @@ export function SubmitButton({
       type="submit"
       disabled={pending}
       aria-busy={pending}
-      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+      className="btn min-h-[52px] w-full justify-center border-2 border-ink bg-egg px-4 py-3.5 text-[15px] font-extrabold text-ink disabled:cursor-not-allowed disabled:opacity-50"
       {...props}
     >
       {pending && (
         <span
           aria-hidden="true"
-          className="h-3.5 w-3.5 animate-spin rounded-full border-[1.5px] border-ground/30 border-t-ground"
+          className="h-3.5 w-3.5 animate-spin rounded-full border-[2px] border-[rgb(23_20_15_/_0.3)] border-t-ink"
         />
       )}
       {children}

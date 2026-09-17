@@ -1,33 +1,77 @@
-/**
- * A compact editorial strip rather than three decorated step cards. It explains
- * the one thing that is genuinely non-obvious: reactions and opinions are
- * different measurements.
- */
+import Link from 'next/link';
+
 const STEPS = [
   {
-    title: 'Find a story or an entity',
-    copy: 'Flash News covers a specific event. An Entity accumulates sentiment over time.',
+    number: '01',
+    emoji: '🔎',
+    tone: 'var(--color-indigo-soft)',
+    title: 'Find a topic',
+    body: 'A release, a policy, a rebrand nobody asked for. Entities hold the long view; Flash News covers the incident.',
   },
   {
-    title: 'React as often as you like',
-    copy: 'Each tap adds one Rotten Egg or one Medal to the public reaction total.',
+    number: '02',
+    emoji: '🥚',
+    tone: 'var(--color-egg-deep)',
+    title: 'Pick your side, once',
+    body: "Eggs for the ones who earned them, medals for the ones who didn't deserve the eggs. Your side is recorded once and stays put.",
   },
   {
-    title: 'Count once in the opinion',
-    copy: 'However many times you react, you count as one person on one side.',
+    number: '03',
+    emoji: '🏅',
+    tone: 'var(--color-medal-deep)',
+    title: 'Watch the number move',
+    body: 'Hold the button down. The total is taps, not people, and it shows.',
   },
 ];
 
+/**
+ * The explanation, stated once and briefly.
+ *
+ * The rule under the heavy rule at the bottom is the one thing on this page a
+ * visitor genuinely has to understand, so it is set at body-bold on its own
+ * line rather than buried in the steps above it.
+ */
 export function HowItWorks() {
   return (
-    <ol className="grid gap-x-8 gap-y-6 sm:grid-cols-3">
-      {STEPS.map((step, index) => (
-        <li key={step.title} className="border-t border-[var(--border-subtle)] pt-4">
-          <span className="numeric text-xs text-tertiary">{String(index + 1).padStart(2, '0')}</span>
-          <h3 className="mt-2 text-sm font-medium text-primary">{step.title}</h3>
-          <p className="mt-1.5 text-sm leading-relaxed text-secondary">{step.copy}</p>
-        </li>
-      ))}
-    </ol>
+    <section id="how-it-works" className="rail scroll-mt-24">
+      <div className="paper p-[clamp(22px,3vw,52px)]">
+        <div className="flex flex-wrap items-baseline justify-between gap-4">
+          <h2 className="display-sm m-0 text-[clamp(26px,3.2vw,46px)]">Three taps and you&apos;re in</h2>
+          <p className="eyebrow-ink">No manifesto, promise</p>
+        </div>
+
+        <ol className="mt-[clamp(20px,2.6vw,38px)] grid gap-x-[clamp(24px,3vw,48px)] gap-y-8 md:grid-cols-3">
+          {STEPS.map((step) => (
+            <li key={step.number}>
+              <div className="flex items-center gap-3">
+                <span className="numeric-lg text-[26px]" style={{ color: step.tone }}>
+                  {step.number}
+                </span>
+                <span aria-hidden="true" className="h-px flex-1 bg-[var(--rule-default)]" />
+                <span className="emoji flex-none text-lg" aria-hidden="true">
+                  {step.emoji}
+                </span>
+              </div>
+
+              <h3 className="mt-4 text-[17px] font-extrabold leading-tight">{step.title}</h3>
+              <p className="mt-2.5 max-w-[34ch] text-[14.5px] leading-[1.5] text-secondary">{step.body}</p>
+            </li>
+          ))}
+        </ol>
+
+        <div className="mt-[clamp(24px,3vw,44px)] flex flex-wrap items-center justify-between gap-5 border-t-2 border-ink pt-[clamp(18px,2.2vw,28px)]">
+          <p className="m-0 max-w-[48ch] text-[clamp(15px,1.2vw,18px)] font-bold leading-[1.45]">
+            Reactions count taps. Opinions count people. One side per person per item, and that side is final.
+          </p>
+
+          <Link
+            href="/flash-news"
+            className="border-b-2 border-[color:var(--color-indigo)] pb-1 text-[14px] font-bold leading-none"
+          >
+            See a live item →
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }

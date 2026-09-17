@@ -16,6 +16,9 @@ import type { ArtifactType } from '@/lib/domain/types';
  * reports the side that person took only when they took one. Votes on a comment
  * are ordinary and reversible — they are not stances, and the permanence rule
  * that governs Eggs and Medals has no part in them.
+ *
+ * The count rides in an indigo chip beside the title: discussion is the third
+ * measurement on the page, and it gets a colour neither reaction owns.
  */
 export function CommentSection({
   artifactType,
@@ -47,9 +50,7 @@ export function CommentSection({
       );
       if (!response.ok) return;
       const next = (await response.json()) as CommentPage;
-      setPage((current) =>
-        offset === 0 ? next : { ...next, comments: [...current.comments, ...next.comments] },
-      );
+      setPage((current) => (offset === 0 ? next : { ...next, comments: [...current.comments, ...next.comments] }));
     },
     [artifactId, artifactType],
   );
@@ -90,7 +91,10 @@ export function CommentSection({
         return;
       }
 
-      const payload = (await response.json()) as { comment?: CommentView; message?: string };
+      const payload = (await response.json()) as {
+        comment?: CommentView;
+        message?: string;
+      };
       if (!response.ok || !payload.comment) {
         setError(payload.message ?? 'That did not go through. Try again.');
         return;
@@ -143,7 +147,11 @@ export function CommentSection({
       });
       if (!response.ok) throw new Error('vote failed');
 
-      const result = (await response.json()) as { likeCount: number; dislikeCount: number; viewerVote: VoteValue };
+      const result = (await response.json()) as {
+        likeCount: number;
+        dislikeCount: number;
+        viewerVote: VoteValue;
+      };
       setPage((current) => ({
         ...current,
         comments: current.comments.map((item) => (item.id === comment.id ? { ...item, ...result } : item)),
@@ -158,7 +166,9 @@ export function CommentSection({
   };
 
   const remove = async (comment: CommentView) => {
-    const response = await fetch(`/api/comments/${comment.id}`, { method: 'DELETE' });
+    const response = await fetch(`/api/comments/${comment.id}`, {
+      method: 'DELETE',
+    });
     if (!response.ok) return;
     setPage((current) => ({
       ...current,
@@ -168,25 +178,26 @@ export function CommentSection({
   };
 
   const remaining = COMMENT_MAX_LENGTH - draft.length;
+  const canPost = draft.trim().length >= 2 && !posting;
 
   return (
-    <section aria-labelledby={headingId} className="divider pt-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <h2 id={headingId} className="text-sm font-medium text-primary">
-          Discussion{' '}
-          <span className="numeric ml-1 text-tertiary">{formatCount(page.total)}</span>
+    <section aria-labelledby={headingId} className="paper p-[clamp(20px,2.6vw,40px)]">
+      <div className="flex flex-wrap items-center justify-between gap-3.5">
+        <h2 id={headingId} className="display-sm m-0 flex items-center gap-3 text-[clamp(24px,2.8vw,40px)]">
+          Discussion
+          <span className="numeric bg-[color:var(--color-indigo)] px-[11px] py-[7px] text-[clamp(15px,1.4vw,20px)] font-extrabold leading-none text-paper">
+            {formatCount(page.total)}
+          </span>
         </h2>
 
-        <div className="flex items-center gap-1 rounded-full border border-[var(--border-subtle)] p-0.5">
+        <div className="seg">
           {(['new', 'top'] as const).map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => changeSort(option)}
               aria-pressed={sort === option}
-              className={`min-h-8 rounded-full px-3 text-xs transition-colors duration-150 ${
-                sort === option ? 'bg-surface-2 text-primary' : 'text-tertiary hover:text-secondary'
-              }`}
+              className="seg-opt"
             >
               {option === 'new' ? 'Newest' : 'Top rated'}
             </button>
@@ -194,12 +205,12 @@ export function CommentSection({
         </div>
       </div>
 
-      <p className="mt-2 text-xs leading-relaxed text-tertiary">
-        Open to everyone with an account, whether or not you have reacted. Your Eggs and Medals are counted separately
+      <p className="m-0 mb-5 mt-3.5 max-w-[66ch] text-[14.5px] leading-[1.55] text-[rgb(23_20_15_/_0.68)]">
+        Open to everyone with an account, whether or not you have reacted. Your eggs and medals are counted separately
         and are not affected by anything written here.
       </p>
 
-      <form onSubmit={submit} className="mt-4">
+      <form onSubmit={submit} className="border border-[var(--rule-default)]">
         <label htmlFor={fieldId} className="sr-only">
           Write a comment
         </label>
@@ -210,40 +221,50 @@ export function CommentSection({
           onFocus={() => {
             if (!isAuthenticated) requestSignIn();
           }}
-          rows={3}
-          placeholder={isAuthenticated ? `Say what you think, ${viewerName ?? 'in your own words'}…` : 'Sign in to comment…'}
-          className="w-full resize-y rounded-[var(--radius-control)] border border-[var(--border-default)] bg-surface px-3.5 py-3 text-sm leading-relaxed text-primary placeholder:text-disabled focus:border-[var(--border-strong)] focus:outline-none"
+          placeholder={
+            isAuthenticated ? `Say what you think, ${viewerName ?? 'in your own words'}…` : 'Sign in to comment…'
+          }
+          className="block min-h-[clamp(110px,11vw,140px)] w-full resize-y border-0 bg-transparent p-4 text-[clamp(16px,1.25vw,19px)] leading-[1.5] text-ink outline-none placeholder:text-[rgb(23_20_15_/_0.45)]"
         />
 
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-          <p className={`text-xs ${remaining < 60 ? 'text-secondary' : 'text-tertiary'}`}>
-            {draft.length === 0 ? 'Be specific. Be fair.' : `${remaining} characters left`}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--rule-default)] px-3.5 py-3">
+          <p className="m-0 text-[12.5px] font-medium leading-[1.4] text-[rgb(23_20_15_/_0.62)]">
+            {draft.length === 0
+              ? 'Be specific. Be fair. Be funnier than the last person.'
+              : `${formatCount(remaining)} characters left`}
           </p>
 
           <button
             type="submit"
-            disabled={posting || draft.trim().length < 2}
-            className="inline-flex min-h-10 items-center rounded-md bg-primary px-5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!canPost}
+            className={`btn min-h-11 flex-none px-[18px] py-3.5 text-[13.5px] font-extrabold tracking-[0.02em] ${
+              canPost ? 'bg-egg text-ink' : 'bg-[rgb(23_20_15_/_0.1)] text-[rgb(23_20_15_/_0.6)]'
+            }`}
           >
             {posting ? 'Posting…' : 'Post comment'}
           </button>
         </div>
-
-        {error && (
-          <p role="alert" className="mt-2 text-xs text-error">
-            {error}
-          </p>
-        )}
       </form>
 
-      {page.comments.length === 0 ? (
-        <p className="mt-6 text-sm text-tertiary">
-          No comments yet. {isAuthenticated ? 'Write the first one.' : 'Sign in to write the first one.'}
+      {error && (
+        <p role="alert" className="mt-3 text-[13px] font-bold text-[color:var(--color-egg-deep)]">
+          {error}
         </p>
+      )}
+
+      {page.comments.length === 0 ? (
+        <div className="mt-[22px] border-t border-[var(--rule-subtle)] pt-[22px]">
+          <div className="display-sm text-[clamp(20px,2.2vw,30px)]">Nobody has said anything yet.</div>
+          <p className="m-0 mt-2.5 max-w-[48ch] text-[14.5px] leading-[1.5] text-[rgb(23_20_15_/_0.66)]">
+            {isAuthenticated
+              ? 'The first comment sets the tone for this one.'
+              : 'Sign in — the first comment sets the tone for this one.'}
+          </p>
+        </div>
       ) : (
-        <ul className={`mt-6 space-y-1 transition-opacity duration-150 ${isPending ? 'opacity-60' : ''}`}>
+        <ul className={`mt-[22px] flex flex-col transition-opacity duration-150 ${isPending ? 'opacity-60' : ''}`}>
           {page.comments.map((comment) => (
-            <li key={comment.id} className="border-t border-[var(--border-subtle)] py-4 first:border-t-0 first:pt-0">
+            <li key={comment.id} className="border-t border-[var(--rule-subtle)] py-[18px]">
               <Comment comment={comment} onVote={vote} onDelete={remove} />
             </li>
           ))}
@@ -251,11 +272,7 @@ export function CommentSection({
       )}
 
       {page.nextOffset !== null && (
-        <button
-          type="button"
-          onClick={() => void load(sort, page.nextOffset!)}
-          className="mt-4 inline-flex min-h-10 items-center rounded-md border border-[var(--border-default)] px-4 text-sm text-secondary transition-colors duration-150 hover:border-[var(--border-strong)] hover:text-primary"
-        >
+        <button type="button" onClick={() => void load(sort, page.nextOffset!)} className="btn btn-ink mt-4 px-4 py-3">
           Show more comments
         </button>
       )}
@@ -274,38 +291,40 @@ function Comment({
 }) {
   return (
     <article>
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs">
-        <span className="text-sm font-medium text-primary">{comment.author.displayName}</span>
+      <div className="mb-2.5 flex flex-wrap items-center gap-2.5">
+        <span className="text-[13px] font-extrabold leading-none tracking-[0.02em]">{comment.author.displayName}</span>
         <StanceBadge stance={comment.authorStance} />
-        <RelativeTime iso={comment.createdAt} className="text-tertiary" />
-      </div>
-
-      <p className="mt-2 whitespace-pre-line text-[0.9375rem] leading-relaxed text-secondary">{comment.body}</p>
-
-      <div className="mt-2.5 flex items-center gap-1">
-        <VoteButton
-          label="like"
-          active={comment.viewerVote === 1}
-          count={comment.likeCount}
-          onClick={() => onVote(comment, 1)}
-        />
-        <VoteButton
-          label="dislike"
-          active={comment.viewerVote === -1}
-          count={comment.dislikeCount}
-          onClick={() => onVote(comment, -1)}
+        <RelativeTime
+          iso={comment.createdAt}
+          className="text-[11.5px] font-medium uppercase leading-none tracking-[0.06em] text-[rgb(23_20_15_/_0.62)]"
         />
 
-        {comment.viewerCanDelete && (
-          <button
-            type="button"
-            onClick={() => onDelete(comment)}
-            className="ml-2 min-h-8 rounded-md px-2 text-xs text-tertiary transition-colors duration-150 hover:text-primary"
-          >
-            Delete
-          </button>
-        )}
+        <span className="ml-auto flex items-center gap-1.5">
+          <VoteButton
+            label="like"
+            active={comment.viewerVote === 1}
+            count={comment.likeCount}
+            onClick={() => onVote(comment, 1)}
+          />
+          <VoteButton
+            label="dislike"
+            active={comment.viewerVote === -1}
+            count={comment.dislikeCount}
+            onClick={() => onVote(comment, -1)}
+          />
+          {comment.viewerCanDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(comment)}
+              className="btn min-h-9 px-2 text-xs font-bold text-[rgb(23_20_15_/_0.62)] hover:text-ink"
+            >
+              Delete
+            </button>
+          )}
+        </span>
       </div>
+
+      <p className="m-0 max-w-[72ch] whitespace-pre-line text-pretty text-[15.5px] leading-[1.55]">{comment.body}</p>
     </article>
   );
 }
@@ -327,49 +346,38 @@ function VoteButton({
       onClick={onClick}
       aria-pressed={active}
       aria-label={
-        active ? `Remove your ${label} — ${count} so far` : `${label === 'like' ? 'Like' : 'Dislike'} this comment — ${count} so far`
-      }
-      className={`inline-flex min-h-8 items-center gap-1.5 rounded-md px-2 text-xs transition-colors duration-150 ${
         active
-          ? 'bg-surface-2 text-primary'
-          : 'text-tertiary hover:bg-surface-2 hover:text-secondary'
-      }`}
+          ? `Remove your ${label} — ${count} so far`
+          : `${label === 'like' ? 'Like' : 'Dislike'} this comment — ${count} so far`
+      }
+      className={`btn btn-ink gap-1.5 ${active ? 'border-ink bg-ink text-paper' : ''}`}
     >
-      <ThumbIcon down={label === 'dislike'} filled={active} />
+      <span aria-hidden="true" className={label === 'dislike' ? 'inline-block rotate-180' : 'inline-block'}>
+        ▲
+      </span>
       <span className="numeric">{formatCount(count)}</span>
     </button>
   );
 }
 
+/** The side this author took, when they took one. Square, never a dot. */
 function StanceBadge({ stance }: { stance: CommentView['authorStance'] }) {
   if (!stance) {
-    return <span className="text-tertiary">No reaction recorded</span>;
+    return (
+      <span className="text-[10.5px] font-bold uppercase leading-none tracking-[0.06em] text-[rgb(23_20_15_/_0.45)]">
+        No reaction
+      </span>
+    );
   }
 
   const negative = stance === 'negative';
   return (
-    <span className={`flex items-center gap-1.5 ${negative ? 'text-egg' : 'text-medal'}`}>
-      <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${negative ? 'bg-egg' : 'bg-medal'}`} />
-      {negative ? 'Reacted critically' : 'Reacted appreciatively'}
-    </span>
-  );
-}
-
-function ThumbIcon({ down, filled }: { down: boolean; filled: boolean }) {
-  return (
-    <svg
-      width="13"
-      height="13"
-      viewBox="0 0 16 16"
-      aria-hidden="true"
-      className={down ? 'rotate-180' : undefined}
-      fill={filled ? 'currentColor' : 'none'}
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinejoin="round"
+    <span
+      className={`px-1.5 py-1 text-[10.5px] font-bold uppercase leading-none tracking-[0.06em] text-ink ${
+        negative ? 'bg-egg' : 'bg-medal'
+      }`}
     >
-      <path d="M5.5 14V6.6l3-4.6c.9 0 1.6.8 1.5 1.7L9.7 6h3.5c.9 0 1.6.9 1.4 1.8l-1 5c-.1.7-.7 1.2-1.4 1.2H5.5Z" />
-      <path d="M5.5 6.6H2.4c-.5 0-.9.4-.9.9v5.6c0 .5.4.9.9.9h3.1" />
-    </svg>
+      {negative ? 'Critical' : 'Appreciative'}
+    </span>
   );
 }

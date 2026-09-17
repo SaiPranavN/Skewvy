@@ -1,28 +1,41 @@
 import Link from 'next/link';
 import { Wordmark } from './Wordmark';
 
+const BROWSE: Array<[string, string]> = [
+  ['/', 'Home'],
+  ['/flash-news', 'Flash News'],
+  ['/entities', 'Entities'],
+  ['/trending', 'Leaderboards'],
+  ['/search', 'Search'],
+];
+
+/** The two rules the whole product rests on, stated plainly at the bottom. */
+const RULES = [
+  'Sentiment applies to decisions and events, not private individuals.',
+  'A side, once taken, is final. Later reactions must agree with it.',
+];
+
 export function SiteFooter() {
   return (
-    <footer className="mt-20 border-t border-[var(--border-subtle)]">
-      <div className="mx-auto grid w-full max-w-[1320px] gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.6fr_1fr_1fr] lg:px-8">
-        <div>
+    <footer className="mt-[clamp(40px,5vw,84px)] border-t border-[var(--border-default)]">
+      <div className="rail flex flex-wrap gap-[clamp(20px,3vw,50px)] py-[clamp(26px,3vw,48px)]">
+        <div className="min-w-[min(100%,250px)] flex-[1_1_280px]">
           <Wordmark size="sm" />
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-secondary">
-            A public sentiment index. Reaction totals measure intensity; public opinion counts each person once.
+          <p className="mt-3 max-w-[38ch] text-[14.5px] leading-[1.55] text-secondary">
+            Sentiment about decisions and events, not private individuals. Reaction totals measure intensity; opinion
+            totals count people.
           </p>
         </div>
 
-        <nav aria-label="Explore" className="text-sm">
-          <h2 className="eyebrow mb-3">Explore</h2>
-          <ul className="space-y-2">
-            {[
-              ['/flash-news', 'Flash News'],
-              ['/entities', 'Entities'],
-              ['/trending', 'Trending'],
-              ['/search', 'Search'],
-            ].map(([href, label]) => (
+        <nav aria-label="Browse" className="flex-[1_1_150px]">
+          <h2 className="eyebrow mb-3.5">Browse</h2>
+          <ul className="flex flex-col gap-[9px]">
+            {BROWSE.map(([href, label]) => (
               <li key={href}>
-                <Link href={href} className="text-secondary transition-colors duration-150 hover:text-primary">
+                <Link
+                  href={href}
+                  className="text-[14.5px] font-semibold leading-none text-primary transition-colors duration-150 hover:text-brand"
+                >
                   {label}
                 </Link>
               </li>
@@ -30,18 +43,14 @@ export function SiteFooter() {
           </ul>
         </nav>
 
-        <div className="text-sm">
-          <h2 className="eyebrow mb-3">About the data</h2>
-          <ul className="space-y-2 text-secondary">
-            <li>Reactions count taps. Opinions count people.</li>
-            <li>Sentiment applies to decisions and events, not private individuals.</li>
-            <li>A side, once taken, is final. Reactions after it must agree with it.</li>
+        <div className="flex-[1_1_260px]">
+          <h2 className="eyebrow mb-3.5">The rules</h2>
+          <ul className="flex max-w-[38ch] flex-col gap-[9px] text-sm leading-[1.5] text-secondary">
+            {RULES.map((rule) => (
+              <li key={rule}>{rule}</li>
+            ))}
           </ul>
         </div>
-      </div>
-
-      <div className="border-t border-[var(--border-subtle)] py-6">
-        <p className="mx-auto w-full max-w-[1320px] px-4 text-xs text-tertiary sm:px-6 lg:px-8">skewvy.com</p>
       </div>
     </footer>
   );

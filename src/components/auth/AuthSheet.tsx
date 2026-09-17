@@ -77,19 +77,23 @@ export function AuthSheet({ open, onClose }: { open: boolean; onClose: () => voi
         role="dialog"
         aria-modal="true"
         aria-labelledby="auth-sheet-title"
-        className="signal-in relative max-h-[92dvh] w-full overflow-y-auto rounded-t-xl border-t border-[var(--border-default)] bg-elevated p-5 pb-8 sm:max-w-[400px] sm:rounded-xl sm:border sm:p-6"
+        className="pop-in relative max-h-[92dvh] w-full overflow-y-auto border-2 border-ink on-paper bg-paper p-5 pb-8 text-ink sm:max-w-[440px] sm:p-7"
         style={{ boxShadow: 'var(--shadow-overlay)' }}
       >
-        <div aria-hidden="true" className="mx-auto mb-4 h-1 w-9 rounded-full bg-surface-3 sm:hidden" />
+        <div aria-hidden="true" className="mx-auto mb-4 h-1 w-9 bg-[rgb(23_20_15_/_0.2)] sm:hidden" />
 
-        <h2 id="auth-sheet-title" className="text-base font-medium text-primary">
+        <h2 id="auth-sheet-title" className="display-sm m-0 text-[clamp(22px,2.4vw,28px)]">
           Sign in to react
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-secondary">
+        <p className="mt-2 text-[14.5px] leading-[1.5] text-[rgb(23_20_15_/_0.68)]">
           Sign in to keep your reactions, track your opinion and continue where you left off.
         </p>
 
-        <div role="tablist" aria-label="Sign in or create an account" className="mb-5 mt-5 flex gap-5 border-b border-[var(--border-subtle)]">
+        <div
+          role="tablist"
+          aria-label="Sign in or create an account"
+          className="mb-6 mt-5 flex border-b-2 border-[var(--rule-default)]"
+        >
           {(['register', 'login'] as const).map((value) => (
             <button
               key={value}
@@ -97,12 +101,13 @@ export function AuthSheet({ open, onClose }: { open: boolean; onClose: () => voi
               type="button"
               aria-selected={mode === value}
               onClick={() => setMode(value)}
-              className={`relative -mb-px pb-2.5 text-sm transition-colors duration-150 ${
-                mode === value ? 'text-primary' : 'text-tertiary hover:text-secondary'
+              className={`relative -mb-0.5 border-b-[3px] px-3 pb-2.5 text-[13px] leading-none transition-colors duration-150 ${
+                mode === value
+                  ? 'border-[color:var(--color-egg)] font-extrabold text-ink'
+                  : 'border-transparent font-semibold text-[rgb(23_20_15_/_0.55)] hover:text-ink'
               }`}
             >
               {value === 'register' ? 'Create account' : 'Sign in'}
-              {mode === value && <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-px bg-brand" />}
             </button>
           ))}
         </div>

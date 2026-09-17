@@ -1,60 +1,96 @@
-import Image from 'next/image';
 import Link from 'next/link';
-import { isVectorSource } from '@/components/ui/Media';
+import { FeaturedCard } from './FeaturedCard';
+import { formatCount } from '@/lib/domain/format';
+import type { ArtifactCard } from '@/lib/domain/types';
+
+export interface SiteTotals {
+  eggs: number;
+  medals: number;
+  people: number;
+}
 
 /**
- * Landing hero: a full-bleed photograph, a single centred statement, one
- * action.
+ * The landing hero: the promise on the left, a live item on the right.
  *
- * It sits under the fixed masthead (hence the negative offset) so the image
- * runs to the very top of the window, and carries a neutral black scrim — the
- * only job of which is keeping the headline legible over the picture.
+ * There is no photograph behind it. The headline is the image — set large
+ * enough that the two coloured words carry the whole proposition — and the
+ * space a stock photo would have taken is given to something the visitor can
+ * actually press.
  */
-export function Hero({ imageUrl, isAuthenticated }: { imageUrl: string; isAuthenticated: boolean }) {
+export function Hero({
+  featured,
+  totals,
+  isAuthenticated,
+}: {
+  featured: ArtifactCard | null;
+  totals: SiteTotals;
+  isAuthenticated: boolean;
+}) {
   return (
-    <section className="relative -mt-[68px] flex min-h-[min(100svh,860px)] flex-col justify-center overflow-hidden pt-[68px]">
-      <div className="absolute inset-0">
-        <Image
-          src={imageUrl}
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          unoptimized={isVectorSource(imageUrl)}
-          className="object-cover object-[62%_center]"
-        />
-        {/* Neutral darkening for legibility — no colour wash. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 bg-[linear-gradient(to_bottom,rgb(8_9_11/0.72)_0%,rgb(8_9_11/0.5)_38%,rgb(8_9_11/0.8)_100%)]"
-        />
+    <section className="rail pt-[clamp(28px,4vw,72px)]">
+      <div className="flex flex-wrap items-start gap-[clamp(28px,4vw,72px)]">
+        <div className="min-w-[min(100%,320px)] flex-[1_1_520px]">
+          <div className="flex items-center gap-4">
+            <p className="eyebrow whitespace-nowrap text-[color:var(--color-indigo-soft)]">A public sentiment index</p>
+            <span aria-hidden="true" className="h-px w-[clamp(40px,8vw,120px)] bg-[var(--border-strong)]" />
+          </div>
+
+          <h1 className="display mt-[clamp(18px,2.4vw,34px)] text-[clamp(44px,6.6vw,104px)]">
+            Throw eggs at what deserves it.{' '}
+            <span className="text-medal">Hand medals</span> to what earned it.
+          </h1>
+
+          <p className="mt-[clamp(20px,2.4vw,34px)] max-w-[52ch] text-[clamp(16px,1.3vw,21px)] leading-[1.5] text-secondary">
+            Decisions, releases, patches, policies, questionable rebrands. Pick a side once, then react as much as your
+            thumb can stand.
+          </p>
+
+          <div className="mt-[clamp(22px,2.6vw,36px)] flex flex-wrap gap-3">
+            <Link
+              href={isAuthenticated ? '/flash-news' : '/register'}
+              className="btn bg-egg px-6 py-4 text-[15px] font-extrabold text-ink"
+            >
+              Start reacting
+            </Link>
+            <Link href="#how-it-works" className="btn btn-outline px-6 py-4 text-[15px] font-extrabold">
+              How it works
+            </Link>
+          </div>
+        </div>
+
+        {featured && (
+          <div className="min-w-[min(100%,300px)] max-w-[640px] flex-[1_1_420px]">
+            <FeaturedCard card={featured} />
+          </div>
+        )}
       </div>
 
-      <div className="relative mx-auto flex w-full max-w-[1440px] flex-col items-center px-4 py-20 text-center sm:px-6 sm:py-24 lg:px-8">
-        <h1 className="max-w-[17ch] text-balance text-[2.5rem] font-medium leading-[1.06] tracking-[-0.035em] text-primary sm:text-[3.5rem] lg:text-[4.5rem]">
-          Express your emotion with eggs or medals
-        </h1>
-
-        <p className="mt-6 max-w-[52ch] text-pretty text-[0.9375rem] leading-relaxed text-secondary sm:text-lg">
-          React to the people, products, decisions and headlines that matter. Send Rotten Eggs when they disappoint.
-          Award Medals when they deserve recognition.
-        </p>
-
-        {/*
-          * Straight into the catalogue, signed in or not. Signing in belongs to
-          * the masthead; the hero's only job is getting someone to the reactions.
-          */}
-        <Link
-          href="/flash-news"
-          className="mt-10 inline-flex min-h-[52px] items-center rounded-md bg-primary px-9 text-sm font-medium uppercase tracking-[0.06em] text-ground transition-opacity duration-150 hover:opacity-90"
-        >
-          Get started
-        </Link>
-
-        <p className="mt-6 text-sm text-tertiary">
-          {isAuthenticated ? 'Every tap counts. You count once.' : 'Browse freely. Sign in when you want to react.'}
-        </p>
-      </div>
+      <dl className="mt-[clamp(32px,4vw,64px)] flex flex-wrap gap-x-[clamp(28px,4vw,64px)] gap-y-5 border-t border-[var(--border-default)] pt-[clamp(20px,2.4vw,32px)]">
+        <SiteStat value={totals.eggs} label="Eggs thrown" emoji="🥚" className="text-brand" />
+        <SiteStat value={totals.medals} label="Medals given" emoji="🏅" className="text-medal" />
+        <SiteStat value={totals.people} label="People with a side" className="text-primary" />
+      </dl>
     </section>
+  );
+}
+
+function SiteStat({
+  value,
+  label,
+  emoji,
+  className,
+}: {
+  value: number;
+  label: string;
+  emoji?: string;
+  className: string;
+}) {
+  return (
+    <div>
+      <dd className={`numeric-lg text-[clamp(28px,3.2vw,44px)] ${className}`}>{formatCount(value)}</dd>
+      <dt className="mt-2 text-[10.5px] font-semibold uppercase leading-none tracking-[0.1em] text-tertiary">
+        {label} {emoji && <span className="emoji">{emoji}</span>}
+      </dt>
+    </div>
   );
 }

@@ -35,6 +35,37 @@ export async function getTotals(artifactType: ArtifactType, artifactId: string):
   return row ? mapTotals(row) : emptyTotals(artifactType, artifactId);
 }
 
+export interface SiteTotals {
+  eggs: number;
+  medals: number;
+  people: number;
+}
+
+/**
+ * The whole index in three numbers, for the landing page.
+ *
+ * Reactions sum cleanly across artifacts because every tap belongs to exactly
+ * one of them. People do not: the same person taking a side on ten items
+ * appears in ten rows, so summing `unique_participant_total` would count them
+ * ten times. `opinions` holds one row per person per artifact, so a distinct
+ * count over its `user_id` is the only honest answer for "people with a side".
+ */
+export async function siteTotals(): Promise<SiteTotals> {
+  const row = await queryOne<{ eggs: number | null; medals: number | null }>(
+    'SELECT SUM(rotten_egg_total) AS eggs, SUM(medal_total) AS medals FROM artifact_totals',
+  );
+
+  const people = await queryOne<{ people: number | null }>(
+    'SELECT COUNT(DISTINCT user_id) AS people FROM opinions',
+  );
+
+  return {
+    eggs: Number(row?.eggs ?? 0),
+    medals: Number(row?.medals ?? 0),
+    people: Number(people?.people ?? 0),
+  };
+}
+
 /** One round trip for a whole feed of cards. */
 export async function getTotalsFor(
   artifacts: Array<{ type: ArtifactType; id: string }>,

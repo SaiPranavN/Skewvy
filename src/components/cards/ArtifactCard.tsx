@@ -1,111 +1,112 @@
 'use client';
 
 import Link from 'next/link';
-import { ReactionControl } from '@/components/reactions/ReactionControl';
-import { CrowdSignal } from '@/components/reactions/CrowdSignal';
-import { SentimentMarker, TypeLabel, MetaRow, MetaDot } from '@/components/ui/SentimentMarker';
-import { SentimentBalance, OpinionLine } from '@/components/ui/OpinionSummary';
 import { Media, initialsFor } from '@/components/ui/Media';
 import { RelativeTime } from '@/components/ui/TimeAgo';
 import { useArtifact } from '@/components/reactions/useArtifact';
+import { cardTone } from '@/lib/domain/copy';
+import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
 
 /**
- * The editorial story card.
+ * The story card.
  *
- * Hierarchy: image, headline, context, reaction totals, then public opinion.
- * Every card uses the same neutral surface — the content, the image and the
- * numbers differentiate them, not colour.
+ * A tone-coloured image well on top carrying the category and the state of the
+ * crowd, then the headline and summary on paper, then the two totals at display
+ * scale. The colour is read from the record, so a grid of these shows the shape
+ * of the sentiment before any of it is read.
+ *
+ * The totals are live but the card does not react: tapping goes to the item,
+ * where the full controls and the rule about taking a side both live.
  */
 export function ArtifactCard({ card, priority = false }: { card: ArtifactCardModel; priority?: boolean }) {
   const state = useArtifact(card.type, card.id, { totals: card.totals, contribution: card.contribution });
   const href = card.type === 'entity' ? `/entities/${card.slug}` : `/flash-news/${card.slug}`;
 
+  const badge = cardTone(state.totals);
+  const critical = state.totals.negativeOpinionTotal;
+  const appreciative = state.totals.positiveOpinionTotal;
+
   return (
-    <article className="panel panel-interactive media-hover flex flex-col overflow-hidden">
-      <Link href={href} className="block">
-        <Media
-          src={card.imageUrl}
-          alt={card.type === 'entity' ? `${card.title} logo` : `Image for: ${card.title}`}
-          fallbackLabel={card.type === 'entity' ? initialsFor(card.title) : card.category}
-          fallbackKind={card.type === 'entity' ? 'initials' : 'category'}
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 420px"
-          priority={priority}
-          scrim={card.imageUrl ? 'card' : 'none'}
-          className="aspect-[16/9] w-full"
-        />
+    <article className={`paper tone-${badge.tone} media-hover flex flex-col`}>
+      <Link href={href} className="block" tabIndex={-1} aria-hidden="true">
+        <div className="relative">
+          <Media
+            src={card.imageUrl}
+            alt=""
+            fallbackLabel={initialsFor(card.title)}
+            fallbackKind="initials"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 340px"
+            priority={priority}
+            scrim={card.imageUrl ? 'card' : 'none'}
+            className="aspect-[16/10] w-full"
+          />
+
+          <span className="chip absolute left-3 top-3">{card.category}</span>
+          <span className="tone-badge absolute bottom-3 right-3">{badge.flashLabel}</span>
+        </div>
       </Link>
 
-      <div className="flex flex-1 flex-col gap-3 p-4">
-        <MetaRow>
-          <TypeLabel type={card.type} />
-          <MetaDot />
-          <span>{card.category}</span>
-          <MetaDot />
-          <RelativeTime iso={card.publishedAt} />
-        </MetaRow>
+      <div className="flex flex-1 flex-col gap-2.5 p-4">
+        <p className="text-[11px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
+          {card.type === 'entity' ? 'Entity' : 'Flash News'} · <RelativeTime iso={card.publishedAt} />
+        </p>
 
-        <Link href={href} className="group">
-          <h3 className="text-pretty text-[0.9375rem] font-medium leading-snug text-primary sm:text-base">
+        <h3 className="display-sm text-pretty text-[19px]">
+          <Link href={href} className="hover:text-[color:var(--color-egg-deep)]">
             {card.title}
-          </h3>
-        </Link>
+          </Link>
+        </h3>
 
-        {card.subtitle && <p className="line-clamp-2 text-sm leading-relaxed text-secondary">{card.subtitle}</p>}
-
-        {card.relatedEntities && card.relatedEntities.length > 0 && (
-          <MetaRow>
-            {card.relatedEntities.map((entity, index) => (
-              <span key={entity.id} className="flex items-center gap-2">
-                {index > 0 && <MetaDot />}
-                <Link
-                  href={`/entities/${entity.slug}`}
-                  className="text-secondary underline-offset-2 transition-colors duration-150 hover:text-primary hover:underline"
-                >
-                  {entity.name}
-                </Link>
-              </span>
-            ))}
-          </MetaRow>
+        {card.subtitle && (
+          <p className="line-clamp-3 text-[14.5px] leading-[1.45] text-secondary">{card.subtitle}</p>
         )}
 
-        <div className="mt-auto space-y-3 pt-1">
-          <div className="grid grid-cols-2 gap-2">
-            <ReactionControl
-              artifactType={card.type}
-              artifactId={card.id}
-              artifactTitle={card.title}
-              reactionType="rotten_egg"
-              totals={card.totals}
-              contribution={card.contribution}
-              size="md"
-            />
-            <ReactionControl
-              artifactType={card.type}
-              artifactId={card.id}
-              artifactTitle={card.title}
-              reactionType="medal"
-              totals={card.totals}
-              contribution={card.contribution}
-              size="md"
-            />
+        <div className="mt-auto pt-2">
+          <div className="flex flex-wrap items-end gap-x-5 gap-y-3 border-t border-[var(--rule-subtle)] pt-3.5">
+            <Total value={state.totals.rottenEggTotal} label="Eggs" emoji="🥚" tone="egg" />
+            <Total value={state.totals.medalTotal} label="Medals" emoji="🏅" tone="medal" />
+
+            <Link
+              href={href}
+              className="ml-auto border-b-2 border-[color:var(--color-egg)] pb-0.5 text-[13px] font-bold leading-none"
+            >
+              React →
+            </Link>
           </div>
 
-          <SentimentBalance totals={state.totals} />
-
-          <div className="flex min-h-5 items-center justify-between gap-3">
-            <OpinionLine totals={state.totals} />
-            <CrowdSignal
-              artifactType={card.type}
-              artifactId={card.id}
-              totals={card.totals}
-              contribution={card.contribution}
-            />
-          </div>
-
-          <SentimentMarker totals={state.totals} />
+          <p className="mt-3 text-xs leading-[1.4] text-secondary">
+            <span className="numeric">{formatCount(critical)}</span> {critical === 1 ? 'person' : 'people'} critical ·{' '}
+            <span className="numeric">{formatCount(appreciative)}</span> appreciative
+          </p>
         </div>
       </div>
     </article>
+  );
+}
+
+function Total({
+  value,
+  label,
+  emoji,
+  tone,
+}: {
+  value: number;
+  label: string;
+  emoji: string;
+  tone: 'egg' | 'medal';
+}) {
+  return (
+    <div>
+      <div
+        className="numeric-lg text-[26px]"
+        style={{ color: tone === 'egg' ? 'var(--color-egg-deep)' : 'var(--color-medal-deep)' }}
+      >
+        {formatCount(value)}
+      </div>
+      <div className="mt-1.5 text-[10.5px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
+        {label} <span className="emoji">{emoji}</span>
+      </div>
+    </div>
   );
 }

@@ -17,7 +17,7 @@ export function SentimentMarker({ totals, className = '' }: { totals: ArtifactTo
 
   return (
     <span className={`inline-flex items-center gap-1.5 text-xs text-secondary ${className}`}>
-      <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT_TONE[label.tone]}`} />
+      <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 ${DOT_TONE[label.tone]}`} />
       {label.label}
     </span>
   );

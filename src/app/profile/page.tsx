@@ -132,7 +132,7 @@ export default async function ProfilePage() {
                   <span className="flex shrink-0 items-center gap-1.5 text-xs text-secondary">
                     <span
                       aria-hidden="true"
-                      className={`h-1.5 w-1.5 rounded-full ${row.stance === 'negative' ? 'bg-egg' : 'bg-medal'}`}
+                      className={`h-1.5 w-1.5 ${row.stance === 'negative' ? 'bg-egg' : 'bg-medal'}`}
                     />
                     {row.stance === 'negative' ? 'Critical' : 'Appreciative'}
                   </span>

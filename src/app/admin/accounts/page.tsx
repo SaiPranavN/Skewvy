@@ -55,7 +55,7 @@ export default async function AdminAccountsPage({
       {page.nextOffset !== null && (
         <Link
           href={`/admin/accounts?${new URLSearchParams({ ...(q ? { q } : {}), offset: String(page.nextOffset) })}`}
-          className="inline-flex min-h-10 items-center rounded-md border border-[var(--border-default)] px-4 text-sm text-secondary transition-colors duration-150 hover:border-[var(--border-strong)] hover:text-primary"
+          className="inline-flex min-h-10 items-center border border-[var(--border-default)] px-4 text-sm text-secondary transition-colors duration-150 hover:border-[var(--border-strong)] hover:text-primary"
         >
           Show more accounts
         </Link>

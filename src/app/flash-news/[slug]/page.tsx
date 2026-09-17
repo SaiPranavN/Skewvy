@@ -1,21 +1,22 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { ArtifactHeader } from '@/components/artifact/ArtifactHeader';
-import { SentimentPanel } from '@/components/artifact/SentimentPanel';
+import { ReactionSlab } from '@/components/artifact/ReactionSlab';
+import { RelatedEntityAside } from '@/components/artifact/RelatedEntityAside';
+import { PublicOpinionPanel } from '@/components/artifact/PublicOpinionPanel';
+import { RecentActivityPanel } from '@/components/artifact/RecentActivityPanel';
 import { StickyReactionTray } from '@/components/artifact/StickyReactionTray';
 import { ReactionTrendChart } from '@/components/artifact/ReactionTrendChart';
 import { CommentSection } from '@/components/artifact/CommentSection';
 import { HydrateArtifacts } from '@/components/reactions/HydrateArtifacts';
 import { CardGrid } from '@/components/cards/CardGrid';
-import { SectionHeader } from '@/components/ui/SectionHeader';
-import { Media, initialsFor } from '@/components/ui/Media';
+import { ShareReceipt } from '@/components/share/ShareReceipt';
+import { LocalDateTime } from '@/components/ui/TimeAgo';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { getFlashNewsBySlug, entitiesForFlashNews, listFlashNews, toCards } from '@/lib/services/content';
 import { recentActivity } from '@/lib/services/reactions';
 import { reactionTrend } from '@/lib/services/timeline';
 import { listComments } from '@/lib/services/comments';
-import { formatCount } from '@/lib/domain/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: item.headline,
     description: item.summary,
-    openGraph: { title: item.headline, description: item.summary, images: item.imageUrl ? [item.imageUrl] : [] },
+    openGraph: {
+      title: item.headline,
+      description: item.summary,
+      images: item.imageUrl ? [item.imageUrl] : [],
+    },
   };
 }
 
@@ -43,7 +48,10 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
     entitiesForFlashNews(item.id),
     recentActivity('flash_news', item.id, 6),
     reactionTrend('flash_news', item.id),
-    listComments('flash_news', item.id, { viewerId, viewerIsAdmin: user?.isAdmin ?? false }),
+    listComments('flash_news', item.id, {
+      viewerId,
+      viewerIsAdmin: user?.isAdmin ?? false,
+    }),
   ]);
 
   const card = cards[0];
@@ -51,117 +59,162 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
 
   const moreFromEntity = primaryEntity
     ? await listFlashNews({ entityId: primaryEntity.id, limit: 4 }).then((items) =>
-        toCards({ flashNews: items.filter((other) => other.id !== item.id).slice(0, 3) }, { viewerId }),
+        toCards(
+          {
+            flashNews: items.filter((other) => other.id !== item.id).slice(0, 3),
+          },
+          { viewerId },
+        ),
       )
     : [];
 
   const entityCards = primaryEntity ? await toCards({ entities: [primaryEntity] }, { viewerId }) : [];
   const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/flash-news/${item.slug}`;
 
+  const sectionPad = 'pt-[clamp(30px,4vw,64px)]';
+
   return (
     <div className="page-enter">
       <HydrateArtifacts cards={[card, ...moreFromEntity, ...entityCards]} />
 
-      <div className="mx-auto w-full max-w-[1320px] px-4 pb-28 pt-8 sm:px-6 lg:px-8 lg:pb-16 lg:pt-10">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-12">
-          {/* Factual context */}
-          <div className="min-w-0 space-y-8">
-            <ArtifactHeader
-              card={card}
-              timeLabel="Published"
-              shareUrl={shareUrl}
-              sourceLabel={item.sourceLabel}
-              sourceUrl={item.sourceUrl}
-            />
-
-            {item.body && (
-              <section aria-labelledby="context-heading" className="pt-1">
-                <h2 id="context-heading" className="text-sm font-medium text-primary">
-                  What happened
-                </h2>
-                <p className="mt-3 max-w-2xl whitespace-pre-line text-[0.9375rem] leading-[1.7] text-secondary">
-                  {item.body}
-                </p>
-              </section>
+      {/*
+       * The hero puts the story on the left and the two reaction panels on the
+       * right, so a reader arrives with the headline and the controls in the
+       * same glance. The right column is what the sticky tray watches.
+       */}
+      <section className="rail flex flex-wrap items-start gap-[clamp(22px,3vw,52px)] pt-[clamp(24px,3.2vw,52px)]">
+        <div className="min-w-[min(100%,300px)] flex-[1_1_440px]">
+          <nav
+            aria-label="Breadcrumb"
+            className="mb-[clamp(16px,2vw,24px)] flex flex-wrap items-center gap-2 text-xs font-semibold uppercase leading-none tracking-[0.06em] text-tertiary"
+          >
+            <Link href="/flash-news" className="text-secondary hover:text-primary">
+              Flash News
+            </Link>
+            {primaryEntity && (
+              <>
+                <span aria-hidden="true">/</span>
+                <Link href={`/entities/${primaryEntity.slug}`} className="text-secondary hover:text-primary">
+                  {primaryEntity.name}
+                </Link>
+              </>
             )}
+            <span aria-hidden="true">/</span>
+            <span>{card.category}</span>
+          </nav>
 
-            {/* The space the picture used to take, now carrying the history. */}
-            <ReactionTrendChart trend={trend} artifactType="flash_news" artifactId={item.id} totals={card.totals} />
-
-            {relatedEntities.length > 0 && (
-              <section aria-labelledby="entity-heading" className="divider pt-6">
-                <h2 id="entity-heading" className="text-sm font-medium text-primary">
-                  {relatedEntities.length > 1 ? 'Related entities' : 'Related entity'}
-                </h2>
-
-                <ul className="mt-4 space-y-4">
-                  {relatedEntities.map((entity) => {
-                    const entityCard = entityCards.find((candidate) => candidate.id === entity.id);
-                    return (
-                      <li key={entity.id}>
-                        <Link href={`/entities/${entity.slug}`} className="media-hover group flex gap-3.5">
-                          <Media
-                            src={entity.imageUrl}
-                            alt=""
-                            fallbackLabel={initialsFor(entity.name)}
-                            fallbackKind="initials"
-                            sizes="56px"
-                            className="aspect-square w-14 shrink-0 rounded-md border border-[var(--border-subtle)]"
-                          />
-                          <span className="min-w-0">
-                            <span className="block text-sm font-medium text-primary">
-                              {entity.name}
-                            </span>
-                            <span className="mt-0.5 block text-xs text-tertiary">{entity.category}</span>
-                            <span className="mt-1.5 line-clamp-2 block text-sm leading-relaxed text-secondary">
-                              {entity.description}
-                            </span>
-                            {entityCard && (
-                              <span className="mt-1.5 block text-xs text-tertiary">
-                                Lifetime:{' '}
-                                <span className="numeric text-egg">
-                                  {formatCount(entityCard.totals.rottenEggTotal)}
-                                </span>{' '}
-                                <span className="emoji">🥚</span> ·{' '}
-                                <span className="numeric text-medal">
-                                  {formatCount(entityCard.totals.medalTotal)}
-                                </span>{' '}
-                                <span className="emoji">🏅</span>
-                              </span>
-                            )}
-                          </span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            )}
-
-            <CommentSection
-              artifactType="flash_news"
-              artifactId={item.id}
-              initial={comments}
-              viewerName={user?.displayName ?? null}
-            />
+          <div className="mb-[clamp(14px,1.8vw,20px)] flex flex-wrap items-center gap-2.5">
+            <span className="flag">{card.category}</span>
+            <span className="text-xs font-semibold uppercase leading-none tracking-[0.06em] text-tertiary">
+              Published <LocalDateTime iso={card.publishedAt} />
+            </span>
           </div>
 
-          {/* Public reaction */}
-          <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
-            <SentimentPanel card={card} activity={activity} anchorId="reaction-controls" />
+          <h1 className="display m-0 text-[clamp(40px,6vw,96px)] text-primary">{card.title}</h1>
+
+          {card.subtitle && (
+            <p className="m-0 mt-[clamp(16px,2vw,24px)] max-w-[46ch] text-pretty text-[clamp(17px,1.35vw,23px)] leading-[1.5] text-secondary">
+              {card.subtitle}
+            </p>
+          )}
+
+          <div className="mt-[clamp(20px,2.4vw,30px)] flex flex-wrap items-center gap-3">
+            <ShareReceipt card={card} url={shareUrl} />
+            {primaryEntity && (
+              <a
+                href="#entity"
+                className="border-b-2 border-[color:var(--color-indigo-bright)] px-4 py-3.5 text-[13px] font-bold leading-none text-primary"
+              >
+                Related entity: {primaryEntity.name}
+              </a>
+            )}
           </div>
         </div>
 
-        {moreFromEntity.length > 0 && primaryEntity && (
-          <section className="mt-14">
-            <SectionHeader
-              title={`More about ${primaryEntity.name}`}
-              action={{ href: `/entities/${primaryEntity.slug}`, label: 'Entity page' }}
-            />
-            <CardGrid cards={moreFromEntity} />
-          </section>
-        )}
-      </div>
+        <div
+          id="reaction-controls"
+          className="flex min-w-[min(100%,290px)] max-w-[520px] flex-[1_1_330px] flex-col gap-4"
+        >
+          <ReactionSlab card={card} reactionType="rotten_egg" />
+          <ReactionSlab card={card} reactionType="medal" />
+        </div>
+      </section>
+
+      <section className={`rail flex flex-wrap items-start gap-[clamp(20px,2.6vw,40px)] ${sectionPad}`}>
+        <article
+          aria-labelledby="context-heading"
+          className="paper min-w-[min(100%,300px)] flex-[1_1_520px] p-[clamp(20px,2.6vw,44px)]"
+        >
+          <h2 id="context-heading" className="display-sm m-0 mb-[clamp(16px,2vw,24px)] text-[clamp(26px,3vw,44px)]">
+            What happened
+          </h2>
+
+          {card.subtitle && (
+            <p className="m-0 mb-[18px] max-w-[56ch] text-pretty text-[clamp(17px,1.35vw,21px)] leading-[1.55]">
+              {card.subtitle}
+            </p>
+          )}
+
+          {item.body && (
+            <p className="m-0 max-w-[62ch] whitespace-pre-line text-pretty text-[clamp(15px,1.15vw,17.5px)] leading-[1.65] text-[rgb(23_20_15_/_0.7)]">
+              {item.body}
+            </p>
+          )}
+
+          {item.sourceLabel && (
+            <p className="m-0 mt-6 border-t border-[var(--rule-subtle)] pt-4 text-xs font-semibold uppercase leading-none tracking-[0.08em] text-[rgb(23_20_15_/_0.62)]">
+              Source:{' '}
+              {item.sourceUrl ? (
+                <a
+                  href={item.sourceUrl}
+                  rel="noopener noreferrer nofollow"
+                  target="_blank"
+                  className="text-ink underline underline-offset-4"
+                >
+                  {item.sourceLabel}
+                </a>
+              ) : (
+                item.sourceLabel
+              )}
+            </p>
+          )}
+        </article>
+
+        <RelatedEntityAside entities={relatedEntities} cards={entityCards} id="entity" />
+      </section>
+
+      <section className={`rail ${sectionPad}`}>
+        <ReactionTrendChart trend={trend} artifactType="flash_news" artifactId={item.id} totals={card.totals} />
+      </section>
+
+      <section className={`rail flex flex-wrap items-start gap-[clamp(20px,2.6vw,40px)] ${sectionPad}`}>
+        <PublicOpinionPanel card={card} />
+        <RecentActivityPanel activity={activity} />
+      </section>
+
+      <section className={`rail ${sectionPad}`}>
+        <CommentSection
+          artifactType="flash_news"
+          artifactId={item.id}
+          initial={comments}
+          viewerName={user?.displayName ?? null}
+        />
+      </section>
+
+      {moreFromEntity.length > 0 && primaryEntity && (
+        <section className={`rail ${sectionPad}`}>
+          <div className="mb-[clamp(16px,2vw,28px)] flex flex-wrap items-baseline justify-between gap-3 border-b border-[var(--border-default)] pb-4">
+            <h2 className="display m-0 text-[clamp(26px,3.4vw,48px)]">More about {primaryEntity.name}</h2>
+            <Link
+              href={`/entities/${primaryEntity.slug}`}
+              className="border-b-2 border-[color:var(--color-indigo)] pb-1 text-[13px] font-bold leading-none"
+            >
+              Entity page →
+            </Link>
+          </div>
+          <CardGrid cards={moreFromEntity} columns={3} />
+        </section>
+      )}
 
       <StickyReactionTray card={card} watchTargetId="reaction-controls" />
     </div>

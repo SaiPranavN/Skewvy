@@ -13,15 +13,18 @@ import type { ArtifactTotals, ArtifactType } from '@/lib/domain/types';
  * an artifact has forty times more Medals than Rotten Eggs, the two lines
  * should look forty times apart, and a second axis would hide exactly the fact
  * the chart exists to show. Colour is never the only difference between them —
- * Rotten Eggs are drawn solid and Medals dashed, and both lines are labelled.
+ * Rotten Eggs are drawn solid and heavy, Medals dashed and lighter, and both
+ * are labelled.
+ *
+ * The axis labels are HTML positioned around the plot rather than SVG text, so
+ * they stay at a fixed readable size however wide the card gets.
  */
 
-const VIEW_WIDTH = 720;
-const VIEW_HEIGHT = 240;
-const PADDING = { top: 18, right: 16, bottom: 26, left: 48 };
-
-const PLOT_WIDTH = VIEW_WIDTH - PADDING.left - PADDING.right;
-const PLOT_HEIGHT = VIEW_HEIGHT - PADDING.top - PADDING.bottom;
+/* The plot box, in the SVG's own units. The card scales it; text does not. */
+const VIEW = { width: 1000, height: 270 };
+const PLOT = { x0: 6, x1: 988, y0: 18, y1: 252 };
+/** Matches the HTML gutters reserved for the axis labels around the plot. */
+const AXIS = { left: 52, bottom: 26 };
 
 export function ReactionTrendChart({
   trend,
@@ -53,156 +56,163 @@ export function ReactionTrendChart({
 
   const geometry = useMemo(() => build(points), [points]);
 
-  if (points.length < 2 || !geometry) {
-    return (
-      <section className="panel p-5" aria-labelledby={titleId}>
-        <Header titleId={titleId} trend={trend} />
-        <p className="mt-4 text-sm leading-relaxed text-tertiary">
+  const active = activeIndex === null || !points[activeIndex] ? null : points[activeIndex];
+  const last = points.length > 0 ? points[points.length - 1] : null;
+
+  const eggValue = active ? active.cumulativeEggs : (last?.cumulativeEggs ?? live.totals.rottenEggTotal);
+  const medalValue = active ? active.cumulativeMedals : (last?.cumulativeMedals ?? live.totals.medalTotal);
+
+  const readout = active
+    ? `${formatBucket(active.at, trend.resolution, true)} — ${formatCount(active.cumulativeEggs)} eggs / ${formatCount(
+        active.cumulativeMedals,
+      )} medals`
+    : 'hover the chart to read a point';
+
+  return (
+    <section className="paper p-[clamp(20px,2.6vw,40px)]" aria-labelledby={titleId}>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 id={titleId} className="display-sm m-0 text-[clamp(24px,2.8vw,40px)]">
+            Reaction trend
+          </h2>
+          <div
+            className="mt-2 text-[13px] font-medium leading-[1.5] text-[rgb(23_20_15_/_0.6)]"
+            suppressHydrationWarning
+          >
+            Running totals on one shared scale · {readout}
+          </div>
+        </div>
+
+        <div className="flex flex-none flex-wrap gap-[18px]">
+          <LegendItem kind="egg" value={eggValue} />
+          <LegendItem kind="medal" value={medalValue} />
+          {points.length > 1 && (
+            <span className="text-[11.5px] font-semibold uppercase leading-none tracking-[0.08em] text-[rgb(23_20_15_/_0.62)]">
+              {trend.resolution === 'hour' ? `Last ${points.length} hours` : `Last ${points.length} days`}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {!geometry ? (
+        <p className="mt-6 max-w-[60ch] text-sm leading-relaxed text-[rgb(23_20_15_/_0.66)]">
           Not enough history yet to draw a trend. The chart appears once this has been reacted to across more than one
           hour.
         </p>
-      </section>
-    );
-  }
-
-  const active = activeIndex === null ? null : points[activeIndex];
-  const last = points[points.length - 1];
-
-  const eggChange = last.cumulativeEggs - trend.openingEggs;
-  const medalChange = last.cumulativeMedals - trend.openingMedals;
-
-  return (
-    <section className="panel p-5" aria-labelledby={titleId}>
-      <Header titleId={titleId} trend={trend} />
-
-      <div className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
-        <Legend
-          kind="egg"
-          label="Rotten Eggs"
-          total={last.cumulativeEggs}
-          change={eggChange}
-          opening={trend.openingEggs}
-          value={active ? active.cumulativeEggs : null}
-        />
-        <Legend
-          kind="medal"
-          label="Medals"
-          total={last.cumulativeMedals}
-          change={medalChange}
-          opening={trend.openingMedals}
-          value={active ? active.cumulativeMedals : null}
-        />
-      </div>
-
-      <div className="mt-4 overflow-x-auto">
-        <svg
-          viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
-          className="h-[220px] w-full min-w-[520px] touch-pan-y"
-          role="img"
-          aria-label={`Rotten Eggs and Medals over time. Rotten Eggs ${formatCount(
-            last.cumulativeEggs,
-          )}, Medals ${formatCount(last.cumulativeMedals)}.`}
-          onPointerMove={(event) => {
-            const box = event.currentTarget.getBoundingClientRect();
-            const ratio = (event.clientX - box.left) / box.width;
-            const x = ratio * VIEW_WIDTH - PADDING.left;
-            const step = PLOT_WIDTH / Math.max(1, points.length - 1);
-            const index = Math.round(x / step);
-            setActiveIndex(Math.min(points.length - 1, Math.max(0, index)));
-          }}
-          onPointerLeave={() => setActiveIndex(null)}
+      ) : (
+        <div
+          className="relative mt-[clamp(18px,2.2vw,28px)]"
+          style={{ padding: `0 0 ${AXIS.bottom}px ${AXIS.left}px` }}
         >
-          {geometry.gridLines.map((line) => (
-            <g key={line.value}>
+          <svg
+            viewBox={`0 0 ${VIEW.width} ${VIEW.height}`}
+            className="block h-auto w-full touch-pan-y overflow-visible"
+            role="img"
+            aria-label={`Rotten Eggs and Medals over time. Rotten Eggs ${formatCount(
+              last?.cumulativeEggs ?? 0,
+            )}, Medals ${formatCount(last?.cumulativeMedals ?? 0)}.`}
+            onPointerMove={(event) => {
+              const box = event.currentTarget.getBoundingClientRect();
+              const ratio = (event.clientX - box.left) / box.width;
+              const x = ratio * VIEW.width - PLOT.x0;
+              const step = (PLOT.x1 - PLOT.x0) / Math.max(1, points.length - 1);
+              const index = Math.round(x / step);
+              setActiveIndex(Math.min(points.length - 1, Math.max(0, index)));
+            }}
+            onPointerLeave={() => setActiveIndex(null)}
+          >
+            {geometry.gridLines.map((line) => (
               <line
-                x1={PADDING.left}
-                x2={VIEW_WIDTH - PADDING.right}
+                key={line.value}
+                x1="0"
+                x2={PLOT.x1 - 6}
                 y1={line.y}
                 y2={line.y}
-                stroke="var(--border-subtle)"
+                stroke="#17140F"
                 strokeWidth="1"
+                opacity="0.18"
               />
-              <text
-                x={PADDING.left - 8}
-                y={line.y + 3.5}
-                textAnchor="end"
-                className="numeric"
-                fontSize="10"
-                fill="var(--color-tertiary)"
+            ))}
+
+            {/* The baseline is drawn heavier than the grid — it is the zero. */}
+            <line x1="0" x2={PLOT.x1 - 6} y1={PLOT.y1} y2={PLOT.y1} stroke="#17140F" strokeWidth="2" />
+
+            {/* Medals dashed, Rotten Eggs solid — the shapes differ, not only the colour. */}
+            <polyline
+              points={geometry.medalLine}
+              fill="none"
+              stroke="var(--color-medal-line)"
+              strokeWidth="4"
+              strokeDasharray="14 10"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+            <polyline
+              points={geometry.eggLine}
+              fill="none"
+              stroke="var(--color-egg)"
+              strokeWidth="6"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+
+            {active && activeIndex !== null && (
+              <g>
+                <line
+                  x1={geometry.x(activeIndex)}
+                  x2={geometry.x(activeIndex)}
+                  y1={PLOT.y0}
+                  y2={PLOT.y1}
+                  stroke="#17140F"
+                  strokeWidth="1.5"
+                  opacity="0.5"
+                />
+                <circle
+                  cx={geometry.x(activeIndex)}
+                  cy={geometry.y(active.cumulativeMedals)}
+                  r="7"
+                  fill="var(--color-medal)"
+                  stroke="#17140F"
+                  strokeWidth="2.5"
+                />
+                <circle
+                  cx={geometry.x(activeIndex)}
+                  cy={geometry.y(active.cumulativeEggs)}
+                  r="8"
+                  fill="var(--color-egg)"
+                  stroke="#17140F"
+                  strokeWidth="2.5"
+                />
+              </g>
+            )}
+          </svg>
+
+          {/* Axis labels live outside the SVG so they never scale with it. */}
+          <div className="absolute left-0 top-0 w-[44px]" style={{ bottom: AXIS.bottom }} aria-hidden="true">
+            {geometry.gridLines.map((line) => (
+              <span
+                key={line.value}
+                className="numeric absolute right-0 -translate-y-1/2 text-[13px] font-semibold leading-none text-[rgb(23_20_15_/_0.62)]"
+                style={{ top: `${((line.y / VIEW.height) * 100).toFixed(2)}%` }}
               >
                 {formatCount(line.value)}
-              </text>
-            </g>
-          ))}
+              </span>
+            ))}
+          </div>
 
-          {geometry.ticks.map((tick) => (
-            <text
-              key={tick.at}
-              x={tick.x}
-              y={VIEW_HEIGHT - 8}
-              textAnchor={tick.anchor}
-              fontSize="10"
-              fill="var(--color-tertiary)"
-              /* Formatted in the viewer's own timezone, which the server cannot know. */
-              suppressHydrationWarning
-            >
-              {formatBucket(tick.at, trend.resolution)}
-            </text>
-          ))}
-
-          {/* Medals dashed, Rotten Eggs solid — the shapes differ, not only the colour. */}
-          <path
-            d={geometry.medalPath}
-            fill="none"
-            stroke="var(--color-medal)"
-            strokeWidth="2"
-            strokeDasharray="5 4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d={geometry.eggPath}
-            fill="none"
-            stroke="var(--color-egg)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          {active && activeIndex !== null && (
-            <g>
-              <line
-                x1={geometry.x(activeIndex)}
-                x2={geometry.x(activeIndex)}
-                y1={PADDING.top}
-                y2={PADDING.top + PLOT_HEIGHT}
-                stroke="var(--border-strong)"
-                strokeWidth="1"
-              />
-              <circle
-                cx={geometry.x(activeIndex)}
-                cy={geometry.y(active.cumulativeMedals)}
-                r="3.5"
-                fill="var(--color-medal)"
-              />
-              <circle
-                cx={geometry.x(activeIndex)}
-                cy={geometry.y(active.cumulativeEggs)}
-                r="3.5"
-                fill="var(--color-egg)"
-              />
-            </g>
-          )}
-        </svg>
-      </div>
-
-      <p className="mt-3 text-xs leading-relaxed text-tertiary" suppressHydrationWarning>
-        {active
-          ? `${formatBucket(active.at, trend.resolution, true)} — ${formatCount(active.cumulativeEggs)} Rotten Eggs, ${formatCount(
-              active.cumulativeMedals,
-            )} Medals in total.`
-          : 'Running totals, on one shared scale. Hover the chart to read a point.'}
-      </p>
+          <div
+            className="absolute right-0 bottom-0 flex justify-between text-[13px] font-semibold leading-none text-[rgb(23_20_15_/_0.62)]"
+            style={{ left: AXIS.left }}
+            aria-hidden="true"
+          >
+            {geometry.ticks.map((tick) => (
+              <span key={tick.at} suppressHydrationWarning>
+                {formatBucket(tick.at, trend.resolution)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* The same figures, reachable without seeing the drawing. */}
       <table className="sr-only">
@@ -230,71 +240,24 @@ export function ReactionTrendChart({
   );
 }
 
-function Header({ titleId, trend }: { titleId: string; trend: ReactionTrend }) {
-  const span = trend.points.length;
+function LegendItem({ kind, value }: { kind: 'egg' | 'medal'; value: number }) {
+  const isEgg = kind === 'egg';
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-      <h2 id={titleId} className="text-sm font-medium text-primary">
-        Reaction trend
-      </h2>
-      {span > 1 && (
-        <p className="text-xs text-tertiary">
-          {trend.resolution === 'hour' ? `Last ${span} hours` : `Last ${span} days`}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function Legend({
-  kind,
-  label,
-  total,
-  change,
-  opening,
-  value,
-}: {
-  kind: 'egg' | 'medal';
-  label: string;
-  total: number;
-  change: number;
-  /** The running total as the window opened; zero when the chart covers everything. */
-  opening: number;
-  /** The hovered point, when the pointer is over the chart. */
-  value: number | null;
-}) {
-  // Saying "+23,844 in this window" beside a total of 23,844 tells the reader
-  // nothing they cannot already see.
-  const caption =
-    change === 0
-      ? 'No change in this window'
-      : opening === 0
-        ? 'All of it in this window'
-        : `+${formatCount(change)} in this window`;
-
-  return (
-    <div>
-      <div className="flex items-center gap-2">
-        <svg width="18" height="8" aria-hidden="true">
-          <line
-            x1="0"
-            y1="4"
-            x2="18"
-            y2="4"
-            stroke={kind === 'egg' ? 'var(--color-egg)' : 'var(--color-medal)'}
-            strokeWidth="2"
-            strokeDasharray={kind === 'medal' ? '5 4' : undefined}
-          />
-        </svg>
-        <span className="text-xs text-secondary">
-          <span className="emoji mr-1 text-[0.7rem]">{kind === 'egg' ? '🥚' : '🏅'}</span>
-          {label}
-        </span>
-      </div>
-      <p className={`numeric mt-1 text-lg font-semibold ${kind === 'egg' ? 'text-egg' : 'text-medal'}`}>
-        {formatCount(value ?? total)}
-      </p>
-      <p className="mt-0.5 text-xs text-tertiary">{caption}</p>
+    <div className="flex items-center gap-2">
+      <span
+        aria-hidden="true"
+        className="h-[5px] w-[26px] flex-none"
+        style={
+          isEgg
+            ? { background: 'var(--color-egg)' }
+            : {
+                background: 'repeating-linear-gradient(90deg, var(--color-medal-line) 0 7px, transparent 7px 12px)',
+              }
+        }
+      />
+      <span className="whitespace-nowrap text-xs font-bold uppercase leading-none tracking-[0.06em]">
+        {isEgg ? 'Eggs' : 'Medals'} <span className="numeric">{formatCount(value)}</span>
+      </span>
     </div>
   );
 }
@@ -325,10 +288,10 @@ function withLiveTail(points: TrendPoint[], eggs: number, medals: number): Trend
 }
 
 interface Geometry {
-  eggPath: string;
-  medalPath: string;
+  eggLine: string;
+  medalLine: string;
   gridLines: Array<{ value: number; y: number }>;
-  ticks: Array<{ at: string; x: number; anchor: 'start' | 'middle' | 'end' }>;
+  ticks: Array<{ at: string }>;
   x: (index: number) => number;
   y: (value: number) => number;
 }
@@ -340,36 +303,27 @@ interface Geometry {
 function build(points: TrendPoint[]): Geometry | null {
   if (points.length < 2) return null;
 
-  const maximum = Math.max(
-    1,
-    ...points.map((point) => Math.max(point.cumulativeEggs, point.cumulativeMedals)),
-  );
+  const maximum = Math.max(1, ...points.map((point) => Math.max(point.cumulativeEggs, point.cumulativeMedals)));
   const ceiling = niceCeiling(maximum);
 
-  const x = (index: number) => PADDING.left + (index / (points.length - 1)) * PLOT_WIDTH;
-  const y = (value: number) => PADDING.top + PLOT_HEIGHT - (value / ceiling) * PLOT_HEIGHT;
+  const x = (index: number) => PLOT.x0 + (index / (points.length - 1)) * (PLOT.x1 - PLOT.x0);
+  const y = (value: number) => PLOT.y1 - (value / ceiling) * (PLOT.y1 - PLOT.y0);
 
   const line = (pick: (point: TrendPoint) => number) =>
-    points.map((point, index) => `${index === 0 ? 'M' : 'L'}${x(index).toFixed(1)} ${y(pick(point)).toFixed(1)}`).join(' ');
+    points.map((point, index) => `${x(index).toFixed(1)},${y(pick(point)).toFixed(1)}`).join(' ');
 
   const gridLines = [0, 0.25, 0.5, 0.75, 1].map((fraction) => ({
     value: Math.round(ceiling * fraction),
-    y: PADDING.top + PLOT_HEIGHT - fraction * PLOT_HEIGHT,
+    y: PLOT.y1 - fraction * (PLOT.y1 - PLOT.y0),
   }));
 
-  const tickIndexes = [0, Math.floor((points.length - 1) / 2), points.length - 1];
-  const ticks = tickIndexes.map((index, position) => ({
+  const ticks = [0, Math.floor((points.length - 1) / 2), points.length - 1].map((index) => ({
     at: points[index].at,
-    x: x(index),
-    anchor: (position === 0 ? 'start' : position === tickIndexes.length - 1 ? 'end' : 'middle') as
-      | 'start'
-      | 'middle'
-      | 'end',
   }));
 
   return {
-    eggPath: line((point) => point.cumulativeEggs),
-    medalPath: line((point) => point.cumulativeMedals),
+    eggLine: line((point) => point.cumulativeEggs),
+    medalLine: line((point) => point.cumulativeMedals),
     gridLines,
     ticks,
     x,
@@ -394,5 +348,9 @@ function formatBucket(iso: string, resolution: 'hour' | 'day', long = false): st
       ...(long ? { minute: '2-digit', month: 'short', day: 'numeric' } : {}),
     });
   }
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(long ? { year: 'numeric' } : {}) });
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    ...(long ? { year: 'numeric' } : {}),
+  });
 }

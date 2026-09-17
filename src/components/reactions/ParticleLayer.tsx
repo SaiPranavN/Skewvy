@@ -1,26 +1,30 @@
 'use client';
 
 import { useCallback, useEffect, useImperativeHandle, useRef, type Ref } from 'react';
+import { Overlay } from '@/components/ui/Overlay';
 import type { ReactionType } from '@/lib/domain/types';
 
 /**
- * Floating reaction particles.
+ * Flying reaction particles.
  *
- * Restraint is the point: a reaction drifts upward with modest lateral travel,
- * slight rotation and a quiet fade. No trails, bursts, sparks or shake — the
- * animation is satisfying because it is smooth and immediate, not because it is
- * loud.
+ * A reaction is thrown up and out of the control that fired it, tumbling as it
+ * goes, and is gone within a second. Loud on purpose: this is the one place in
+ * the system where something moves a long way.
  *
- * Nodes are pooled and reused, and the visible count is capped, so sustained
- * rapid tapping never costs frame rate. Under `prefers-reduced-motion` the
- * travel is replaced by a short fade in place, handled in CSS.
+ * Particles are positioned in viewport coordinates from the firing element's
+ * rect, so they keep travelling past the edge of whatever panel spawned them —
+ * a hero slab and the sticky tray behave identically. Nodes are pooled and the
+ * visible count is capped, so sustained rapid tapping never costs frame rate.
+ * Under `prefers-reduced-motion` the travel is replaced by a short fade in
+ * place, handled in CSS.
  */
 
-const MAX_PARTICLES = 24;
-const BASE_LIFETIME_MS = 1600;
+const MAX_PARTICLES = 14;
+const LIFETIME_MS = 900;
 
 export interface ParticleHandle {
-  spawn: (reactionType: ReactionType, originX?: number) => void;
+  /** `origin` is the firing control's viewport rect. */
+  spawn: (reactionType: ReactionType, origin?: DOMRect | null) => void;
 }
 
 interface PooledParticle {
@@ -44,9 +48,9 @@ export function ParticleLayer({ handleRef }: { handleRef: Ref<ParticleHandle> })
     return () => media.removeEventListener('change', listener);
   }, []);
 
-  const spawn = useCallback((reactionType: ReactionType, originX?: number) => {
+  const spawn = useCallback((reactionType: ReactionType, origin?: DOMRect | null) => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !origin) return;
     if (activeRef.current >= MAX_PARTICLES) return;
 
     const now = performance.now();
@@ -63,27 +67,25 @@ export function ParticleLayer({ handleRef }: { handleRef: Ref<ParticleHandle> })
     }
 
     const reduced = reducedMotionRef.current;
-    const width = container.clientWidth || 200;
-    const x = originX ?? width * (0.3 + Math.random() * 0.4);
-
     const element = pooled.element;
+
     element.textContent = reactionType === 'rotten_egg' ? '🥚' : '🏅';
-    element.style.left = `${x}px`;
+    element.style.left = `${origin.left + origin.width * (0.2 + Math.random() * 0.6)}px`;
+    element.style.top = `${origin.top - 6}px`;
+    element.style.fontSize = `${24 + Math.random() * 18}px`;
     element.style.animation = 'none';
-    element.style.fontSize = `${15 + Math.random() * 7}px`;
-    element.style.setProperty('--p-drift', `${(Math.random() - 0.5) * 44}px`);
-    element.style.setProperty('--p-rise', `${-(120 + Math.random() * 70)}px`);
-    element.style.setProperty('--p-spin', `${(Math.random() - 0.5) * 20}deg`);
-    element.style.setProperty('--p-scale', `${0.9 + Math.random() * 0.25}`);
+    element.style.setProperty('--p-drift', `${Math.round((Math.random() - 0.5) * 200)}px`);
+    element.style.setProperty('--p-rise', `${-(200 + Math.random() * 60)}px`);
+    element.style.setProperty('--p-spin', `${Math.round((Math.random() - 0.5) * 460)}deg`);
     element.style.opacity = '0';
 
     // Force a reflow so restarting the animation on a reused node restarts it.
     void element.offsetWidth;
 
-    const duration = reduced ? 400 : BASE_LIFETIME_MS + Math.random() * 500;
+    const duration = reduced ? 400 : LIFETIME_MS;
     element.style.animation = reduced
       ? `reaction-fade ${duration}ms var(--ease-standard) forwards`
-      : `reaction-float ${duration}ms var(--ease-standard) forwards`;
+      : `skv-fly ${duration}ms cubic-bezier(.22,.7,.3,1) forwards`;
 
     activeRef.current += 1;
     pooled.freeAt = now + duration;
@@ -96,10 +98,8 @@ export function ParticleLayer({ handleRef }: { handleRef: Ref<ParticleHandle> })
   useImperativeHandle(handleRef, () => ({ spawn }), [spawn]);
 
   return (
-    <div
-      ref={containerRef}
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 bottom-full h-48 overflow-visible"
-    />
+    <Overlay>
+      <div ref={containerRef} aria-hidden="true" className="pointer-events-none fixed inset-0 z-[80] overflow-hidden" />
+    </Overlay>
   );
 }

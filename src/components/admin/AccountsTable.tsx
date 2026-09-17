@@ -117,7 +117,7 @@ export function AccountsTable({ accounts, viewerId }: { accounts: AccountSummary
                               setConfirming(null);
                               setTypedName('');
                             }}
-                            className="min-h-9 rounded-md border border-[var(--border-default)] px-3 text-xs text-secondary hover:border-[var(--border-strong)]"
+                            className="min-h-9 border border-[var(--border-default)] px-3 text-xs text-secondary hover:border-[var(--border-strong)]"
                           >
                             Cancel
                           </button>
@@ -125,7 +125,7 @@ export function AccountsTable({ accounts, viewerId }: { accounts: AccountSummary
                             type="button"
                             disabled={typedName !== account.displayName}
                             onClick={() => run(() => deleteAccountAction(account.id))}
-                            className="min-h-9 rounded-md bg-brand px-3 text-xs font-medium text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                            className="min-h-9 bg-brand px-3 text-xs font-bold text-ink disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             Delete for good
                           </button>
@@ -137,7 +137,7 @@ export function AccountsTable({ accounts, viewerId }: { accounts: AccountSummary
                           <button
                             type="button"
                             onClick={() => run(() => restoreAccountAction(account.id))}
-                            className="min-h-9 rounded-md border border-[var(--border-default)] px-3 text-xs text-primary hover:border-[var(--border-strong)]"
+                            className="min-h-9 border border-[var(--border-default)] px-3 text-xs text-primary hover:border-[var(--border-strong)]"
                           >
                             Restore
                           </button>
@@ -148,7 +148,7 @@ export function AccountsTable({ accounts, viewerId }: { accounts: AccountSummary
                               const reason = window.prompt(`Why is ${account.displayName} being suspended?`) ?? '';
                               run(() => suspendAccountAction(account.id, reason));
                             }}
-                            className="min-h-9 rounded-md border border-[var(--border-default)] px-3 text-xs text-primary hover:border-[var(--border-strong)]"
+                            className="min-h-9 border border-[var(--border-default)] px-3 text-xs text-primary hover:border-[var(--border-strong)]"
                           >
                             Suspend
                           </button>
@@ -159,7 +159,7 @@ export function AccountsTable({ accounts, viewerId }: { accounts: AccountSummary
                             setConfirming(account.id);
                             setTypedName('');
                           }}
-                          className="min-h-9 rounded-md px-3 text-xs text-tertiary transition-colors duration-150 hover:text-error"
+                          className="min-h-9 px-3 text-xs text-tertiary transition-colors duration-150 hover:text-error"
                         >
                           Delete
                         </button>
@@ -180,7 +180,7 @@ function Badge({ children, tone }: { children: React.ReactNode; tone?: 'brand' |
   const colour =
     tone === 'brand' ? 'text-brand' : tone === 'egg' ? 'text-egg' : 'text-tertiary';
   return (
-    <span className={`rounded-full border border-[var(--border-subtle)] px-2 py-0.5 text-[0.6875rem] ${colour}`}>
+    <span className={`border border-[var(--border-subtle)] px-2 py-0.5 text-[0.6875rem] ${colour}`}>
       {children}
     </span>
   );

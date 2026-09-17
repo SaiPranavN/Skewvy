@@ -70,7 +70,7 @@ export function ImageField({ name, defaultValue }: { name: string; defaultValue:
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={pending}
-              className="rounded-lg border border-[var(--border-default)] px-3 py-2 text-xs font-medium text-secondary transition-colors hover:border-[var(--border-strong)] disabled:opacity-60"
+              className="border border-[var(--border-default)] px-3 py-2 text-xs font-medium text-secondary transition-colors hover:border-[var(--border-strong)] disabled:opacity-60"
             >
               {pending ? 'Uploading…' : 'Upload image'}
             </button>
@@ -78,7 +78,7 @@ export function ImageField({ name, defaultValue }: { name: string; defaultValue:
               <button
                 type="button"
                 onClick={() => setUrl('')}
-                className="rounded-lg px-3 py-2 text-xs font-medium text-secondary transition-colors hover:text-primary"
+                className="px-3 py-2 text-xs font-medium text-secondary transition-colors hover:text-primary"
               >
                 Clear
               </button>

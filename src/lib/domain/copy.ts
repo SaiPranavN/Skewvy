@@ -54,6 +54,38 @@ export function sentimentLabel(totals: ArtifactTotals): SentimentLabel {
   return { state: 'divided', label: 'Public opinion divided', tone: 'neutral' };
 }
 
+/**
+ * The colour a card wears, derived from its record rather than chosen.
+ *
+ * Orange means the eggs won, gold means the medals did, indigo means neither
+ * did. The tile colour, the badge and the split bar all read the same figure,
+ * so scanning a grid tells you the shape of the sentiment before you read a
+ * single headline.
+ */
+export type CardTone = 'egg' | 'medal' | 'split';
+
+export interface ToneBadge {
+  tone: CardTone;
+  /** Shown on a Flash News card — about one event. */
+  flashLabel: string;
+  /** Shown on an Entity card — about a standing record. */
+  entityLabel: string;
+}
+
+export function cardTone(totals: ArtifactTotals): ToneBadge {
+  const reactions = totals.rottenEggTotal + totals.medalTotal;
+
+  if (reactions === 0) {
+    return { tone: 'split', flashLabel: 'No reactions yet', entityLabel: 'No record yet' };
+  }
+
+  const eggShare = totals.rottenEggTotal / reactions;
+
+  if (eggShare >= 0.6) return { tone: 'egg', flashLabel: 'Catching heat', entityLabel: 'Mostly eggs' };
+  if (eggShare <= 0.4) return { tone: 'medal', flashLabel: 'A rare W', entityLabel: 'Mostly medals' };
+  return { tone: 'split', flashLabel: 'The crowd is split', entityLabel: 'Split record' };
+}
+
 /** Section headings for the ranked surfaces. Descriptive, not promotional. */
 export const SECTION_TITLES = {
   trending: 'Most active today',
