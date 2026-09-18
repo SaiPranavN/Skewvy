@@ -46,6 +46,14 @@
   --color-indigo-bright: #5a6cff;
   --color-indigo-soft: #8e9bff;
 
+  /*
+   * A recorded stance, which is a different thing from a reaction total.
+   * Eggs and medals are carrot and gold; the side a person took is stated in
+   * plain red and green, and both are dark enough to carry ink text.
+   */
+  --color-negative: #e0472a;
+  --color-positive: #3da35d;
+
   --color-success: #7fb98a;
   --color-warning: #ffcb2f;
   --color-error: #ff6b45;

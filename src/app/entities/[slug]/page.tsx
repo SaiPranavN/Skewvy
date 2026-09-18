@@ -3,6 +3,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { ReactionSlab } from '@/components/artifact/ReactionSlab';
 import { PublicOpinionPanel } from '@/components/artifact/PublicOpinionPanel';
+import { YourOpinionCard } from '@/components/artifact/YourOpinionCard';
 import { RecentActivityPanel } from '@/components/artifact/RecentActivityPanel';
 import { StickyReactionTray } from '@/components/artifact/StickyReactionTray';
 import { ReactionTrendChart } from '@/components/artifact/ReactionTrendChart';
@@ -74,9 +75,9 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
       <HydrateArtifacts cards={[card, ...relatedFlashNews]} />
 
       {/*
-        * An entity leads with identity rather than a headline: the mark, the
-        * name and what the thing is, with the standing record beside it.
-        */}
+       * An entity leads with identity rather than a headline: the mark, the
+       * name and what the thing is, with the standing record beside it.
+       */}
       <section className="rail flex flex-wrap items-start gap-[clamp(22px,3vw,52px)] pt-[clamp(24px,3.2vw,52px)]">
         <div className="min-w-[min(100%,300px)] flex-[1_1_440px]">
           <nav
@@ -122,8 +123,7 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
                 href="#stories"
                 className="border-b-2 border-[color:var(--color-indigo-bright)] px-4 py-3.5 text-[13px] font-bold leading-none text-primary"
               >
-                {formatCount(relatedFlashNews.length)} Flash News{' '}
-                {relatedFlashNews.length === 1 ? 'item' : 'items'}
+                {formatCount(relatedFlashNews.length)} Flash News {relatedFlashNews.length === 1 ? 'item' : 'items'}
               </a>
             )}
           </div>
@@ -152,10 +152,12 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
             </div>
 
             <p className="mt-3.5 text-xs leading-[1.5] text-tertiary">
-              These totals belong to the entity itself. Reactions to individual Flash News items are counted
-              separately on those pages.
+              These totals belong to the entity itself. Reactions to individual Flash News items are counted separately
+              on those pages.
             </p>
           </div>
+
+          <YourOpinionCard card={card} />
         </div>
 
         <div
@@ -176,6 +178,15 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
         <RecentActivityPanel activity={activity} />
       </section>
 
+      <section className={`rail ${sectionPad}`}>
+        <CommentSection
+          artifactType="entity"
+          artifactId={entity.id}
+          initial={comments}
+          viewerName={user?.displayName ?? null}
+        />
+      </section>
+
       <section id="stories" className={`rail scroll-mt-24 ${sectionPad}`}>
         <div className="mb-[clamp(16px,2vw,28px)]">
           <h2 className="display m-0 text-[clamp(26px,3.4vw,48px)]">Related Flash News</h2>
@@ -193,15 +204,6 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
         ) : (
           <CardGrid cards={relatedFlashNews} columns={4} />
         )}
-      </section>
-
-      <section className={`rail ${sectionPad}`}>
-        <CommentSection
-          artifactType="entity"
-          artifactId={entity.id}
-          initial={comments}
-          viewerName={user?.displayName ?? null}
-        />
       </section>
 
       <StickyReactionTray card={card} watchTargetId="reaction-controls" />
