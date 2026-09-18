@@ -119,20 +119,20 @@ export async function buildReceiptSvg(input: ReceiptInput): Promise<string> {
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" font-family="Geist, Inter, -apple-system, 'Helvetica Neue', Arial, sans-serif">
   <defs>
     <linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#08090b" stop-opacity="0.15"/>
-      <stop offset="100%" stop-color="#08090b" stop-opacity="0.92"/>
+      <stop offset="0%" stop-color="#14110F" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#14110F" stop-opacity="0.92"/>
     </linearGradient>
-    <clipPath id="artClip"><rect x="60" y="${artTop}" width="960" height="${artHeight}" rx="10"/></clipPath>
+    <clipPath id="artClip"><rect x="60" y="${artTop}" width="960" height="${artHeight}"/></clipPath>
   </defs>
 
-  <rect width="${WIDTH}" height="${HEIGHT}" fill="#08090b"/>
+  <rect width="${WIDTH}" height="${HEIGHT}" fill="#14110F"/>
 
   <g>
-    <text x="60" y="100" font-size="34" font-weight="600" fill="#f2f2f0" letter-spacing="-0.5">Ske</text>
-    <path d="M129 84 L136 101 L143 89 L147 96 L151 89 L158 101 L165 84" stroke="#e5484d" stroke-width="3"
+    <text x="60" y="100" font-size="34" font-weight="600" fill="#F7F2E7" letter-spacing="-0.5">Ske</text>
+    <path d="M129 84 L136 101 L143 89 L147 96 L151 89 L158 101 L165 84" stroke="#FF6B45" stroke-width="3"
       stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <text x="168" y="100" font-size="34" font-weight="600" fill="#f2f2f0" letter-spacing="-0.5">vy</text>
-    <text x="1020" y="97" text-anchor="end" font-size="19" font-weight="500" fill="#70737a" letter-spacing="1.6">${
+    <text x="168" y="100" font-size="34" font-weight="600" fill="#F7F2E7" letter-spacing="-0.5">vy</text>
+    <text x="1020" y="97" text-anchor="end" font-size="19" font-weight="500" fill="rgba(247,242,231,0.54)" letter-spacing="1.6">${
       input.artifactType === 'entity' ? 'ENTITY' : 'FLASH NEWS'
     }</text>
   </g>
@@ -142,57 +142,57 @@ export async function buildReceiptSvg(input: ReceiptInput): Promise<string> {
       embedded
         ? `<image xlink:href="${embedded}" x="60" y="${artTop}" width="960" height="${artHeight}" preserveAspectRatio="xMidYMid slice"/>
     <rect x="60" y="${artTop}" width="960" height="${artHeight}" fill="url(#scrim)"/>`
-        : `<rect x="60" y="${artTop}" width="960" height="${artHeight}" fill="#14171c"/>`
+        : `<rect x="60" y="${artTop}" width="960" height="${artHeight}" fill="#251F1B"/>`
     }
-    <text x="90" y="${artTop + artHeight - 32}" font-size="19" font-weight="500" fill="#a4a6aa" letter-spacing="1.6">${escapeXml(
+    <text x="90" y="${artTop + artHeight - 32}" font-size="19" font-weight="500" fill="rgba(247,242,231,0.72)" letter-spacing="1.6">${escapeXml(
       input.category.toUpperCase(),
     )}</text>
   </g>
-  <rect x="60" y="${artTop}" width="960" height="${artHeight}" rx="10" fill="none" stroke="#ffffff" stroke-opacity="0.11"/>
+  <rect x="60" y="${artTop}" width="960" height="${artHeight}" fill="none" stroke="#ffffff" stroke-opacity="0.11"/>
 
   ${titleLines
     .map(
       (line, index) =>
-        `<text x="60" y="${titleFirstBaseline + index * titleLineHeight}" font-size="48" font-weight="600" fill="#f2f2f0" letter-spacing="-1.4">${escapeXml(
+        `<text x="60" y="${titleFirstBaseline + index * titleLineHeight}" font-size="48" font-weight="600" fill="#F7F2E7" letter-spacing="-1.4">${escapeXml(
           line,
         )}</text>`,
     )
     .join('')}
 
   <g transform="translate(60, ${countersTop})">
-    <rect x="0" y="0" width="${counterWidth}" height="${countersHeight}" rx="10" fill="#101216" stroke="#ffffff" stroke-opacity="0.07"/>
+    <rect x="0" y="0" width="${counterWidth}" height="${countersHeight}" fill="#1F1A17" stroke="#ffffff" stroke-opacity="0.07"/>
     <text x="32" y="68" font-size="34">🥚</text>
-    <text x="32" y="142" font-size="58" font-weight="600" fill="#bd7650" letter-spacing="-1.8">${formatCount(
+    <text x="32" y="142" font-size="58" font-weight="600" fill="#FF6B45" letter-spacing="-1.8">${formatCount(
       totals.rottenEggTotal,
     )}</text>
-    <text x="32" y="174" font-size="18" fill="#a4a6aa">Rotten Eggs</text>
+    <text x="32" y="174" font-size="18" fill="rgba(247,242,231,0.72)">Rotten Eggs</text>
 
-    <rect x="${barWidth - counterWidth}" y="0" width="${counterWidth}" height="${countersHeight}" rx="10" fill="#101216" stroke="#ffffff" stroke-opacity="0.07"/>
+    <rect x="${barWidth - counterWidth}" y="0" width="${counterWidth}" height="${countersHeight}" fill="#1F1A17" stroke="#ffffff" stroke-opacity="0.07"/>
     <text x="${barWidth - counterWidth + 32}" y="68" font-size="34">🏅</text>
-    <text x="${barWidth - counterWidth + 32}" y="142" font-size="58" font-weight="600" fill="#c5a15a" letter-spacing="-1.8">${formatCount(
+    <text x="${barWidth - counterWidth + 32}" y="142" font-size="58" font-weight="600" fill="#FFCB2F" letter-spacing="-1.8">${formatCount(
       totals.medalTotal,
     )}</text>
-    <text x="${barWidth - counterWidth + 32}" y="174" font-size="18" fill="#a4a6aa">Medals</text>
+    <text x="${barWidth - counterWidth + 32}" y="174" font-size="18" fill="rgba(247,242,231,0.72)">Medals</text>
   </g>
 
   <g transform="translate(60, ${barTop})">
-    <rect x="0" y="0" width="${barWidth}" height="6" rx="3" fill="#181b20"/>
-    <rect x="0" y="0" width="${negativeWidth}" height="6" rx="3" fill="#76503c"/>
-    <rect x="${negativeWidth}" y="0" width="${barWidth - negativeWidth}" height="6" rx="3" fill="#766442"/>
-    <text x="0" y="46" font-size="21" fill="#a4a6aa">${formatCount(totals.negativeOpinionTotal)} critical</text>
-    <text x="${barWidth}" y="46" text-anchor="end" font-size="21" fill="#a4a6aa">${formatCount(
+    <rect x="0" y="0" width="${barWidth}" height="6" fill="#2C2520"/>
+    <rect x="0" y="0" width="${negativeWidth}" height="6" fill="#FF6B45"/>
+    <rect x="${negativeWidth}" y="0" width="${barWidth - negativeWidth}" height="6" fill="#FFCB2F"/>
+    <text x="0" y="46" font-size="21" fill="rgba(247,242,231,0.72)">${formatCount(totals.negativeOpinionTotal)} critical</text>
+    <text x="${barWidth}" y="46" text-anchor="end" font-size="21" fill="rgba(247,242,231,0.72)">${formatCount(
       totals.positiveOpinionTotal,
     )} appreciative</text>
-    <text x="0" y="82" font-size="19" fill="#70737a">${formatCount(
+    <text x="0" y="82" font-size="19" fill="rgba(247,242,231,0.54)">${formatCount(
       totals.uniqueParticipantTotal,
     )} people counted once each</text>
   </g>
 
   <g transform="translate(60, ${footerTop})">
-    <text x="0" y="0" font-size="28" font-weight="600" fill="#f2f2f0">${escapeXml(input.caption)}</text>
-    <text x="0" y="44" font-size="21" fill="#a4a6aa">${escapeXml(ownLine)}</text>
-    <text x="0" y="94" font-size="18" fill="#70737a">${escapeXml(stamp)}</text>
-    <text x="${barWidth}" y="94" text-anchor="end" font-size="19" font-weight="500" fill="#70737a">skewvy.com</text>
+    <text x="0" y="0" font-size="28" font-weight="600" fill="#F7F2E7">${escapeXml(input.caption)}</text>
+    <text x="0" y="44" font-size="21" fill="rgba(247,242,231,0.72)">${escapeXml(ownLine)}</text>
+    <text x="0" y="94" font-size="18" fill="rgba(247,242,231,0.54)">${escapeXml(stamp)}</text>
+    <text x="${barWidth}" y="94" text-anchor="end" font-size="19" font-weight="500" fill="rgba(247,242,231,0.54)">skewvy.com</text>
   </g>
 </svg>`;
 }

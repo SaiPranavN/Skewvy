@@ -1,23 +1,24 @@
 import Link from 'next/link';
+import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
 const STEPS = [
   {
     number: '01',
-    emoji: '🔎',
+    mark: 'find' as const,
     tone: 'var(--color-indigo-soft)',
     title: 'Find a topic',
     body: 'A release, a policy, a rebrand nobody asked for. Entities hold the long view; Flash News covers the incident.',
   },
   {
     number: '02',
-    emoji: '🥚',
+    mark: 'egg' as const,
     tone: 'var(--color-egg-deep)',
     title: 'Pick your side, once',
     body: "Eggs for the ones who earned them, medals for the ones who didn't deserve the eggs. Your side is recorded once and stays put.",
   },
   {
     number: '03',
-    emoji: '🏅',
+    mark: 'medal' as const,
     tone: 'var(--color-medal-deep)',
     title: 'Watch the number move',
     body: 'Hold the button down. The total is taps, not people, and it shows.',
@@ -48,9 +49,7 @@ export function HowItWorks() {
                   {step.number}
                 </span>
                 <span aria-hidden="true" className="h-px flex-1 bg-[var(--rule-default)]" />
-                <span className="emoji flex-none text-lg" aria-hidden="true">
-                  {step.emoji}
-                </span>
+                <StepMark mark={step.mark} />
               </div>
 
               <h3 className="mt-4 text-[17px] font-extrabold leading-tight">{step.title}</h3>
@@ -73,5 +72,24 @@ export function HowItWorks() {
         </div>
       </div>
     </section>
+  );
+}
+
+/** The glyph closing each step's rule. */
+function StepMark({ mark }: { mark: 'find' | 'egg' | 'medal' }) {
+  if (mark === 'egg') return <EggIcon size={18} />;
+  if (mark === 'medal') return <MedalIcon size={18} />;
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      aria-hidden="true"
+      className="flex-none text-[color:var(--color-indigo)]"
+    >
+      <circle cx="7.75" cy="7.75" r="5" stroke="currentColor" strokeWidth="2.4" />
+      <path d="M11.5 11.5L15.5 15.5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
   );
 }

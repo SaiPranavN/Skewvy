@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { StatusControls } from './StatusControls';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactTotals, ArtifactType, ContentStatus } from '@/lib/domain/types';
+import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
 export interface ContentRow {
   id: string;
@@ -62,10 +63,10 @@ export function ContentTable({
 
             <div className="shrink-0 text-right text-xs">
               <p className="font-semibold text-egg">
-                {formatCount(row.totals.rottenEggTotal)} <span className="emoji">🥚</span>
+                {formatCount(row.totals.rottenEggTotal)} <EggIcon />
               </p>
               <p className="mt-1 font-semibold text-medal">
-                {formatCount(row.totals.medalTotal)} <span className="emoji">🏅</span>
+                {formatCount(row.totals.medalTotal)} <MedalIcon />
               </p>
               <p className="mt-1.5 text-tertiary">
                 {formatCount(row.totals.negativeOpinionTotal)} / {formatCount(row.totals.positiveOpinionTotal)} opinions

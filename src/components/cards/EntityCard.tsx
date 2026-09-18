@@ -7,6 +7,7 @@ import { useArtifact } from '@/components/reactions/useArtifact';
 import { cardTone } from '@/lib/domain/copy';
 import { formatCount, sharePercent } from '@/lib/domain/format';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
+import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
 /**
  * The entity card.
@@ -73,8 +74,8 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
       </div>
 
       <div className="flex flex-wrap items-end gap-x-6 gap-y-3 px-4 pb-4 pt-3.5">
-        <Lifetime value={eggs} label="Lifetime eggs" emoji="🥚" tone="egg" />
-        <Lifetime value={medals} label="Lifetime medals" emoji="🏅" tone="medal" />
+        <Lifetime value={eggs} label="Lifetime eggs" mark="egg" tone="egg" />
+        <Lifetime value={medals} label="Lifetime medals" mark="medal" tone="medal" />
 
         {itemCount > 0 && (
           <Link
@@ -104,12 +105,12 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
 function Lifetime({
   value,
   label,
-  emoji,
+  mark,
   tone,
 }: {
   value: number;
   label: string;
-  emoji: string;
+  mark: 'egg' | 'medal';
   tone: 'egg' | 'medal';
 }) {
   return (
@@ -121,7 +122,7 @@ function Lifetime({
         {formatCount(value)}
       </div>
       <div className="mt-1.5 text-[10.5px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
-        {label} <span className="emoji">{emoji}</span>
+        {label} {mark === 'egg' ? <EggIcon /> : <MedalIcon />}
       </div>
     </div>
   );

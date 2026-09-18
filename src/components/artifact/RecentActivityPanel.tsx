@@ -1,6 +1,7 @@
 import { RelativeTime } from '@/components/ui/TimeAgo';
 import { formatCount } from '@/lib/domain/format';
 import type { ReactionType } from '@/lib/domain/types';
+import { ReactionMark } from '@/components/ui/icons';
 
 export interface RecentActivityItem {
   reactionType: ReactionType;
@@ -41,9 +42,7 @@ export function RecentActivityPanel({ activity }: { activity: RecentActivityItem
                 key={`${item.createdAt}-${index}`}
                 className="flex items-center gap-[11px] border-t border-[var(--border-subtle)] py-3"
               >
-                <span className="emoji flex-none text-[17px]" aria-hidden="true">
-                  {isEgg ? '🥚' : '🏅'}
-                </span>
+                <ReactionMark reactionType={item.reactionType} size={17} className="flex-none" />
                 <span
                   className={`numeric min-w-[38px] flex-none text-[15.5px] font-extrabold leading-none ${
                     isEgg ? 'text-brand' : 'text-medal'

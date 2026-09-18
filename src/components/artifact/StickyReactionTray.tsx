@@ -6,6 +6,7 @@ import { useHoldToReact } from '@/components/reactions/useHoldToReact';
 import { Overlay } from '@/components/ui/Overlay';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard, ReactionType } from '@/lib/domain/types';
+import { ReactionMark } from '@/components/ui/icons';
 
 /**
  * The reaction tray: both totals and both buttons in one bar, centred on the
@@ -64,8 +65,8 @@ export function StickyReactionTray({ card, watchTargetId }: { card: ArtifactCard
 }
 
 const TRAY_COPY = {
-  rotten_egg: { emoji: '🥚', action: 'Egg it', locked: 'Locked' },
-  medal: { emoji: '🏅', action: 'Medal it', locked: 'Locked' },
+  rotten_egg: { action: 'Egg it', locked: 'Locked' },
+  medal: { action: 'Medal it', locked: 'Locked' },
 } as const satisfies Record<ReactionType, Record<string, string>>;
 
 function TrayHalf({ card, reactionType }: { card: ArtifactCard; reactionType: ReactionType }) {
@@ -88,13 +89,7 @@ function TrayHalf({ card, reactionType }: { card: ArtifactCard; reactionType: Re
       <ParticleLayer handleRef={particleRef} />
 
       <div className="flex items-center gap-2 border-r border-[var(--rule-default)] px-3.5 py-2.5">
-        <span
-          className="emoji flex-none"
-          aria-hidden="true"
-          style={{ fontSize: isEgg ? 19 : 17, opacity: isEgg ? 1 : 0.7 }}
-        >
-          {copy.emoji}
-        </span>
+        <ReactionMark reactionType={reactionType} size={isEgg ? 19 : 17} />
         <span
           ref={numberRef}
           className="numeric font-extrabold"
@@ -113,7 +108,7 @@ function TrayHalf({ card, reactionType }: { card: ArtifactCard; reactionType: Re
         {...buttonProps}
         aria-disabled={locked}
         aria-label={srStatus}
-        className={`btn min-h-[52px] flex-none border-0 border-r border-[var(--rule-default)] px-[18px] py-2.5 text-[clamp(13px,1.3vw,15px)] font-extrabold last:border-r-0 ${
+        className={`btn mark-inherit min-h-[52px] flex-none border-0 border-r border-[var(--rule-default)] px-[18px] py-2.5 text-[clamp(13px,1.3vw,15px)] font-extrabold last:border-r-0 ${
           locked
             ? 'cursor-not-allowed bg-[rgb(23_20_15_/_0.08)] text-[rgb(23_20_15_/_0.62)]'
             : isEgg

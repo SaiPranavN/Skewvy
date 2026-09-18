@@ -7,6 +7,7 @@ import { useHoldToReact } from './useHoldToReact';
 import { formatCount } from '@/lib/domain/format';
 import { EGG_ACTION, MEDAL_ACTION } from '@/lib/domain/copy';
 import type { ArtifactTotals, ArtifactType, ReactionType, UserContribution } from '@/lib/domain/types';
+import { ReactionMark } from '@/components/ui/icons';
 
 /**
  * The compact reaction counter used on cards and in the entity column — the
@@ -54,7 +55,6 @@ export function ReactionControl({
   });
 
   const isEgg = reactionType === 'rotten_egg';
-  const emoji = isEgg ? '🥚' : '🏅';
   const actionLabel = isEgg ? EGG_ACTION : MEDAL_ACTION;
 
   const tone = isEgg
@@ -72,7 +72,7 @@ export function ReactionControl({
       pad: 'px-3 py-2.5',
       gap: 'gap-1.5',
       number: 'text-base',
-      emoji: 'text-sm',
+      mark: 14,
       label: 'text-[0.6875rem]',
       min: 44,
     },
@@ -80,7 +80,7 @@ export function ReactionControl({
       pad: 'px-4 py-3',
       gap: 'gap-2',
       number: 'text-xl',
-      emoji: 'text-base',
+      mark: 17,
       label: 'text-xs',
       min: 64,
     },
@@ -88,7 +88,7 @@ export function ReactionControl({
       pad: 'px-4 py-4',
       gap: 'gap-2.5',
       number: 'text-3xl sm:text-4xl',
-      emoji: 'text-xl',
+      mark: 22,
       label: 'text-xs',
       min: 104,
     },
@@ -110,9 +110,7 @@ export function ReactionControl({
         style={{ minHeight: layout.min }}
       >
         <span className="flex items-baseline gap-2">
-          <span className={`emoji ${layout.emoji}`} aria-hidden="true">
-            {emoji}
-          </span>
+          <ReactionMark reactionType={reactionType} size={layout.mark} />
           <span ref={numberRef} className="inline-block origin-left">
             <RollingNumber value={total} className={`reaction-total ${tone.number} ${layout.number}`} />
           </span>

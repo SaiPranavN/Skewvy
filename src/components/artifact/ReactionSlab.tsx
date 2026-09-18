@@ -6,9 +6,10 @@ import { useHoldToReact } from '@/components/reactions/useHoldToReact';
 import { Overlay } from '@/components/ui/Overlay';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard, ReactionType } from '@/lib/domain/types';
+import { ReactionMark } from '@/components/ui/icons';
 
 /**
- * A reaction panel: the total at display scale, the emoji, and one wide button
+ * A reaction panel: the total at display scale, the mark, and one wide button
  * under it.
  *
  * The egg is the loud one — three-pixel edge, hard orange offset shadow, the
@@ -20,9 +21,8 @@ import type { ArtifactCard, ReactionType } from '@/lib/domain/types';
 const COPY = {
   rotten_egg: {
     label: 'Rotten eggs',
-    emoji: '🥚',
-    first: 'Send an egg 🥚',
-    again: 'Another one 🥚',
+    first: 'Send an egg',
+    again: 'Another one',
     closed: 'Closed to you 🔒',
     hint: 'Hold it down for rapid fire.',
     lockedNote: 'One opinion per person. You went appreciative on this item, so the egg side is closed to you here.',
@@ -31,9 +31,8 @@ const COPY = {
   },
   medal: {
     label: 'Medals',
-    emoji: '🏅',
-    first: 'Give a medal 🏅',
-    again: 'More credit 🏅',
+    first: 'Give a medal',
+    again: 'More credit',
     closed: 'Closed to you 🔒',
     hint: 'Credit where credit is due. Hold it down if you really mean it.',
     lockedNote: 'One opinion per person. You went critical on this item, so the medal side is closed to you here.',
@@ -87,16 +86,11 @@ export function ReactionSlab({ card, reactionType }: { card: ArtifactCard; react
             {formatCount(total)}
           </div>
         </div>
-        <span
-          className="emoji flex-none"
-          aria-hidden="true"
-          style={{
-            fontSize: isEgg ? 'clamp(28px,3.2vw,42px)' : 'clamp(24px,2.6vw,34px)',
-            opacity: locked ? 0.45 : 1,
-          }}
-        >
-          {copy.emoji}
-        </span>
+        <ReactionMark
+          reactionType={reactionType}
+          size={isEgg ? 'clamp(30px,3.4vw,44px)' : 'clamp(26px,2.8vw,36px)'}
+          className={locked ? 'opacity-45' : ''}
+        />
       </div>
 
       <button
@@ -106,7 +100,14 @@ export function ReactionSlab({ card, reactionType }: { card: ArtifactCard; react
         aria-describedby={`${card.id}-${reactionType}-status`}
         className={`btn mt-[18px] ${locked ? 'btn-locked' : isEgg ? 'btn-egg' : 'btn-medal'}`}
       >
-        {locked ? copy.closed : own > 0 ? copy.again : copy.first}
+        {locked ? (
+          copy.closed
+        ) : (
+          <>
+            {own > 0 ? copy.again : copy.first}
+            <ReactionMark reactionType={reactionType} size={20} />
+          </>
+        )}
       </button>
 
       {locked ? (

@@ -5,6 +5,7 @@ import { ParticleLayer } from '@/components/reactions/ParticleLayer';
 import { useHoldToReact } from '@/components/reactions/useHoldToReact';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard, ReactionType } from '@/lib/domain/types';
+import { ReactionMark } from '@/components/ui/icons';
 
 /**
  * A reaction control sized for a card rather than a page: the tone fills the
@@ -16,8 +17,8 @@ import type { ArtifactCard, ReactionType } from '@/lib/domain/types';
  */
 
 const COPY = {
-  rotten_egg: { label: 'Rotten eggs', emoji: '🥚', action: 'Egg it 🥚', closed: 'Closed to you 🔒' },
-  medal: { label: 'Medals', emoji: '🏅', action: 'Medal it 🏅', closed: 'Closed to you 🔒' },
+  rotten_egg: { label: 'Rotten eggs', action: 'Egg it', closed: 'Closed to you 🔒' },
+  medal: { label: 'Medals', action: 'Medal it', closed: 'Closed to you 🔒' },
 } as const satisfies Record<ReactionType, Record<string, string>>;
 
 export function ReactionTile({ card, reactionType }: { card: ArtifactCard; reactionType: ReactionType }) {
@@ -43,9 +44,7 @@ export function ReactionTile({ card, reactionType }: { card: ArtifactCard; react
         <span className="text-[10.5px] font-bold uppercase leading-none tracking-[0.12em] text-[rgb(23_20_15_/_0.7)]">
           {copy.label}
         </span>
-        <span className="emoji flex-none text-base" aria-hidden="true" style={{ opacity: locked ? 0.45 : 1 }}>
-          {copy.emoji}
-        </span>
+        <ReactionMark reactionType={reactionType} size={17} className={locked ? 'opacity-45' : ''} />
       </div>
 
       <div ref={numberRef} className="numeric-lg mt-2 origin-left text-[clamp(28px,3vw,40px)] text-ink">
@@ -57,13 +56,20 @@ export function ReactionTile({ card, reactionType }: { card: ArtifactCard; react
         {...buttonProps}
         aria-disabled={locked}
         aria-label={srStatus}
-        className={`btn mt-3 w-full justify-start px-3 py-2.5 text-[13px] font-extrabold ${
+        className={`btn mark-inherit mt-3 w-full justify-start px-3 py-2.5 text-[13px] font-extrabold ${
           locked
             ? 'cursor-not-allowed border border-dashed border-[rgb(23_20_15_/_0.5)] text-[rgb(23_20_15_/_0.6)]'
             : 'bg-ink text-paper'
         }`}
       >
-        {locked ? copy.closed : copy.action}
+        {locked ? (
+          copy.closed
+        ) : (
+          <>
+            {copy.action}
+            <ReactionMark reactionType={reactionType} size={15} />
+          </>
+        )}
       </button>
 
       <p aria-live="polite" className="sr-only">

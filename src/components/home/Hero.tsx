@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { FeaturedCard } from './FeaturedCard';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard } from '@/lib/domain/types';
+import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
 export interface SiteTotals {
   eggs: number;
@@ -66,8 +67,8 @@ export function Hero({
       </div>
 
       <dl className="mt-[clamp(32px,4vw,64px)] flex flex-wrap gap-x-[clamp(28px,4vw,64px)] gap-y-5 border-t border-[var(--border-default)] pt-[clamp(20px,2.4vw,32px)]">
-        <SiteStat value={totals.eggs} label="Eggs thrown" emoji="🥚" className="text-brand" />
-        <SiteStat value={totals.medals} label="Medals given" emoji="🏅" className="text-medal" />
+        <SiteStat value={totals.eggs} label="Eggs thrown" mark="egg" className="text-brand" />
+        <SiteStat value={totals.medals} label="Medals given" mark="medal" className="text-medal" />
         <SiteStat value={totals.people} label="People with a side" className="text-primary" />
       </dl>
     </section>
@@ -77,19 +78,19 @@ export function Hero({
 function SiteStat({
   value,
   label,
-  emoji,
+  mark,
   className,
 }: {
   value: number;
   label: string;
-  emoji?: string;
+  mark?: 'egg' | 'medal';
   className: string;
 }) {
   return (
     <div>
       <dd className={`numeric-lg text-[clamp(28px,3.2vw,44px)] ${className}`}>{formatCount(value)}</dd>
       <dt className="mt-2 text-[10.5px] font-semibold uppercase leading-none tracking-[0.1em] text-tertiary">
-        {label} {emoji && <span className="emoji">{emoji}</span>}
+        {label} {mark === 'egg' ? <EggIcon /> : mark === 'medal' ? <MedalIcon /> : null}
       </dt>
     </div>
   );

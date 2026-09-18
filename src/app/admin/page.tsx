@@ -45,8 +45,8 @@ export default async function AdminOverviewPage() {
   );
 
   const stats: Stat[] = [
-    { label: 'Rotten Eggs', value: Number(totals?.eggs ?? 0), emoji: '🥚', tone: 'egg' },
-    { label: 'Medals', value: Number(totals?.medals ?? 0), emoji: '🏅', tone: 'medal' },
+    { label: 'Rotten Eggs', value: Number(totals?.eggs ?? 0), mark: 'egg' as const, tone: 'egg' },
+    { label: 'Medals', value: Number(totals?.medals ?? 0), mark: 'medal' as const, tone: 'medal' },
     { label: 'Critical opinions', value: Number(totals?.negative ?? 0) },
     { label: 'Appreciative opinions', value: Number(totals?.positive ?? 0) },
   ];

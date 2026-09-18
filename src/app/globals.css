@@ -81,6 +81,14 @@
   --egg-surface: rgb(255 107 69 / 0.14);
   --medal-surface: rgb(255 203 47 / 0.14);
 
+  /*
+   * The colour the egg and medal marks are drawn in. Bright on the dark
+   * ground; darkened inside a paper context, where the light values have
+   * nothing to hold against cream.
+   */
+  --mark-egg: var(--color-egg);
+  --mark-medal: var(--color-medal);
+
   /* The page gutter and rail, shared by every section. */
   --rail: 1560px;
   --gutter: clamp(16px, 2.4vw, 40px);
@@ -222,6 +230,9 @@ body {
     /* Orange holds up as a fill on cream, but not as body text. */
     --color-brand: var(--color-egg-deep);
     --color-error: var(--color-egg-deep);
+
+    --mark-egg: var(--color-egg-deep);
+    --mark-medal: var(--color-medal-deep);
   }
 
   .panel-interactive {
@@ -386,11 +397,17 @@ body {
     color: var(--color-ink);
   }
 
-  /* The two-tone record bar: eggs from the left, medals filling the rest. */
+  /*
+   * The two-tone record bar: eggs from the left, medals filling the rest.
+   *
+   * Width is left to `auto` deliberately. It is a block-level flex container,
+   * so it already fills its container — and `width: 100%` would resolve
+   * against the container and then sit *outside* any horizontal margin,
+   * pushing the bar past the edge of the card it belongs to.
+   */
   .split-bar {
     display: flex;
     height: 5px;
-    width: 100%;
     overflow: hidden;
     background-color: var(--color-medal);
   }
@@ -453,6 +470,19 @@ body {
     .btn-outline:hover {
       border-color: var(--color-primary);
     }
+  }
+
+  /*
+   * On a coloured fill the mark should read as part of the label, not as a
+   * second accent: sitting a deep orange mark on an orange button leaves it
+   * muddy. Inheriting the button's own text colour keeps the pair one object.
+   */
+  .mark-inherit,
+  .btn-egg,
+  .btn-medal,
+  .btn-locked {
+    --mark-egg: currentColor;
+    --mark-medal: currentColor;
   }
 
   /* The egg. Orange, ink-edged, big. */

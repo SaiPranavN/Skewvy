@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Media, initialsFor } from '@/components/ui/Media';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard, Entity } from '@/lib/domain/types';
+import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
 /**
  * The entity this story is about, on the ground beside the article.
@@ -62,13 +63,13 @@ export function RelatedEntityAside({
                   <LifetimeStat
                     value={card.totals.rottenEggTotal}
                     label="Lifetime eggs"
-                    emoji="🥚"
+                    mark="egg"
                     className="text-brand"
                   />
                   <LifetimeStat
                     value={card.totals.medalTotal}
                     label="Lifetime medals"
-                    emoji="🏅"
+                    mark="medal"
                     className="text-medal"
                   />
                 </div>
@@ -89,19 +90,19 @@ export function RelatedEntityAside({
 function LifetimeStat({
   value,
   label,
-  emoji,
+  mark,
   className,
 }: {
   value: number;
   label: string;
-  emoji: string;
+  mark: 'egg' | 'medal';
   className: string;
 }) {
   return (
     <div>
       <div className={`numeric text-[22px] font-extrabold leading-none ${className}`}>{formatCount(value)}</div>
       <div className="mt-[5px] text-[10.5px] font-semibold uppercase leading-none tracking-[0.1em] text-tertiary">
-        {label} <span className="emoji">{emoji}</span>
+        {label} {mark === 'egg' ? <EggIcon /> : <MedalIcon />}
       </div>
     </div>
   );

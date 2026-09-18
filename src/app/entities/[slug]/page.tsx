@@ -19,6 +19,7 @@ import { recentVelocity } from '@/lib/services/totals';
 import { reactionTrend } from '@/lib/services/timeline';
 import { listComments } from '@/lib/services/comments';
 import { cardTone } from '@/lib/domain/copy';
+import { EggIcon, MedalIcon } from '@/components/ui/icons';
 import { formatCount, sharePercent } from '@/lib/domain/format';
 
 export const dynamic = 'force-dynamic';
@@ -132,9 +133,13 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <p className="eyebrow">Lifetime record</p>
               <p className="text-[11px] font-semibold uppercase leading-none tracking-[0.08em] text-tertiary">
-                {recent.rottenEggs + recent.medals > 0
-                  ? `+${formatCount(recent.rottenEggs)} 🥚 / +${formatCount(recent.medals)} 🏅 today`
-                  : 'Nothing new today'}
+                {recent.rottenEggs + recent.medals > 0 ? (
+                  <>
+                    +{formatCount(recent.rottenEggs)} <EggIcon /> / +{formatCount(recent.medals)} <MedalIcon /> today
+                  </>
+                ) : (
+                  'Nothing new today'
+                )}
               </p>
             </div>
 

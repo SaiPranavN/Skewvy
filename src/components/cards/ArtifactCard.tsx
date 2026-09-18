@@ -7,6 +7,7 @@ import { useArtifact } from '@/components/reactions/useArtifact';
 import { cardTone } from '@/lib/domain/copy';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
+import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
 /**
  * The story card.
@@ -64,8 +65,8 @@ export function ArtifactCard({ card, priority = false }: { card: ArtifactCardMod
 
         <div className="mt-auto pt-2">
           <div className="flex flex-wrap items-end gap-x-5 gap-y-3 border-t border-[var(--rule-subtle)] pt-3.5">
-            <Total value={state.totals.rottenEggTotal} label="Eggs" emoji="🥚" tone="egg" />
-            <Total value={state.totals.medalTotal} label="Medals" emoji="🏅" tone="medal" />
+            <Total value={state.totals.rottenEggTotal} label="Eggs" mark="egg" tone="egg" />
+            <Total value={state.totals.medalTotal} label="Medals" mark="medal" tone="medal" />
 
             <Link
               href={href}
@@ -88,12 +89,12 @@ export function ArtifactCard({ card, priority = false }: { card: ArtifactCardMod
 function Total({
   value,
   label,
-  emoji,
+  mark,
   tone,
 }: {
   value: number;
   label: string;
-  emoji: string;
+  mark: 'egg' | 'medal';
   tone: 'egg' | 'medal';
 }) {
   return (
@@ -105,7 +106,7 @@ function Total({
         {formatCount(value)}
       </div>
       <div className="mt-1.5 text-[10.5px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
-        {label} <span className="emoji">{emoji}</span>
+        {label} {mark === 'egg' ? <EggIcon /> : <MedalIcon />}
       </div>
     </div>
   );

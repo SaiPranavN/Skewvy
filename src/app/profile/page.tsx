@@ -8,6 +8,7 @@ import { formatCount } from '@/lib/domain/format';
 import { RelativeTime, LocalDateTime } from '@/components/ui/TimeAgo';
 import { StatBlock } from '@/components/ui/StatBlock';
 import { pinAlgorithm } from '@/lib/services/pin';
+import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
 export const metadata: Metadata = { title: 'Your profile' };
 export const dynamic = 'force-dynamic';
@@ -75,8 +76,8 @@ export default async function ProfilePage() {
 
         <StatBlock
           stats={[
-            { label: 'Rotten Eggs sent', value: totalEggs, emoji: '🥚', tone: 'egg' },
-            { label: 'Medals awarded', value: totalMedals, emoji: '🏅', tone: 'medal' },
+            { label: 'Rotten Eggs sent', value: totalEggs, mark: 'egg' as const, tone: 'egg' },
+            { label: 'Medals awarded', value: totalMedals, mark: 'medal' as const, tone: 'medal' },
             { label: 'Critical opinions', value: negativeOpinions },
             { label: 'Appreciative opinions', value: positiveOpinions },
           ]}
@@ -119,12 +120,12 @@ export default async function ProfilePage() {
                   <span className="flex items-center gap-3 text-sm">
                     {Number(row.rotten_egg_count) > 0 && (
                       <span className="numeric font-medium text-egg">
-                        {formatCount(Number(row.rotten_egg_count))} <span className="emoji">🥚</span>
+                        {formatCount(Number(row.rotten_egg_count))} <EggIcon />
                       </span>
                     )}
                     {Number(row.medal_count) > 0 && (
                       <span className="numeric font-medium text-medal">
-                        {formatCount(Number(row.medal_count))} <span className="emoji">🏅</span>
+                        {formatCount(Number(row.medal_count))} <MedalIcon />
                       </span>
                     )}
                   </span>

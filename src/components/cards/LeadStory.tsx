@@ -7,6 +7,7 @@ import { useArtifact } from '@/components/reactions/useArtifact';
 import { cardTone } from '@/lib/domain/copy';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
+import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
 /**
  * The lead story: one item given the whole width, image beside the headline.
@@ -73,8 +74,8 @@ export function LeadStory({
           )}
 
           <div className="mt-auto flex flex-wrap items-end gap-x-7 gap-y-4 border-t-2 border-ink pt-5">
-            <Total value={state.totals.rottenEggTotal} label="Rotten eggs" emoji="🥚" tone="egg" />
-            <Total value={state.totals.medalTotal} label="Medals" emoji="🏅" tone="medal" />
+            <Total value={state.totals.rottenEggTotal} label="Rotten eggs" mark="egg" tone="egg" />
+            <Total value={state.totals.medalTotal} label="Medals" mark="medal" tone="medal" />
 
             <p className="max-w-[26ch] flex-1 text-xs leading-[1.45] text-secondary">
               <span className="numeric">{formatCount(state.totals.negativeOpinionTotal)}</span>{' '}
@@ -96,12 +97,12 @@ export function LeadStory({
 function Total({
   value,
   label,
-  emoji,
+  mark,
   tone,
 }: {
   value: number;
   label: string;
-  emoji: string;
+  mark: 'egg' | 'medal';
   tone: 'egg' | 'medal';
 }) {
   return (
@@ -113,7 +114,7 @@ function Total({
         {formatCount(value)}
       </div>
       <div className="mt-2 text-[10.5px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
-        {label} <span className="emoji">{emoji}</span>
+        {label} {mark === 'egg' ? <EggIcon /> : <MedalIcon />}
       </div>
     </div>
   );

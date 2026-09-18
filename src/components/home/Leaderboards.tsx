@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { formatCount } from '@/lib/domain/format';
 import type { LeaderboardRow } from '@/lib/services/trending';
+import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
 /**
  * The two standings, side by side on the ground rather than on paper.
@@ -22,7 +23,7 @@ export function Leaderboards({ eggs, medals }: { eggs: LeaderboardRow[]; medals:
       <div className="grid gap-[clamp(16px,2vw,32px)] lg:grid-cols-2">
         <Board
           title="Most eggs"
-          emoji="🥚"
+          mark="egg"
           titleClass="text-brand"
           valueClass="text-brand"
           rows={eggs}
@@ -31,7 +32,7 @@ export function Leaderboards({ eggs, medals }: { eggs: LeaderboardRow[]; medals:
         />
         <Board
           title="Most medals"
-          emoji="🏅"
+          mark="medal"
           titleClass="text-medal"
           valueClass="text-medal"
           rows={medals}
@@ -45,7 +46,7 @@ export function Leaderboards({ eggs, medals }: { eggs: LeaderboardRow[]; medals:
 
 function Board({
   title,
-  emoji,
+  mark,
   titleClass,
   valueClass,
   rows,
@@ -53,7 +54,7 @@ function Board({
   note,
 }: {
   title: string;
-  emoji: string;
+  mark: 'egg' | 'medal';
   titleClass: string;
   valueClass: string;
   rows: LeaderboardRow[];
@@ -64,7 +65,7 @@ function Board({
     <div className="border border-[var(--border-default)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-default)] px-[clamp(16px,1.8vw,24px)] py-[clamp(14px,1.6vw,20px)]">
         <h3 className={`display-sm m-0 text-[clamp(22px,2.4vw,32px)] ${titleClass}`}>
-          {title} <span className="emoji">{emoji}</span>
+          {title} {mark === 'egg' ? <EggIcon size={22} /> : <MedalIcon size={22} />}
         </h3>
         <p className="eyebrow">Last 7 days</p>
       </div>
