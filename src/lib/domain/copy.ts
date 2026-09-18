@@ -96,21 +96,6 @@ export const SECTION_TITLES = {
   fresh: 'Recently added',
 } as const;
 
-export const RECEIPT_CAPTIONS = [
-  'Public sentiment, counted.',
-  'Recorded by the public.',
-  'The reaction so far.',
-] as const;
-
-/** Deterministic pick so server and client renders agree. */
-export function pickFrom<T>(list: readonly T[], seed: string): T {
-  let hash = 0;
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
-  }
-  return list[hash % list.length];
-}
-
 /** Grouped remote activity, reported plainly. */
 export function crowdSignal(reactionType: 'rotten_egg' | 'medal', formattedQuantity: string): string {
   return reactionType === 'rotten_egg'

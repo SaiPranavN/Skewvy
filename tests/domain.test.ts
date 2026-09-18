@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatCount, formatCompact, sharePercent } from '@/lib/domain/format';
-import { sentimentLabel, pickFrom, RECEIPT_CAPTIONS } from '@/lib/domain/copy';
+import { sentimentLabel } from '@/lib/domain/copy';
 import { stanceForReaction, emptyTotals } from '@/lib/domain/types';
 import { toSqlitePlaceholders } from '@/lib/db/sqlite';
 
@@ -63,22 +63,6 @@ describe('reaction and stance mapping', () => {
   it('maps Rotten Eggs to a negative opinion and Medals to a positive one', () => {
     expect(stanceForReaction('rotten_egg')).toBe('negative');
     expect(stanceForReaction('medal')).toBe('positive');
-  });
-});
-
-describe('deterministic copy selection', () => {
-  it('returns the same line for the same seed, so server and client agree', () => {
-    const first = pickFrom(RECEIPT_CAPTIONS, 'nimbus-fare');
-    const second = pickFrom(RECEIPT_CAPTIONS, 'nimbus-fare');
-    expect(first).toBe(second);
-    expect(RECEIPT_CAPTIONS).toContain(first);
-  });
-
-  it('varies across seeds', () => {
-    const lines = new Set(
-      ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((seed) => pickFrom(RECEIPT_CAPTIONS, seed)),
-    );
-    expect(lines.size).toBeGreaterThan(1);
   });
 });
 
