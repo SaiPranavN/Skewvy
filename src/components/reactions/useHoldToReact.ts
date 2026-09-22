@@ -237,9 +237,13 @@ export function useHoldToReact({
     onContextMenu: (event: React.MouseEvent) => event.preventDefault(),
   } as const;
 
+  const contributors = isEgg
+    ? state.totals.rottenEggContributorTotal
+    : state.totals.medalContributorTotal;
+
   const srStatus =
     `${formatCount(total)} ${isEgg ? 'Rotten Eggs' : 'Medals'} recorded for ${artifactTitle}, ` +
-    `from ${formatCount(isEgg ? state.totals.rottenEggContributorTotal : state.totals.medalContributorTotal)} people. ` +
+    `from ${contributors === 1 ? '1 person' : `${formatCount(contributors)} people`}. ` +
     `You have sent ${formatCount(own)}. ` +
     (locked
       ? `Unavailable: you already reacted ${state.contribution.stance === 'negative' ? 'critically' : 'appreciatively'} to this, and a side cannot be changed.`

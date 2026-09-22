@@ -71,7 +71,11 @@ export function ContentTable({
               <p className="mt-1.5 text-tertiary">
                 {formatCount(row.totals.negativeOpinionTotal)} / {formatCount(row.totals.positiveOpinionTotal)} opinions
               </p>
-              <p className="mt-0.5 text-tertiary">{formatCount(row.totals.uniqueParticipantTotal)} people</p>
+              <p className="mt-0.5 text-tertiary">
+                {row.totals.uniqueParticipantTotal === 1
+                  ? '1 person'
+                  : `${formatCount(row.totals.uniqueParticipantTotal)} people`}
+              </p>
             </div>
           </div>
 

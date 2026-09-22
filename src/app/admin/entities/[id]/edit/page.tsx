@@ -30,7 +30,7 @@ export default async function EditEntityPage({ params }: { params: Promise<{ id:
           <h2 className="text-lg font-semibold text-primary">Edit Entity</h2>
           <p className="mt-1 text-sm text-secondary">
             {formatCount(totals.rottenEggTotal)} <EggIcon /> · {formatCount(totals.medalTotal)} <MedalIcon /> ·{' '}
-            {formatCount(totals.uniqueParticipantTotal)} people
+            {totals.uniqueParticipantTotal === 1 ? '1 person' : `${formatCount(totals.uniqueParticipantTotal)} people`}
           </p>
         </div>
         <StatusControls type="entity" id={entity.id} status={entity.status} />
