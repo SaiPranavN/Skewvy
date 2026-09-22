@@ -47,12 +47,17 @@
   --color-indigo-soft: #8e9bff;
 
   /*
-   * A recorded stance wears the colour of its own branch, not a colour of its
-   * own: positive is the Medal gold, negative is the Egg carrot. Giving the
-   * stance a separate green would split one branch across two colours and make
-   * "Positive" and "Medals" look like unrelated things, when the whole point of
-   * the flow is that one leads to the other.
+   * Chart series. Red reads as the bad direction and green as the good one
+   * without anyone being told, which is worth more on a line chart than brand
+   * consistency is — a trend line is scanned, not studied.
+   *
+   * Both are darkened from the obvious values so they hold up as strokes on
+   * cream: at these weights a line is a graphical object and needs 3:1, which
+   * a bright green would not clear. Colour is still never the only cue — the
+   * two lines differ in weight and in the shape of their readout markers.
    */
+  --color-series-negative: #d3341c;
+  --color-series-positive: #1f8a4c;
 
   --color-success: #7fb98a;
   --color-warning: #ffcb2f;
@@ -434,10 +439,59 @@ body {
    * controls sitting side by side would say the opposite — that the two are
    * interchangeable and can both be used.
    *
-   * The connectors are plain bordered elements positioned over a two-column
-   * grid rather than an SVG, so they reflow with the cards at any width and
-   * need no measurement.
+   * One set of grid areas, laid out twice. On a phone the chart runs down the
+   * page, because that is the only direction a phone has. Given room it turns
+   * on its side and runs the way a flowchart is read — left to right, You at
+   * the head of it, each position leading across to the reaction it unlocks —
+   * which is also what stops a tall narrow column stranding half the page.
+   *
+   * The connectors are bordered elements rather than an SVG, so they reflow
+   * with the cards at any width and need no measurement. The two branch rows
+   * are `1fr 1fr` on purpose: equal rows put the fork's arms at exactly a
+   * quarter and three quarters of its height, with no arithmetic.
    */
+  .opinion-flow {
+    /*
+     * Named for the fork's benefit in both directions: its arms sit on the
+     * centres of two equal tracks, which is a quarter of the way along only
+     * once the gap between them has been taken out.
+     */
+    --flow-gap: clamp(10px, 1.4vw, 20px);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--flow-gap);
+    row-gap: 0;
+    grid-template-areas:
+      'head1 head1'
+      'you   you'
+      'pos   neg'
+      'head2 head2'
+      'linkA linkA'
+      'medal medal'
+      'linkB linkB'
+      'egg   egg';
+  }
+
+  @media (min-width: 1024px) {
+    .opinion-flow {
+      /*
+       * The gap is named because the fork has to do arithmetic with it. Its
+       * arms sit on the centres of two equal rows, which is a quarter of the
+       * area height only if the gap between them is taken out first —
+       * otherwise every arm lands a few pixels off the card it points at.
+       */
+      --flow-gap: clamp(12px, 1.4vw, 18px);
+      grid-template-columns: minmax(104px, 0.46fr) minmax(0, 1fr) 62px minmax(0, 1.08fr);
+      grid-template-rows: auto 1fr 1fr;
+      column-gap: 0;
+      row-gap: var(--flow-gap);
+      grid-template-areas:
+        '.   head1 .     head2'
+        'you pos   linkA medal'
+        'you neg   linkB egg';
+    }
+  }
+
   .flow-node {
     display: inline-flex;
     align-items: center;
@@ -453,27 +507,219 @@ body {
     line-height: 1;
   }
 
-  .flow-rule {
+  /* Where the chart starts: the "You" node, and the fork out of it. */
+  .flow-origin {
+    grid-area: you;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .flow-fork {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 38px;
+  }
+
+  .flow-fork-stem,
+  .flow-fork-rail,
+  .flow-fork-arm {
     position: absolute;
     background-color: var(--color-ink);
   }
 
-  /* A line that has gone quiet: the branch it feeds is not the live one. */
-  .flow-rule[data-live='false'] {
-    background-color: rgb(23 20 15 / 0.22);
+  /* Down out of the node, across, then down into each position. */
+  .flow-fork-stem {
+    left: 50%;
+    top: 0;
+    width: 2px;
+    height: 14px;
+    transform: translateX(-50%);
   }
 
-  .flow-arrow {
+  .flow-fork-rail {
+    left: calc((100% - var(--flow-gap)) / 4);
+    right: calc((100% - var(--flow-gap)) / 4);
+    top: 13px;
+    height: 2px;
+  }
+
+  .flow-fork-arm {
+    top: 13px;
+    width: 2px;
+    height: 16px;
+    transform: translateX(-50%);
+  }
+
+  .flow-fork-arm[data-arm='a'] {
+    left: calc((100% - var(--flow-gap)) / 4);
+  }
+
+  .flow-fork-arm[data-arm='b'] {
+    left: calc(100% - (100% - var(--flow-gap)) / 4);
+  }
+
+  .flow-fork-arm::after {
+    content: '';
     position: absolute;
-    width: 0;
-    height: 0;
+    left: 50%;
+    top: 100%;
+    transform: translateX(-50%);
     border-left: 6px solid transparent;
     border-right: 6px solid transparent;
     border-top: 8px solid var(--color-ink);
   }
 
-  .flow-arrow[data-live='false'] {
+  /* One position across to the reaction it unlocks. */
+  .flow-link {
+    position: relative;
+    display: block;
+    min-height: 34px;
+  }
+
+  .flow-link::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 3px;
+    bottom: 11px;
+    width: 2px;
+    transform: translateX(-50%);
+    background-color: var(--color-ink);
+  }
+
+  .flow-link::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid var(--color-ink);
+  }
+
+  /*
+   * Turned on its side. The node moves to the left edge and the fork becomes a
+   * bracket: out, along, and across into each row.
+   */
+  @media (min-width: 1024px) {
+    .flow-origin {
+      flex-direction: row;
+      align-items: center;
+      height: 100%;
+    }
+
+    .flow-fork {
+      flex: 1;
+      height: 100%;
+    }
+
+    .flow-fork-stem {
+      left: 0;
+      top: 50%;
+      width: 24px;
+      height: 2px;
+      transform: translateY(-50%);
+    }
+
+    /*
+     * Half a row in from each end, which is where the two rows' centres are.
+     * `25%` would be right only with no gap between them.
+     */
+    .flow-fork-rail {
+      left: 22px;
+      right: auto;
+      top: calc((100% - var(--flow-gap)) / 4);
+      bottom: calc((100% - var(--flow-gap)) / 4);
+      width: 2px;
+      height: auto;
+    }
+
+    /*
+     * Matched to the base rules' specificity: `.flow-fork-arm[data-arm='a']`
+     * sets `left` on a phone, so a plain `.flow-fork-arm` here would lose to
+     * it and leave the arm starting a quarter of the way across.
+     */
+    .flow-fork-arm[data-arm='a'],
+    .flow-fork-arm[data-arm='b'] {
+      left: 22px;
+      right: 8px;
+      width: auto;
+      height: 2px;
+      transform: none;
+    }
+
+    .flow-fork-arm[data-arm='a'] {
+      top: calc((100% - var(--flow-gap)) / 4);
+      bottom: auto;
+    }
+
+    .flow-fork-arm[data-arm='b'] {
+      top: auto;
+      bottom: calc((100% - var(--flow-gap)) / 4);
+    }
+
+    .flow-fork-arm::after {
+      left: auto;
+      right: -8px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+      border-right: 0;
+      border-left: 8px solid var(--color-ink);
+    }
+
+    .flow-link {
+      min-height: 0;
+    }
+
+    .flow-link::before {
+      left: 4px;
+      right: 8px;
+      top: 50%;
+      bottom: auto;
+      width: auto;
+      height: 2px;
+      transform: translateY(-50%);
+    }
+
+    .flow-link::after {
+      left: auto;
+      right: 0;
+      top: 50%;
+      bottom: auto;
+      transform: translateY(-50%);
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+      border-right: 0;
+      border-left: 8px solid var(--color-ink);
+    }
+  }
+
+  /*
+   * A line feeding a branch that is not the live one. Quietened rather than
+   * removed: the shape of the whole system stays visible even when only one
+   * path through it is open.
+   */
+  .flow-fork-arm[data-live='false'],
+  .flow-link[data-live='false']::before {
+    background-color: rgb(23 20 15 / 0.22);
+  }
+
+  .flow-fork-arm[data-live='false']::after,
+  .flow-link[data-live='false']::after {
     border-top-color: rgb(23 20 15 / 0.22);
+  }
+
+  @media (min-width: 1024px) {
+    .flow-fork-arm[data-live='false']::after,
+    .flow-link[data-live='false']::after {
+      border-top-color: transparent;
+      border-left-color: rgb(23 20 15 / 0.22);
+    }
   }
 
   /*

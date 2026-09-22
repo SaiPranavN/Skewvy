@@ -172,19 +172,25 @@ export function TrendChart({
             {/* The baseline is drawn heavier than the grid — it is the zero. */}
             <line x1="0" x2={PLOT.x1 - 6} y1={PLOT.y1} y2={PLOT.y1} stroke="#17140F" strokeWidth="2" />
 
+            {/*
+             * Green for the good direction, red for the bad one, both solid.
+             * Red and green are the one pair a colourblind reader is most
+             * likely to confuse, so the difference is carried twice over: the
+             * negative line is drawn heavier, and the readout marks it with a
+             * circle against the positive line's square.
+             */}
             <polyline
               points={geometry.positiveLine}
               fill="none"
-              stroke="var(--color-medal-line)"
+              stroke="var(--color-series-positive)"
               strokeWidth="4"
-              strokeDasharray="14 10"
               strokeLinejoin="round"
               strokeLinecap="round"
             />
             <polyline
               points={geometry.negativeLine}
               fill="none"
-              stroke="var(--color-egg)"
+              stroke="var(--color-series-negative)"
               strokeWidth="6"
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -201,11 +207,12 @@ export function TrendChart({
                   strokeWidth="1.5"
                   opacity="0.5"
                 />
-                <circle
-                  cx={geometry.x(activeIndex)}
-                  cy={geometry.y(active.cumulativePositive)}
-                  r="7"
-                  fill="var(--color-medal)"
+                <rect
+                  x={geometry.x(activeIndex) - 7}
+                  y={geometry.y(active.cumulativePositive) - 7}
+                  width="14"
+                  height="14"
+                  fill="var(--color-series-positive)"
                   stroke="#17140F"
                   strokeWidth="2.5"
                 />
@@ -213,7 +220,7 @@ export function TrendChart({
                   cx={geometry.x(activeIndex)}
                   cy={geometry.y(active.cumulativeNegative)}
                   r="8"
-                  fill="var(--color-egg)"
+                  fill="var(--color-series-negative)"
                   stroke="#17140F"
                   strokeWidth="2.5"
                 />
@@ -292,16 +299,13 @@ function LegendItem({
   const isNegative = kind === 'negative';
   return (
     <div className="flex items-center gap-2">
+      {/* The swatch matches the stroke it stands for, weight included. */}
       <span
         aria-hidden="true"
-        className="h-[5px] w-[26px] flex-none"
-        style={
-          isNegative
-            ? { background: 'var(--color-egg)' }
-            : {
-                background: 'repeating-linear-gradient(90deg, var(--color-medal-line) 0 7px, transparent 7px 12px)',
-              }
-        }
+        className={`w-[26px] flex-none ${isNegative ? 'h-[6px]' : 'h-[4px]'}`}
+        style={{
+          background: isNegative ? 'var(--color-series-negative)' : 'var(--color-series-positive)',
+        }}
       />
       <span className="whitespace-nowrap text-[11.5px] font-bold uppercase leading-none tracking-[0.06em]">
         {label} <span className="numeric">{formatCount(value)}</span>
@@ -365,7 +369,12 @@ function build(points: TrendPoint[]): Geometry | null {
     y: PLOT.y1 - fraction * (PLOT.y1 - PLOT.y0),
   }));
 
-  const ticks = [0, Math.floor((points.length - 1) / 2), points.length - 1].map((index) => ({
+  /*
+   * First, middle, last — deduplicated, because a two-point series makes the
+   * middle the same as the first and React will not accept two children under
+   * one key.
+   */
+  const ticks = [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])].map((index) => ({
     at: points[index].at,
   }));
 

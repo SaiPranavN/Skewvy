@@ -74,12 +74,13 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
       <HydrateArtifacts cards={[card, ...moreFromEntity, ...entityCards]} />
 
       {/*
-       * The hero puts the story on the left and the two reaction panels on the
-       * right, so a reader arrives with the headline and the controls in the
-       * same glance. The right column is what the sticky tray watches.
+       * Headline first, then the reaction flow across the full width beneath
+       * it. The flow reads left to right, so it gets the width rather than a
+       * column beside the headline — and the reader still meets both in one
+       * screen.
        */}
-      <section className="rail flex flex-wrap items-start gap-[clamp(22px,3vw,52px)] pt-[clamp(24px,3.2vw,52px)]">
-        <div className="min-w-[min(100%,300px)] flex-[1_1_440px]">
+      <section className="rail pt-[clamp(24px,3.2vw,52px)]">
+        <div className="max-w-[min(100%,860px)]">
           <nav
             aria-label="Breadcrumb"
             className="mb-[clamp(16px,2vw,24px)] flex flex-wrap items-center gap-2 text-xs font-semibold uppercase leading-none tracking-[0.06em] text-tertiary"
@@ -127,9 +128,10 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
           </div>
         </div>
 
-        <div className="min-w-[min(100%,290px)] max-w-[560px] flex-[1_1_380px]">
-          <OpinionFlow card={card} />
-        </div>
+      </section>
+
+      <section className="rail pt-[clamp(24px,3vw,44px)]">
+        <OpinionFlow card={card} />
       </section>
 
       <section className={`rail flex flex-wrap items-start gap-[clamp(20px,2.6vw,40px)] ${sectionPad}`}>

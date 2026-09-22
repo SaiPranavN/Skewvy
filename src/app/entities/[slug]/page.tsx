@@ -68,9 +68,12 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
 
       {/*
        * An entity leads with identity rather than a headline: the mark, the
-       * name and what the thing is, with the standing record beside it.
+       * name and what the thing is, with the standing record beside it. The
+       * reaction flow follows across the full width — it reads left to right,
+       * so squeezing it into a column beside this would both cramp it and
+       * strand the space underneath.
        */}
-      <section className="rail flex flex-wrap items-start gap-[clamp(22px,3vw,52px)] pt-[clamp(24px,3.2vw,52px)]">
+      <section className="rail flex flex-wrap items-start gap-x-[clamp(22px,3vw,52px)] gap-y-[clamp(20px,2.4vw,30px)] pt-[clamp(24px,3.2vw,52px)]">
         <div className="min-w-[min(100%,300px)] flex-[1_1_440px]">
           <nav
             aria-label="Breadcrumb"
@@ -120,11 +123,16 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
             )}
           </div>
 
-          {/*
-           * The standing record in one line — people first, then the volume
-           * they generated, so the two can never be read as one figure.
-           */}
-          <div className="mt-[clamp(22px,2.6vw,34px)] max-w-[520px] border border-[var(--border-default)] p-[clamp(16px,1.8vw,24px)]">
+        </div>
+
+        {/*
+         * The standing record in one line — people first, then the volume
+         * they generated, so the two can never be read as one figure. It sits
+         * beside the identity rather than under it, which is what keeps the
+         * header from running tall and leaving a gap.
+         */}
+        <div className="min-w-[min(100%,280px)] max-w-[520px] flex-[1_1_320px]">
+          <div className="border border-[var(--border-default)] p-[clamp(16px,1.8vw,24px)]">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <p className="eyebrow">Lifetime record</p>
               <p className="text-[11px] font-semibold uppercase leading-none tracking-[0.08em] text-tertiary">
@@ -146,10 +154,10 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
             </p>
           </div>
         </div>
+      </section>
 
-        <div className="min-w-[min(100%,290px)] max-w-[560px] flex-[1_1_380px]">
-          <OpinionFlow card={card} />
-        </div>
+      <section className={`rail pt-[clamp(24px,3vw,44px)]`}>
+        <OpinionFlow card={card} />
       </section>
 
       <section className={`rail ${sectionPad}`}>

@@ -93,67 +93,83 @@ export function OpinionFlow({ card }: { card: ArtifactCard }) {
       className="paper p-[clamp(18px,2.4vw,36px)]"
       id="reaction-controls"
     >
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-        <div className="min-w-[min(100%,260px)] flex-1">
-          <p className="eyebrow-ink">Step 1 — Pick your position</p>
-          <h2
-            id={`${card.id}-flow-heading`}
-            className="display-sm m-0 mt-2.5 text-[clamp(22px,2.4vw,34px)]"
-          >
-            Where do you stand?
-          </h2>
-        </div>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-3">
+        <h2 id={`${card.id}-flow-heading`} className="display-sm m-0 text-[clamp(22px,2.4vw,34px)]">
+          Where do you stand?
+        </h2>
 
-        <p className="m-0 max-w-[40ch] flex-[1_1_260px] text-[13px] leading-[1.5] text-[rgb(23_20_15_/_0.66)]">
+        <p className="m-0 max-w-[58ch] flex-[1_1_320px] text-[13px] leading-[1.5] text-[rgb(23_20_15_/_0.66)]">
           Your position counts you once, whatever happens next. Reactions are unlimited and measure how strongly you
           feel — they never make you count twice.
         </p>
       </div>
 
-      {/* ------------------------------- step one ------------------------------ */}
+      {/*
+       * One grid, two arrangements. The areas are named rather than positional
+       * so the phone layout and the desktop one are the same markup read in
+       * two directions — no second copy of the controls, and no duplicate
+       * radio inputs for a screen reader to trip over.
+       */}
+      <div className="opinion-flow mt-[clamp(18px,2.2vw,30px)]">
+        <p className="eyebrow-ink mb-3 lg:mb-2.5" style={{ gridArea: 'head1' }}>
+          Step 1 — Pick your position
+        </p>
 
-      <div className="mt-[clamp(18px,2.2vw,28px)] flex justify-center">
-        <span className="flow-node">You</span>
-      </div>
+        <div className="flow-origin">
+          <span className="flow-node">You</span>
+          <span className="flow-fork" aria-hidden="true">
+            <span className="flow-fork-stem" />
+            <span className="flow-fork-rail" />
+            <span className="flow-fork-arm" data-arm="a" data-live={selected === null || selected === 'positive'} />
+            <span className="flow-fork-arm" data-arm="b" data-live={selected === null || selected === 'negative'} />
+          </span>
+        </div>
 
-      <Fork live={selected} />
+        {/*
+         * `display: contents` lets the two choices sit in their own grid areas
+         * while the group that binds them stays in the accessibility tree.
+         */}
+        <div role="radiogroup" aria-label="Your position on this item" className="contents">
+          <OpinionChoice
+            card={card}
+            branch="positive"
+            count={appreciative}
+            people={people}
+            selected={selected === 'positive'}
+            committed={committed}
+          />
+          <OpinionChoice
+            card={card}
+            branch="negative"
+            count={critical}
+            people={people}
+            selected={selected === 'negative'}
+            committed={committed}
+          />
+        </div>
 
-      <div
-        role="radiogroup"
-        aria-label="Your position on this item"
-        className="grid grid-cols-2 gap-[clamp(10px,1.4vw,20px)]"
-      >
-        <OpinionChoice
-          card={card}
-          branch="positive"
-          count={appreciative}
-          people={people}
-          selected={selected === 'positive'}
-          committed={committed}
+        <p className="eyebrow-ink mb-3 mt-[clamp(16px,2vw,22px)] lg:mb-2.5 lg:mt-0" style={{ gridArea: 'head2' }}>
+          Step 2 — Express the intensity
+        </p>
+
+        <span
+          className="flow-link"
+          style={{ gridArea: 'linkA' }}
+          data-live={selected === null || selected === 'positive'}
+          aria-hidden="true"
         />
-        <OpinionChoice
-          card={card}
-          branch="negative"
-          count={critical}
-          people={people}
-          selected={selected === 'negative'}
-          committed={committed}
+        <span
+          className="flow-link"
+          style={{ gridArea: 'linkB' }}
+          data-live={selected === null || selected === 'negative'}
+          aria-hidden="true"
         />
-      </div>
 
-      {/* ------------------------------- step two ------------------------------ */}
-
-      {/* The label belongs above the connectors, so the arrows land on the cards. */}
-      <p className="eyebrow-ink mt-[clamp(16px,2vw,24px)] text-center">Step 2 — Express the intensity</p>
-
-      <Drops live={selected} />
-
-      <div className="grid gap-[clamp(10px,1.4vw,20px)] md:grid-cols-2">
         <ReactionBranch card={card} branch="positive" selected={selected} committed={committed} />
         <ReactionBranch card={card} branch="negative" selected={selected} committed={committed} />
       </div>
 
-      <p className="m-0 mt-[clamp(14px,1.8vw,22px)] max-w-[70ch] text-[13px] leading-[1.5] text-[rgb(23_20_15_/_0.62)]">
+      <p className="m-0 mt-[clamp(14px,1.8vw,22px)] max-w-[80ch] text-[13px] leading-[1.5] text-[rgb(23_20_15_/_0.62)]">
         {committed
           ? `Your position is recorded and final, so the ${
               committed === 'negative' ? 'Medal' : 'Rotten Egg'
@@ -198,7 +214,14 @@ function OpinionChoice({
 
   return (
     <label
-      className={`relative block cursor-pointer border-2 p-[clamp(12px,1.5vw,20px)] transition-colors ${
+      style={{ gridArea: branch === 'positive' ? 'pos' : 'neg' }}
+      /*
+       * A column, not a block: the two branch rows are equal height, so the
+       * shorter card would otherwise stretch and leave its count floating in
+       * the middle of a gap. The count is pushed to the foot instead, where it
+       * sits on the same line as the one beside it.
+       */
+      className={`relative flex cursor-pointer flex-col border-2 p-[clamp(12px,1.5vw,20px)] transition-colors ${
         isLockedOut ? 'branch-muted cursor-not-allowed border-[var(--rule-default)]' : 'border-ink'
       } ${
         selected
@@ -245,7 +268,7 @@ function OpinionChoice({
       </span>
 
       <span
-        className="numeric-lg mt-3 block"
+        className="numeric-lg mt-auto block pt-3"
         style={{ fontSize: 'clamp(30px,4vw,54px)', lineHeight: 0.86 }}
       >
         {formatCount(count)}
@@ -299,6 +322,7 @@ function ReactionBranch({
   return (
     <div
       ref={panelRef}
+      style={{ gridArea: branch === 'positive' ? 'medal' : 'egg' }}
       className={`border-2 p-[clamp(14px,1.7vw,22px)] ${
         isLive
           ? 'branch-live border-ink bg-paper'
@@ -309,9 +333,8 @@ function ReactionBranch({
 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="eyebrow-ink">
-            Step 2 · {copy.opinionTitle} branch
-          </p>
+          {/* The step number lives in the column header; this says which branch. */}
+          <p className="eyebrow-ink">{copy.opinionTitle} branch</p>
           <h3 className="display-sm m-0 mt-2 text-[clamp(17px,1.8vw,24px)]">{copy.step2Title}</h3>
         </div>
         <ReactionMark reactionType={copy.reactionType} size={26} className="flex-none" />
@@ -397,69 +420,6 @@ function ReactionBranch({
           }
         />
       )}
-    </div>
-  );
-}
-
-/* -------------------------------- connectors ------------------------------- */
-
-/**
- * The split from "You" into the two positions.
- *
- * Positioned against the same two-column grid the cards sit in, so the drops
- * land on their centres — 25% and 75% — at any width.
- */
-function Fork({ live }: { live: Stance | null }) {
-  const leftLive = live === null || live === 'positive';
-  const rightLive = live === null || live === 'negative';
-
-  return (
-    <div className="relative h-[34px]" aria-hidden="true">
-      <span className="flow-rule left-1/2 top-0 h-[13px] w-[2px] -translate-x-1/2" />
-      <span className="flow-rule left-1/4 right-1/4 top-[12px] h-[2px]" />
-      <span
-        className="flow-rule left-1/4 top-[12px] h-[14px] w-[2px] -translate-x-1/2"
-        data-live={leftLive}
-      />
-      <span className="flow-arrow left-1/4 top-[24px] -translate-x-1/2" data-live={leftLive} />
-      <span
-        className="flow-rule left-3/4 top-[12px] h-[14px] w-[2px] -translate-x-1/2"
-        data-live={rightLive}
-      />
-      <span className="flow-arrow left-3/4 top-[24px] -translate-x-1/2" data-live={rightLive} />
-    </div>
-  );
-}
-
-/**
- * The two drops from each position into its reaction card.
- *
- * Below the medium breakpoint the reaction cards stack into one column, so the
- * pair of drops collapses into a single centred stem — each card states which
- * branch it belongs to in its own header, which is what carries the pairing
- * once the columns are gone.
- */
-function Drops({ live }: { live: Stance | null }) {
-  const leftLive = live === null || live === 'positive';
-  const rightLive = live === null || live === 'negative';
-
-  return (
-    <div className="relative h-[34px]" aria-hidden="true">
-      {/* Narrow: one stem. */}
-      <span className="flow-rule left-1/2 top-[4px] h-[18px] w-[2px] -translate-x-1/2 md:hidden" />
-      <span className="flow-arrow left-1/2 top-[20px] -translate-x-1/2 md:hidden" />
-
-      {/* Wide: one drop per branch, landing on each column's centre. */}
-      <span
-        className="flow-rule left-1/4 top-[4px] hidden h-[18px] w-[2px] -translate-x-1/2 md:block"
-        data-live={leftLive}
-      />
-      <span className="flow-arrow left-1/4 top-[20px] hidden -translate-x-1/2 md:block" data-live={leftLive} />
-      <span
-        className="flow-rule left-3/4 top-[4px] hidden h-[18px] w-[2px] -translate-x-1/2 md:block"
-        data-live={rightLive}
-      />
-      <span className="flow-arrow left-3/4 top-[20px] hidden -translate-x-1/2 md:block" data-live={rightLive} />
     </div>
   );
 }

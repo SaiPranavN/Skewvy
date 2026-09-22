@@ -16,6 +16,11 @@ import type { ArtifactCard } from '@/lib/domain/types';
  * people are on each side. The right chart is the volume: how many taps each
  * side sent, and how many people are behind those taps.
  *
+ * These wear the chart palette rather than the brand one — red for the
+ * critical direction, green for the appreciative — because they sit directly
+ * under two line charts saying the same thing, and the same figure in two
+ * colours a few hundred pixels apart would read as two different figures.
+ *
  * The right chart is never allowed to read as the verdict. It is titled
  * "intensity", every total carries its head count, and the sentence underneath
  * states the relationship between the two in plain words — which matters most
@@ -164,8 +169,12 @@ function Panel({
             <div className="flex h-[clamp(120px,13vw,170px)] flex-col justify-end">
               <div className="numeric-lg text-[clamp(21px,2.5vw,32px)] leading-none">{formatCount(bar.value)}</div>
               <div
-                className={`mt-2 w-full border-2 border-ink ${bar.tone === 'egg' ? 'bg-egg' : 'bg-medal'}`}
-                style={{ height: `max(10px, ${Math.round((bar.value / peak) * 76)}%)` }}
+                className="mt-2 w-full border-2 border-ink"
+                style={{
+                  height: `max(10px, ${Math.round((bar.value / peak) * 76)}%)`,
+                  backgroundColor:
+                    bar.tone === 'egg' ? 'var(--color-series-negative)' : 'var(--color-series-positive)',
+                }}
               />
             </div>
 
