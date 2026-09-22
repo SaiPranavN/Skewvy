@@ -28,7 +28,7 @@ export function Leaderboards({ eggs, medals }: { eggs: LeaderboardRow[]; medals:
           valueClass="text-brand"
           rows={eggs}
           metric="eggs"
-          note="Totals are taps. The small line counts people who took the critical side."
+          note="Totals are taps. The small line counts the people who sent them — a high total can be a small group."
         />
         <Board
           title="Most medals"
@@ -37,7 +37,7 @@ export function Leaderboards({ eggs, medals }: { eggs: LeaderboardRow[]; medals:
           valueClass="text-medal"
           rows={medals}
           metric="medals"
-          note="Totals are taps. The small line counts people who took the appreciative side."
+          note="Totals are taps. The small line counts the people who gave them — a high total can be a small group."
         />
       </div>
     </section>
@@ -78,8 +78,16 @@ function Board({
         <ol>
           {rows.map((row, index) => {
             const href = row.card.type === 'entity' ? `/entities/${row.card.slug}` : `/flash-news/${row.card.slug}`;
+            /*
+             * The head count behind *this* total, which is the contributor
+             * figure rather than the opinion one. They happen to agree today,
+             * because a side is final — but only one of them is answering the
+             * question the line is asking.
+             */
             const people =
-              metric === 'eggs' ? row.card.totals.negativeOpinionTotal : row.card.totals.positiveOpinionTotal;
+              metric === 'eggs'
+                ? row.card.totals.rottenEggContributorTotal
+                : row.card.totals.medalContributorTotal;
 
             return (
               <li

@@ -11,6 +11,8 @@ interface TotalsRow {
   positive_opinion_total: number;
   negative_opinion_total: number;
   unique_participant_total: number;
+  rotten_egg_contributor_total: number | null;
+  medal_contributor_total: number | null;
   updated_at: string;
 }
 
@@ -23,6 +25,8 @@ export function mapTotals(row: TotalsRow): ArtifactTotals {
     positiveOpinionTotal: Number(row.positive_opinion_total),
     negativeOpinionTotal: Number(row.negative_opinion_total),
     uniqueParticipantTotal: Number(row.unique_participant_total),
+    rottenEggContributorTotal: Number(row.rotten_egg_contributor_total ?? 0),
+    medalContributorTotal: Number(row.medal_contributor_total ?? 0),
     updatedAt: row.updated_at,
   };
 }
@@ -95,6 +99,9 @@ export interface TotalsDelta {
   positiveOpinions?: number;
   negativeOpinions?: number;
   participants?: number;
+  /** 1 only on this person's first Rotten Egg here, never on their hundredth. */
+  rottenEggContributors?: number;
+  medalContributors?: number;
 }
 
 /**
@@ -110,15 +117,18 @@ export async function applyTotalsDelta(
   const rows = await tx.query<TotalsRow>(
     `INSERT INTO artifact_totals (
         artifact_type, artifact_id, rotten_egg_total, medal_total,
-        positive_opinion_total, negative_opinion_total, unique_participant_total, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        positive_opinion_total, negative_opinion_total, unique_participant_total,
+        rotten_egg_contributor_total, medal_contributor_total, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      ON CONFLICT (artifact_type, artifact_id) DO UPDATE SET
        rotten_egg_total = artifact_totals.rotten_egg_total + $3,
        medal_total = artifact_totals.medal_total + $4,
        positive_opinion_total = artifact_totals.positive_opinion_total + $5,
        negative_opinion_total = artifact_totals.negative_opinion_total + $6,
        unique_participant_total = artifact_totals.unique_participant_total + $7,
-       updated_at = $8
+       rotten_egg_contributor_total = artifact_totals.rotten_egg_contributor_total + $8,
+       medal_contributor_total = artifact_totals.medal_contributor_total + $9,
+       updated_at = $10
      RETURNING *`,
     [
       artifactType,
@@ -128,6 +138,8 @@ export async function applyTotalsDelta(
       delta.positiveOpinions ?? 0,
       delta.negativeOpinions ?? 0,
       delta.participants ?? 0,
+      delta.rottenEggContributors ?? 0,
+      delta.medalContributors ?? 0,
       new Date().toISOString(),
     ],
   );
@@ -202,10 +214,24 @@ export async function getContributionsFor(
  * deltas inside the same transaction as the reaction. This is here for the
  * cases where that is not enough — restoring from a backup, correcting a row
  * edited by hand, or verifying the two agree.
+ *
+ * The contributor counts come from counting aggregate rows with a non-zero
+ * count on that side — one row per person — and never from the tap totals,
+ * which carry no information about how many people are behind them.
  */
 export async function recomputeTotals(artifactType: ArtifactType, artifactId: string): Promise<ArtifactTotals> {
-  const reactions = await queryOne<{ eggs: number | null; medals: number | null; participants: number | null }>(
-    `SELECT SUM(rotten_egg_count) AS eggs, SUM(medal_count) AS medals, COUNT(*) AS participants
+  const reactions = await queryOne<{
+    eggs: number | null;
+    medals: number | null;
+    participants: number | null;
+    egg_contributors: number | null;
+    medal_contributors: number | null;
+  }>(
+    `SELECT SUM(rotten_egg_count) AS eggs,
+            SUM(medal_count) AS medals,
+            COUNT(*) AS participants,
+            SUM(CASE WHEN rotten_egg_count > 0 THEN 1 ELSE 0 END) AS egg_contributors,
+            SUM(CASE WHEN medal_count > 0 THEN 1 ELSE 0 END) AS medal_contributors
        FROM reaction_aggregates WHERE artifact_type = $1 AND artifact_id = $2`,
     [artifactType, artifactId],
   );
@@ -222,12 +248,15 @@ export async function recomputeTotals(artifactType: ArtifactType, artifactId: st
   const rows = await query<TotalsRow>(
     `INSERT INTO artifact_totals (
         artifact_type, artifact_id, rotten_egg_total, medal_total,
-        positive_opinion_total, negative_opinion_total, unique_participant_total, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        positive_opinion_total, negative_opinion_total, unique_participant_total,
+        rotten_egg_contributor_total, medal_contributor_total, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      ON CONFLICT (artifact_type, artifact_id) DO UPDATE SET
        rotten_egg_total = $3, medal_total = $4,
        positive_opinion_total = $5, negative_opinion_total = $6,
-       unique_participant_total = $7, updated_at = $8
+       unique_participant_total = $7,
+       rotten_egg_contributor_total = $8, medal_contributor_total = $9,
+       updated_at = $10
      RETURNING *`,
     [
       artifactType,
@@ -237,11 +266,39 @@ export async function recomputeTotals(artifactType: ArtifactType, artifactId: st
       Number(positive?.count ?? 0),
       Number(negative?.count ?? 0),
       Number(reactions?.participants ?? 0),
+      Number(reactions?.egg_contributors ?? 0),
+      Number(reactions?.medal_contributors ?? 0),
       now,
     ],
   );
 
   return mapTotals(rows[0]);
+}
+
+/**
+ * Fills the contributor columns for artifacts that predate them.
+ *
+ * Rows written before these columns existed carry zero, which would read as
+ * "100 Rotten Eggs from nobody". Every such row is recomputed from the
+ * aggregates, which are the authoritative record and were never lost. An
+ * artifact with no reactions at all is skipped: zero is the truth there.
+ *
+ * Idempotent, and cheap to re-run — it only touches rows that are still empty
+ * while holding reactions.
+ */
+export async function backfillContributorTotals(): Promise<number> {
+  const stale = await query<{ artifact_type: string; artifact_id: string }>(
+    `SELECT artifact_type, artifact_id FROM artifact_totals
+      WHERE rotten_egg_contributor_total = 0
+        AND medal_contributor_total = 0
+        AND (rotten_egg_total > 0 OR medal_total > 0)`,
+  );
+
+  for (const row of stale) {
+    await recomputeTotals(row.artifact_type as ArtifactType, row.artifact_id);
+  }
+
+  return stale.length;
 }
 
 /** Recomputes every artifact's totals. Safe to run at any time; not cheap. */

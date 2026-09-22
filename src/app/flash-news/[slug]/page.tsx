@@ -1,12 +1,10 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { ReactionSlab } from '@/components/artifact/ReactionSlab';
+import { OpinionFlow } from '@/components/artifact/OpinionFlow';
 import { RelatedEntityAside } from '@/components/artifact/RelatedEntityAside';
-import { PublicOpinionPanel } from '@/components/artifact/PublicOpinionPanel';
-import { RecentActivityPanel } from '@/components/artifact/RecentActivityPanel';
+import { AnalyticsSection } from '@/components/artifact/AnalyticsSection';
 import { StickyReactionTray } from '@/components/artifact/StickyReactionTray';
-import { ReactionTrendChart } from '@/components/artifact/ReactionTrendChart';
 import { CommentSection } from '@/components/artifact/CommentSection';
 import { HydrateArtifacts } from '@/components/reactions/HydrateArtifacts';
 import { CardGrid } from '@/components/cards/CardGrid';
@@ -14,8 +12,7 @@ import { ShareReceipt } from '@/components/share/ShareReceipt';
 import { LocalDateTime } from '@/components/ui/TimeAgo';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { getFlashNewsBySlug, entitiesForFlashNews, listFlashNews, toCards } from '@/lib/services/content';
-import { recentActivity } from '@/lib/services/reactions';
-import { reactionTrend } from '@/lib/services/timeline';
+import { artifactTrends } from '@/lib/services/timeline';
 import { listComments } from '@/lib/services/comments';
 
 export const dynamic = 'force-dynamic';
@@ -43,11 +40,10 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
   const item = await getFlashNewsBySlug(slug);
   if (!item) notFound();
 
-  const [cards, relatedEntities, activity, trend, comments] = await Promise.all([
+  const [cards, relatedEntities, trends, comments] = await Promise.all([
     toCards({ flashNews: [item] }, { viewerId }),
     entitiesForFlashNews(item.id),
-    recentActivity('flash_news', item.id, 6),
-    reactionTrend('flash_news', item.id),
+    artifactTrends('flash_news', item.id),
     listComments('flash_news', item.id, {
       viewerId,
       viewerIsAdmin: user?.isAdmin ?? false,
@@ -131,12 +127,8 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
           </div>
         </div>
 
-        <div
-          id="reaction-controls"
-          className="flex min-w-[min(100%,290px)] max-w-[520px] flex-[1_1_330px] flex-col gap-4"
-        >
-          <ReactionSlab card={card} reactionType="rotten_egg" />
-          <ReactionSlab card={card} reactionType="medal" />
+        <div className="min-w-[min(100%,290px)] max-w-[560px] flex-[1_1_380px]">
+          <OpinionFlow card={card} />
         </div>
       </section>
 
@@ -184,21 +176,11 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
       </section>
 
       <section className={`rail ${sectionPad}`}>
-        <ReactionTrendChart trend={trend} artifactType="flash_news" artifactId={item.id} totals={card.totals} />
-      </section>
-
-      <section className={`rail flex flex-wrap items-start gap-[clamp(20px,2.6vw,40px)] ${sectionPad}`}>
-        <PublicOpinionPanel card={card} />
-        <RecentActivityPanel activity={activity} />
+        <AnalyticsSection card={card} trends={trends} />
       </section>
 
       <section className={`rail ${sectionPad}`}>
-        <CommentSection
-          artifactType="flash_news"
-          artifactId={item.id}
-          initial={comments}
-          viewerName={user?.displayName ?? null}
-        />
+        <CommentSection card={card} initial={comments} viewerName={user?.displayName ?? null} />
       </section>
 
       {moreFromEntity.length > 0 && primaryEntity && (

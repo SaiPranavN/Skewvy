@@ -52,6 +52,17 @@ export function categoriesFor(artifactType: ArtifactType): readonly string[] {
   return artifactType === 'entity' ? ENTITY_CATEGORIES : FLASH_NEWS_CATEGORIES;
 }
 
+/**
+ * Everything the crowd has done to one artifact, in two separate currencies.
+ *
+ * Taps (`rottenEggTotal`, `medalTotal`) measure intensity and are unbounded per
+ * person. People (`positiveOpinionTotal`, `negativeOpinionTotal`) measure the
+ * verdict and are one per person, permanently. The contributor totals say how
+ * many people are behind each tap total, which is the only honest way to read
+ * "100 Rotten Eggs" — it may be one person, or a hundred.
+ *
+ * Nothing in the interface may derive a verdict from the tap totals.
+ */
 export interface ArtifactTotals {
   artifactType: ArtifactType;
   artifactId: string;
@@ -60,6 +71,10 @@ export interface ArtifactTotals {
   positiveOpinionTotal: number;
   negativeOpinionTotal: number;
   uniqueParticipantTotal: number;
+  /** Distinct people who have sent at least one Rotten Egg here. */
+  rottenEggContributorTotal: number;
+  /** Distinct people who have given at least one Medal here. */
+  medalContributorTotal: number;
   updatedAt: string;
 }
 
@@ -137,6 +152,8 @@ export function emptyTotals(artifactType: ArtifactType, artifactId: string): Art
     positiveOpinionTotal: 0,
     negativeOpinionTotal: 0,
     uniqueParticipantTotal: 0,
+    rottenEggContributorTotal: 0,
+    medalContributorTotal: 0,
     updatedAt: new Date().toISOString(),
   };
 }

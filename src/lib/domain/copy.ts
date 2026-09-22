@@ -55,12 +55,17 @@ export function sentimentLabel(totals: ArtifactTotals): SentimentLabel {
 }
 
 /**
- * The colour a card wears, derived from its record rather than chosen.
+ * The colour and label a card wears, derived from **people** rather than taps.
  *
- * Orange means the eggs won, gold means the medals did, indigo means neither
- * did. The tile colour, the badge and the split bar all read the same figure,
- * so scanning a grid tells you the shape of the sentiment before you read a
- * single headline.
+ * This is the rule the whole product turns on. One furious person can send a
+ * hundred Rotten Eggs while five quietly appreciative people send ten Medals
+ * each; the reaction totals then say 100 against 50, and reading a verdict off
+ * them would report the opposite of what the crowd actually thinks. So the
+ * label and the colour are computed from the unique opinion counts alone, and
+ * the tap totals are never consulted here.
+ *
+ * Orange means more people are critical, gold means more are appreciative,
+ * indigo means neither — or that nobody has taken a side yet.
  */
 export type CardTone = 'egg' | 'medal' | 'split';
 
@@ -73,17 +78,103 @@ export interface ToneBadge {
 }
 
 export function cardTone(totals: ArtifactTotals): ToneBadge {
-  const reactions = totals.rottenEggTotal + totals.medalTotal;
+  const critical = totals.negativeOpinionTotal;
+  const appreciative = totals.positiveOpinionTotal;
+  const people = critical + appreciative;
 
-  if (reactions === 0) {
-    return { tone: 'split', flashLabel: 'No reactions yet', entityLabel: 'No record yet' };
+  if (people === 0) {
+    return { tone: 'split', flashLabel: 'No opinions yet', entityLabel: 'No record yet' };
   }
 
-  const eggShare = totals.rottenEggTotal / reactions;
+  const criticalShare = critical / people;
 
-  if (eggShare >= 0.6) return { tone: 'egg', flashLabel: 'Catching heat', entityLabel: 'Mostly eggs' };
-  if (eggShare <= 0.4) return { tone: 'medal', flashLabel: 'A rare W', entityLabel: 'Mostly medals' };
-  return { tone: 'split', flashLabel: 'The crowd is split', entityLabel: 'Split record' };
+  if (criticalShare >= 0.6) return { tone: 'egg', flashLabel: 'Mostly criticized', entityLabel: 'Mostly criticized' };
+  if (criticalShare <= 0.4) return { tone: 'medal', flashLabel: 'Mostly appreciated', entityLabel: 'Mostly appreciated' };
+  return { tone: 'split', flashLabel: 'Opinion is split', entityLabel: 'Opinion is split' };
+}
+
+/**
+ * The one-sentence reading of the gap between the verdict and the volume.
+ *
+ * Generated from the real figures rather than picked from a list, because the
+ * interesting cases are the asymmetric ones: a small group reacting far harder
+ * than a large one is exactly what the page exists to make visible, and saying
+ * so in a sentence is quicker than asking anyone to compare four numbers.
+ *
+ * Every branch it can take is a true statement about the data, including the
+ * empty and one-sided ones.
+ */
+export function intensityComparison(totals: ArtifactTotals): string {
+  const critical = totals.negativeOpinionTotal;
+  const appreciative = totals.positiveOpinionTotal;
+  const people = critical + appreciative;
+  const eggs = totals.rottenEggTotal;
+  const medals = totals.medalTotal;
+
+  if (people === 0) return 'Nobody has taken a side yet, so there is no verdict to report.';
+
+  if (critical === 0) {
+    return people === 1
+      ? 'One person has weighed in, and they are appreciative.'
+      : `All ${people} people who have weighed in are appreciative.`;
+  }
+  if (appreciative === 0) {
+    return people === 1
+      ? 'One person has weighed in, and they are critical.'
+      : `All ${people} people who have weighed in are critical.`;
+  }
+
+  /*
+   * Reactions per person on each side. This is the figure that separates a
+   * widely held mild view from a narrowly held furious one, and it is the only
+   * fair way to compare two groups of different sizes.
+   */
+  const perCritic = eggs / critical;
+  const perAdmirer = medals / appreciative;
+  const majority = critical > appreciative ? 'critical' : appreciative > critical ? 'appreciative' : 'even';
+
+  const louder =
+    perCritic >= perAdmirer * 1.5 ? 'critical' : perAdmirer >= perCritic * 1.5 ? 'appreciative' : null;
+
+  if (majority === 'even') {
+    if (!louder) return 'People are evenly split, and both sides are reacting with much the same intensity.';
+    return louder === 'critical'
+      ? 'People are evenly split, but the critical side is reacting far harder.'
+      : 'People are evenly split, but the appreciative side is reacting far harder.';
+  }
+
+  const smaller = majority === 'critical' ? 'appreciative' : 'critical';
+
+  if (louder === smaller) {
+    return majority === 'critical'
+      ? 'Most people are critical, while the smaller appreciative group reacted more intensely.'
+      : 'Most people are appreciative, while the smaller critical group reacted more intensely.';
+  }
+
+  return majority === 'critical'
+    ? 'Most people are critical, and they are also sending the most reactions.'
+    : 'Most people are appreciative, and they are also sending the most reactions.';
+}
+
+/**
+ * "Sent by 5 people" — the phrase that stops a tap total being read as a crowd.
+ *
+ * Every place a reaction total appears at size is required to carry one of
+ * these, so "100 Rotten Eggs" can never stand alone looking like a hundred
+ * angry people.
+ */
+export function contributorPhrase(reactionType: 'rotten_egg' | 'medal', contributors: number): string {
+  if (contributors === 0) return 'Nobody yet';
+  const verb = reactionType === 'rotten_egg' ? 'Sent' : 'Given';
+  return `${verb} by ${contributors === 1 ? '1 person' : `${contributors.toLocaleString('en-US')} people`}`;
+}
+
+/** "5 appreciative · 1 critical", for the compact card footers. */
+export function opinionPhrase(totals: ArtifactTotals): string {
+  const critical = totals.negativeOpinionTotal;
+  const appreciative = totals.positiveOpinionTotal;
+  if (critical + appreciative === 0) return 'No opinions yet';
+  return `${appreciative.toLocaleString('en-US')} appreciative · ${critical.toLocaleString('en-US')} critical`;
 }
 
 /** Section headings for the ranked surfaces. Descriptive, not promotional. */

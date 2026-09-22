@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Media, initialsFor } from '@/components/ui/Media';
 import { RelativeTime } from '@/components/ui/TimeAgo';
 import { useArtifact } from '@/components/reactions/useArtifact';
-import { cardTone } from '@/lib/domain/copy';
+import { cardTone, contributorPhrase, opinionPhrase } from '@/lib/domain/copy';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
 import { EggIcon, MedalIcon } from '@/components/ui/icons';
@@ -73,20 +73,33 @@ export function LeadStory({
             </p>
           )}
 
-          <div className="mt-auto flex flex-wrap items-end gap-x-7 gap-y-4 border-t-2 border-ink pt-5">
-            <Total value={state.totals.rottenEggTotal} label="Rotten eggs" mark="egg" tone="egg" />
-            <Total value={state.totals.medalTotal} label="Medals" mark="medal" tone="medal" />
+          <div className="mt-auto border-t-2 border-ink pt-5">
+            {/* The verdict, ahead of the volume. */}
+            <p className="m-0 text-[13px] font-bold leading-[1.4]">{opinionPhrase(state.totals)}</p>
 
-            <p className="max-w-[26ch] flex-1 text-xs leading-[1.45] text-secondary">
-              <span className="numeric">{formatCount(state.totals.negativeOpinionTotal)}</span>{' '}
-              {state.totals.negativeOpinionTotal === 1 ? 'person' : 'people'} critical,{' '}
-              <span className="numeric">{formatCount(state.totals.positiveOpinionTotal)}</span> appreciative. One
-              opinion each; the big numbers are taps.
-            </p>
+            <div className="mt-3.5 flex flex-wrap items-start gap-x-7 gap-y-4">
+              <Total
+                value={state.totals.medalTotal}
+                label="Medals"
+                mark="medal"
+                tone="medal"
+                contributors={state.totals.medalContributorTotal}
+              />
+              <Total
+                value={state.totals.rottenEggTotal}
+                label="Rotten eggs"
+                mark="egg"
+                tone="egg"
+                contributors={state.totals.rottenEggContributorTotal}
+              />
 
-            <Link href={href} className="btn flex-none bg-ink px-5 py-3.5 text-[13px] font-extrabold text-paper">
-              Open story →
-            </Link>
+              <Link
+                href={href}
+                className="btn ml-auto flex-none self-end bg-ink px-5 py-3.5 text-[13px] font-extrabold text-paper"
+              >
+                Open story →
+              </Link>
+            </div>
           </div>
         </div>
       </article>
@@ -94,19 +107,22 @@ export function LeadStory({
   );
 }
 
+/** A tap total, never printed without the head count behind it. */
 function Total({
   value,
   label,
   mark,
   tone,
+  contributors,
 }: {
   value: number;
   label: string;
   mark: 'egg' | 'medal';
   tone: 'egg' | 'medal';
+  contributors: number;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <div
         className="numeric-lg text-[clamp(34px,4vw,56px)]"
         style={{ color: tone === 'egg' ? 'var(--color-egg-deep)' : 'var(--color-medal-deep)' }}
@@ -115,6 +131,9 @@ function Total({
       </div>
       <div className="mt-2 text-[10.5px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
         {label} {mark === 'egg' ? <EggIcon /> : <MedalIcon />}
+      </div>
+      <div className="mt-1 text-[11px] font-medium leading-[1.3] text-tertiary">
+        {contributorPhrase(mark === 'egg' ? 'rotten_egg' : 'medal', contributors).toLowerCase()}
       </div>
     </div>
   );

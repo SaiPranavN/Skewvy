@@ -5,17 +5,16 @@ import { ReactionTile } from '@/components/artifact/ReactionTile';
 import { Media, initialsFor } from '@/components/ui/Media';
 import { RelativeTime } from '@/components/ui/TimeAgo';
 import { useArtifact } from '@/components/reactions/useArtifact';
-import { cardTone } from '@/lib/domain/copy';
-import { formatCount } from '@/lib/domain/format';
+import { cardTone, opinionPhrase } from '@/lib/domain/copy';
 import type { ArtifactCard } from '@/lib/domain/types';
 
 /**
  * The item shown beside the hero headline.
  *
- * It is a real, reactable item rather than an illustration — the point of the
- * landing page is that the thing being described is right there and already
- * working, so someone can send their first egg before reading a word of the
- * explanation below.
+ * It is a real item with live totals rather than an illustration — the point of
+ * the landing page is that the thing being described is right there and already
+ * moving. Reacting happens on the item's own page: taking a side is permanent,
+ * and nobody should do it from a tile that never asked them to choose one.
  */
 export function FeaturedCard({ card }: { card: ArtifactCard }) {
   const state = useArtifact(card.type, card.id, { totals: card.totals, contribution: card.contribution });
@@ -68,10 +67,8 @@ export function FeaturedCard({ card }: { card: ArtifactCard }) {
           </div>
 
           <p className="text-xs leading-[1.45] text-secondary">
-            Totals count taps. <span className="numeric">{formatCount(state.totals.negativeOpinionTotal)}</span>{' '}
-            {state.totals.negativeOpinionTotal === 1 ? 'person' : 'people'} took the critical side,{' '}
-            <span className="numeric">{formatCount(state.totals.positiveOpinionTotal)}</span> appreciative — one opinion
-            each.
+            <span className="font-bold text-primary">{opinionPhrase(state.totals)}</span> — one opinion each. The
+            totals above count taps, which are unlimited per person.
           </p>
         </div>
       </article>

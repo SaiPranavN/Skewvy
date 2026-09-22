@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { commentInputSchema } from '@/lib/validation/schemas';
-import { createComment, listComments, type CommentSort } from '@/lib/services/comments';
+import {
+  createComment,
+  listComments,
+  type CommentSort,
+  type CommentStanceFilter,
+} from '@/lib/services/comments';
 import { artifactIsReactable } from '@/lib/services/reactions';
 import { consumeRateLimit, RATE_RULES } from '@/lib/services/rate-limit';
 import { SESSION_COOKIE, resolveSession } from '@/lib/services/sessions';
@@ -26,12 +31,16 @@ export async function GET(request: NextRequest) {
 
   const session = await resolveSession(request.cookies.get(SESSION_COOKIE)?.value);
   const sort: CommentSort = params.get('sort') === 'top' ? 'top' : 'new';
+  const requestedStance = params.get('stance');
+  const stance: CommentStanceFilter =
+    requestedStance === 'positive' || requestedStance === 'negative' ? requestedStance : 'all';
   const offset = Number.parseInt(params.get('offset') ?? '0', 10);
 
   const page = await listComments(artifactType as ArtifactType, artifactId, {
     viewerId: session?.user.id ?? null,
     viewerIsAdmin: session?.user.isAdmin ?? false,
     sort,
+    stance,
     offset: Number.isFinite(offset) ? offset : 0,
   });
 

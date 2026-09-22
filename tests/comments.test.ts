@@ -149,3 +149,67 @@ describe('comments', () => {
     expect(asVoter.comments[0].likeCount).toBe(1);
   });
 });
+
+/**
+ * Filtering by the commenter's recorded side. The badge and the filter read the
+ * same field, and neither has anything to do with how much anyone tapped.
+ */
+describe('filtering by recorded position', () => {
+  async function seed() {
+    const artifactId = await createTestFlashNews();
+
+    const critic = await createVerifiedUser('filter-critic@example.test');
+    const admirer = await createVerifiedUser('filter-admirer@example.test');
+    const bystander = await createVerifiedUser('filter-bystander@example.test');
+
+    await applyReactionBatch({
+      userId: critic, artifactType: 'flash_news', artifactId,
+      reactionType: 'rotten_egg', quantity: 200, clientBatchId: 'f-critic',
+    });
+    await applyReactionBatch({
+      userId: admirer, artifactType: 'flash_news', artifactId,
+      reactionType: 'medal', quantity: 1, clientBatchId: 'f-admirer',
+    });
+
+    await createComment({ userId: critic, artifactType: 'flash_news', artifactId, body: 'Critical take.' });
+    await createComment({ userId: admirer, artifactType: 'flash_news', artifactId, body: 'Appreciative take.' });
+    await createComment({ userId: bystander, artifactType: 'flash_news', artifactId, body: 'No side taken.' });
+
+    return artifactId;
+  }
+
+  it('shows everyone by default, including people with no side', async () => {
+    const artifactId = await seed();
+    const page = await listComments('flash_news', artifactId, {});
+
+    expect(page.comments).toHaveLength(3);
+    expect(page.total).toBe(3);
+    expect(page.overallTotal).toBe(3);
+    expect(page.comments.filter((comment) => comment.authorStance === null)).toHaveLength(1);
+  });
+
+  it('narrows to one recorded side without changing the discussion count', async () => {
+    const artifactId = await seed();
+
+    const critical = await listComments('flash_news', artifactId, { stance: 'negative' });
+    expect(critical.comments).toHaveLength(1);
+    expect(critical.comments[0].authorStance).toBe('negative');
+    expect(critical.total).toBe(1);
+    // The heading count stays the size of the whole discussion.
+    expect(critical.overallTotal).toBe(3);
+
+    const appreciative = await listComments('flash_news', artifactId, { stance: 'positive' });
+    expect(appreciative.comments).toHaveLength(1);
+    expect(appreciative.comments[0].authorStance).toBe('positive');
+  });
+
+  it('reports the side taken, never the volume of reactions sent', async () => {
+    const artifactId = await seed();
+    const page = await listComments('flash_news', artifactId, { stance: 'negative' });
+
+    // The critic sent two hundred Rotten Eggs; the comment carries a label,
+    // not a score, and nothing on it is bigger for having tapped harder.
+    expect(page.comments[0].authorStance).toBe('negative');
+    expect(JSON.stringify(page.comments[0])).not.toContain('200');
+  });
+});

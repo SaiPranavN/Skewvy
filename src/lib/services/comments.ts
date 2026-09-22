@@ -19,6 +19,14 @@ import type { ArtifactType, Stance } from '@/lib/domain/types';
 export const COMMENT_PAGE_SIZE = 20;
 
 export type CommentSort = 'new' | 'top';
+/**
+ * Which commenters to show, by the side they took on this artifact.
+ *
+ * `none` is a real category, not an absence: a person who has never reacted may
+ * still have the most useful thing to say, and filtering them out of "all"
+ * would quietly make commenting look like it required a stance.
+ */
+export type CommentStanceFilter = 'all' | 'positive' | 'negative';
 /** 1 likes, -1 dislikes, 0 withdraws whatever was there. */
 export type VoteValue = -1 | 0 | 1;
 
@@ -39,7 +47,10 @@ export interface CommentView {
 
 export interface CommentPage {
   comments: CommentView[];
+  /** How many comments the active filter matches. */
   total: number;
+  /** How many the discussion holds in all, whatever the filter. */
+  overallTotal: number;
   /** Offset to pass back for the next page, or null at the end. */
   nextOffset: number | null;
 }
@@ -77,6 +88,7 @@ export async function listComments(
     viewerId?: string | null;
     viewerIsAdmin?: boolean;
     sort?: CommentSort;
+    stance?: CommentStanceFilter;
     limit?: number;
     offset?: number;
   } = {},
@@ -84,12 +96,19 @@ export async function listComments(
   const viewerId = options.viewerId ?? null;
   const viewerIsAdmin = options.viewerIsAdmin ?? false;
   const sort: CommentSort = options.sort === 'top' ? 'top' : 'new';
+  const stance: CommentStanceFilter =
+    options.stance === 'positive' || options.stance === 'negative' ? options.stance : 'all';
   const limit = Math.min(Math.max(options.limit ?? COMMENT_PAGE_SIZE, 1), 50);
   const offset = Math.max(options.offset ?? 0, 0);
 
   // Highest score first, then the newer of two equally rated comments.
   const order =
     sort === 'top' ? '(c.like_count - c.dislike_count) DESC, c.created_at DESC' : 'c.created_at DESC';
+
+  // The filter reads the commenter's recorded side on *this* artifact, which is
+  // what the join already supplies — not anything about what they wrote.
+  const stanceClause = stance === 'all' ? '' : ' AND o.stance = $6';
+  const stanceParams = stance === 'all' ? [] : [stance];
 
   const rows = await query<CommentRow>(
     `SELECT c.id, c.body, c.created_at, c.like_count, c.dislike_count, c.user_id,
@@ -102,21 +121,42 @@ export async function listComments(
          ON o.user_id = c.user_id AND o.artifact_type = c.artifact_type AND o.artifact_id = c.artifact_id
        LEFT JOIN comment_votes v
          ON v.comment_id = c.id AND v.user_id = $3
-      WHERE c.artifact_type = $1 AND c.artifact_id = $2 AND c.deleted_at IS NULL
+      WHERE c.artifact_type = $1 AND c.artifact_id = $2 AND c.deleted_at IS NULL${stanceClause}
       ORDER BY ${order}
       LIMIT $4 OFFSET $5`,
-    [artifactType, artifactId, viewerId, limit, offset],
+    [artifactType, artifactId, viewerId, limit, offset, ...stanceParams],
   );
 
-  const totalRow = await queryOne<{ total: number }>(
+  /*
+   * Two counts, because they answer different questions: `total` is how many
+   * comments the current filter has to page through, and `overallTotal` is how
+   * many the discussion holds — the number in the heading, which must not jump
+   * around as somebody flips between filters.
+   */
+  const filteredRow =
+    stance === 'all'
+      ? null
+      : await queryOne<{ total: number }>(
+          `SELECT COUNT(*) AS total
+             FROM comments c
+             LEFT JOIN opinions o
+               ON o.user_id = c.user_id AND o.artifact_type = c.artifact_type AND o.artifact_id = c.artifact_id
+            WHERE c.artifact_type = $1 AND c.artifact_id = $2 AND c.deleted_at IS NULL AND o.stance = $3`,
+          [artifactType, artifactId, stance],
+        );
+
+  const overallRow = await queryOne<{ total: number }>(
     'SELECT COUNT(*) AS total FROM comments WHERE artifact_type = $1 AND artifact_id = $2 AND deleted_at IS NULL',
     [artifactType, artifactId],
   );
-  const total = Number(totalRow?.total ?? 0);
+
+  const overallTotal = Number(overallRow?.total ?? 0);
+  const total = filteredRow ? Number(filteredRow.total) : overallTotal;
 
   return {
     comments: rows.map((row) => toView(row, viewerId, viewerIsAdmin)),
     total,
+    overallTotal,
     nextOffset: offset + rows.length < total ? offset + rows.length : null,
   };
 }

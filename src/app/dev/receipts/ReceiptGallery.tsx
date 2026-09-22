@@ -19,6 +19,11 @@ function totals(
     negativeOpinionTotal: critical,
     positiveOpinionTotal: appreciative,
     uniqueParticipantTotal: participants,
+    // A side cannot be changed, so everyone who sent Eggs is a critic and
+    // everyone who gave Medals is an admirer — which is what makes these
+    // fixtures realistic rather than merely type-correct.
+    rottenEggContributorTotal: critical,
+    medalContributorTotal: appreciative,
     updatedAt: new Date().toISOString(),
   };
 }

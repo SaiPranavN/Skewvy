@@ -36,6 +36,12 @@ export interface HoldToReactOptions {
   punchRef?: RefObject<HTMLElement | null>;
   /** Shaken when this side is closed to the viewer. */
   shakeRef?: RefObject<HTMLElement | null>;
+  /**
+   * Closed for a reason other than a committed side — in practice, that the
+   * viewer has not picked a position yet. Unlike `locked` this is temporary and
+   * the viewer can clear it themselves, so the two are reported separately.
+   */
+  unavailable?: boolean;
 }
 
 function prefersReducedMotion(): boolean {
@@ -51,6 +57,7 @@ export function useHoldToReact({
   contribution,
   punchRef,
   shakeRef,
+  unavailable = false,
 }: HoldToReactOptions) {
   const state = useArtifact(artifactType, artifactId, { totals, contribution });
   const { isAuthenticated } = useReactionContext();
@@ -77,6 +84,9 @@ export function useHoldToReact({
   const stanceForThis = isEgg ? 'negative' : 'positive';
   const locked = isAuthenticated && state.contribution.stance !== null && state.contribution.stance !== stanceForThis;
   const isChosenSide = state.contribution.stance === stanceForThis;
+
+  /** Everything that stops a tap, whether permanently or for now. */
+  const blocked = locked || unavailable;
 
   /** At most one announcement every 1.5s, so a burst cannot flood a reader. */
   const scheduleAnnouncement = useCallback(
@@ -167,7 +177,7 @@ export function useHoldToReact({
 
   const begin = useCallback(
     (origin: DOMRect | null) => {
-      if (locked) {
+      if (blocked) {
         refuse();
         return;
       }
@@ -176,7 +186,7 @@ export function useHoldToReact({
       if (fire()) startHold();
       else setPressed(false);
     },
-    [fire, locked, refuse, startHold],
+    [blocked, fire, refuse, startHold],
   );
 
   useEffect(() => stopHold, [stopHold]);
@@ -228,19 +238,24 @@ export function useHoldToReact({
   } as const;
 
   const srStatus =
-    `${formatCount(total)} ${isEgg ? 'Rotten Eggs' : 'Medals'} recorded for ${artifactTitle}. ` +
+    `${formatCount(total)} ${isEgg ? 'Rotten Eggs' : 'Medals'} recorded for ${artifactTitle}, ` +
+    `from ${formatCount(isEgg ? state.totals.rottenEggContributorTotal : state.totals.medalContributorTotal)} people. ` +
     `You have sent ${formatCount(own)}. ` +
     (locked
       ? `Unavailable: you already reacted ${state.contribution.stance === 'negative' ? 'critically' : 'appreciatively'} to this, and a side cannot be changed.`
-      : isAuthenticated
-        ? 'Press and hold to send more.'
-        : 'Sign in to record a reaction.');
+      : unavailable
+        ? `Unavailable: choose the ${isEgg ? 'negative' : 'positive'} position first.`
+        : isAuthenticated
+          ? 'Press and hold to send more.'
+          : 'Sign in to record a reaction.');
 
   return {
     state,
     total,
     own,
     locked,
+    unavailable,
+    blocked,
     isChosenSide,
     isAuthenticated,
     pressed,

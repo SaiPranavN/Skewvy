@@ -1,6 +1,6 @@
 'use client';
 
-import type { ArtifactTotals, ArtifactType, ReactionType, UserContribution } from '@/lib/domain/types';
+import type { ArtifactTotals, ArtifactType, ReactionType, Stance, UserContribution } from '@/lib/domain/types';
 
 /**
  * Client-side reaction engine.
@@ -22,6 +22,15 @@ const RETRY_DELAYS_MS = [1200, 3000, 8000];
 export interface ArtifactState {
   totals: ArtifactTotals;
   contribution: UserContribution;
+  /**
+   * The side the viewer has picked but not yet acted on.
+   *
+   * Held here rather than inside one component so every surface on the page —
+   * the flow, the sticky tray — agrees about which branch is live. It is only
+   * ever a *proposal*: `contribution.stance` is the recorded answer, and once
+   * that exists this field can no longer change anything.
+   */
+  selectedStance: Stance | null;
   /** Taps not yet acknowledged by the server. */
   pendingRottenEggs: number;
   pendingMedals: number;
@@ -112,6 +121,9 @@ class ReactionStore {
       next[key] = {
         totals: artifact.totals,
         contribution: artifact.contribution ?? emptyContribution(),
+        // A committed side is also a selected one: arriving on a page you have
+        // already reacted to should show your own branch live, not undecided.
+        selectedStance: artifact.contribution?.stance ?? null,
         pendingRottenEggs: 0,
         pendingMedals: 0,
         syncState: 'idle',
@@ -130,6 +142,31 @@ class ReactionStore {
 
   get(artifactType: ArtifactType, artifactId: string): ArtifactState | undefined {
     return this.state[artifactKey(artifactType, artifactId)];
+  }
+
+  /* -------------------------------- choosing -------------------------------- */
+
+  /**
+   * Picks a side without recording anything.
+   *
+   * Step one of the flow is a choice, not an act: it moves no counter and
+   * writes nothing to the server, so a person can move between critical and
+   * appreciative as often as they like. The choice only becomes an opinion when
+   * a reaction is actually sent — and once that has happened this is refused,
+   * because a recorded side is final.
+   *
+   * Returns false when the selection was rejected, which is how the UI knows to
+   * say why rather than silently ignoring the click.
+   */
+  select(artifactType: ArtifactType, artifactId: string, stance: Stance | null): boolean {
+    const key = artifactKey(artifactType, artifactId);
+    const current = this.state[key];
+    if (!current) return false;
+    if (current.contribution.stance) return current.contribution.stance === stance;
+
+    if (current.selectedStance === stance) return true;
+    this.patch(key, { selectedStance: stance });
+    return true;
   }
 
   /* --------------------------------- tapping -------------------------------- */
@@ -172,6 +209,14 @@ class ReactionStore {
     const isNewParticipant =
       current.contribution.rottenEggCount === 0 && current.contribution.medalCount === 0 && previousStance === null;
 
+    /*
+     * Contributor counts are head counts, so they move on this person's first
+     * reaction on this side and never again — matching exactly what the server
+     * will do when the batch lands.
+     */
+    const isFirstEgg = isEgg && current.contribution.rottenEggCount === 0;
+    const isFirstMedal = !isEgg && current.contribution.medalCount === 0;
+
     this.state = {
       ...this.state,
       [key]: {
@@ -183,12 +228,17 @@ class ReactionStore {
           positiveOpinionTotal: current.totals.positiveOpinionTotal + opinionShift.positive,
           negativeOpinionTotal: current.totals.negativeOpinionTotal + opinionShift.negative,
           uniqueParticipantTotal: current.totals.uniqueParticipantTotal + (isNewParticipant ? 1 : 0),
+          rottenEggContributorTotal: current.totals.rottenEggContributorTotal + (isFirstEgg ? 1 : 0),
+          medalContributorTotal: current.totals.medalContributorTotal + (isFirstMedal ? 1 : 0),
         },
         contribution: {
           rottenEggCount: current.contribution.rottenEggCount + (isEgg ? quantity : 0),
           medalCount: current.contribution.medalCount + (isEgg ? 0 : quantity),
           stance,
         },
+        // The reaction is what commits the side, so the proposal and the record
+        // become the same thing here.
+        selectedStance: stance,
         pendingRottenEggs: current.pendingRottenEggs + (isEgg ? quantity : 0),
         pendingMedals: current.pendingMedals + (isEgg ? 0 : quantity),
       },
@@ -277,6 +327,9 @@ class ReactionStore {
               // back on top so the counter never appears to go backwards.
               totals: this.reconcile(outcome.totals, state, acknowledgedEggs, acknowledgedMedals),
               contribution: outcome.contribution,
+              // A 409 lands here too, carrying the side the server holds this
+              // person to — which may not be the one they had selected.
+              selectedStance: outcome.contribution.stance ?? state.selectedStance,
               pendingRottenEggs: Math.max(0, state.pendingRottenEggs - acknowledgedEggs),
               pendingMedals: Math.max(0, state.pendingMedals - acknowledgedMedals),
               syncState: 'idle',
@@ -410,6 +463,7 @@ class ReactionStore {
       this.patch(key, {
         totals: this.reconcile(data.totals, state, 0, 0),
         contribution: data.contribution ?? state.contribution,
+        selectedStance: data.contribution?.stance ?? state.selectedStance,
       });
     } catch {
       // Offline: keep showing the optimistic numbers.

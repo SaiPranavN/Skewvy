@@ -139,6 +139,14 @@ CREATE TABLE IF NOT EXISTS reaction_aggregates (
 );
 CREATE INDEX IF NOT EXISTS idx_reaction_aggregates_artifact ON reaction_aggregates(artifact_type, artifact_id);
 
+-- Two kinds of number, kept apart on purpose.
+--
+-- \`rotten_egg_total\` and \`medal_total\` count taps: one person can add hundreds.
+-- \`positive_opinion_total\` and \`negative_opinion_total\` count people: one person
+-- adds exactly one, once, and never moves it. The contributor totals are the
+-- bridge between them — how many distinct people are behind each tap total —
+-- and they are maintained as their own columns rather than derived, because no
+-- arithmetic on a tap total can recover a head count.
 CREATE TABLE IF NOT EXISTS artifact_totals (
   artifact_type           TEXT NOT NULL CHECK (artifact_type IN ('entity', 'flash_news')),
   artifact_id             TEXT NOT NULL,
@@ -147,6 +155,8 @@ CREATE TABLE IF NOT EXISTS artifact_totals (
   positive_opinion_total  INTEGER NOT NULL DEFAULT 0,
   negative_opinion_total  INTEGER NOT NULL DEFAULT 0,
   unique_participant_total INTEGER NOT NULL DEFAULT 0,
+  rotten_egg_contributor_total INTEGER NOT NULL DEFAULT 0,
+  medal_contributor_total      INTEGER NOT NULL DEFAULT 0,
   updated_at              TEXT NOT NULL,
   PRIMARY KEY (artifact_type, artifact_id)
 );
@@ -180,6 +190,22 @@ CREATE TABLE IF NOT EXISTS reaction_timeline (
   PRIMARY KEY (artifact_type, artifact_id, bucket_start)
 );
 CREATE INDEX IF NOT EXISTS idx_reaction_timeline_artifact ON reaction_timeline(artifact_type, artifact_id, bucket_start);
+
+-- The same rollup for opinions, and deliberately a separate table.
+--
+-- An opinion bucket counts people who took a side during that hour — at most
+-- one increment per person, ever — so it can never be plotted on the same axis
+-- as the reaction buckets beside it. Keeping them apart in storage is what
+-- stops them being accidentally summed together later.
+CREATE TABLE IF NOT EXISTS opinion_timeline (
+  artifact_type  TEXT NOT NULL CHECK (artifact_type IN ('entity', 'flash_news')),
+  artifact_id    TEXT NOT NULL,
+  bucket_start   TEXT NOT NULL,
+  positive_count INTEGER NOT NULL DEFAULT 0,
+  negative_count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (artifact_type, artifact_id, bucket_start)
+);
+CREATE INDEX IF NOT EXISTS idx_opinion_timeline_artifact ON opinion_timeline(artifact_type, artifact_id, bucket_start);
 
 -- Open discussion on an artifact. Unlike reactions, commenting has nothing to
 -- do with having taken a side: anyone signed in may post, whether or not they
@@ -234,6 +260,8 @@ CREATE TABLE IF NOT EXISTS app_settings (
 export const ADDED_COLUMNS: Array<{ table: string; column: string; definition: string }> = [
   { table: 'users', column: 'suspended_at', definition: 'TEXT' },
   { table: 'users', column: 'suspended_reason', definition: 'TEXT' },
+  { table: 'artifact_totals', column: 'rotten_egg_contributor_total', definition: 'INTEGER NOT NULL DEFAULT 0' },
+  { table: 'artifact_totals', column: 'medal_contributor_total', definition: 'INTEGER NOT NULL DEFAULT 0' },
 ];
 
 /** Every table the schema defines, in creation order. */

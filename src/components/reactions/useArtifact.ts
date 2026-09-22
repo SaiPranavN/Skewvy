@@ -25,6 +25,7 @@ export function useArtifact(
     state ?? {
       totals: fallback.totals,
       contribution: fallback.contribution ?? { rottenEggCount: 0, medalCount: 0, stance: null },
+      selectedStance: fallback.contribution?.stance ?? null,
       pendingRottenEggs: 0,
       pendingMedals: 0,
       syncState: 'idle' as const,

@@ -199,7 +199,7 @@ describe('deletion', () => {
     const last = trend.points[trend.points.length - 1];
 
     expect(totals.medalTotal).toBe(10);
-    expect(last.cumulativeMedals).toBe(totals.medalTotal);
+    expect(last.cumulativePositive).toBe(totals.medalTotal);
   });
 
   it('refuses to delete the acting admin or another admin', async () => {

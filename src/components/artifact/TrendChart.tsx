@@ -2,41 +2,56 @@
 
 import { useId, useMemo, useState } from 'react';
 import { formatCount } from '@/lib/domain/format';
-import { useArtifact } from '@/components/reactions/useArtifact';
-import type { ReactionTrend, TrendPoint } from '@/lib/services/timeline';
-import type { ArtifactTotals, ArtifactType } from '@/lib/domain/types';
+import type { Trend, TrendPoint } from '@/lib/services/timeline';
 
 /**
- * How the two reaction totals grew over time.
+ * One running-total chart, drawn for either kind of history.
  *
- * Both series share one zero-based axis. That is the honest arrangement: when
- * an artifact has forty times more Medals than Rotten Eggs, the two lines
- * should look forty times apart, and a second axis would hide exactly the fact
- * the chart exists to show. Colour is never the only difference between them —
- * Rotten Eggs are drawn solid and heavy, Medals dashed and lighter, and both
- * are labelled.
+ * The component is deliberately ignorant of whether it is showing taps or
+ * people: it is handed a series, the words for each line, and what a point
+ * means, and it labels all three. That ignorance is the safeguard — there is no
+ * code path in which a reaction series and an opinion series could end up
+ * sharing an axis, because a chart only ever receives one of them.
+ *
+ * Within a chart both lines do share one zero-based axis, which is the honest
+ * arrangement for two series of the same unit: when one is forty times the
+ * other, they should look forty times apart. Colour is never the only
+ * difference — the negative line is solid and heavy, the positive dashed and
+ * lighter, and both are labelled.
  *
  * The axis labels are HTML positioned around the plot rather than SVG text, so
  * they stay at a fixed readable size however wide the card gets.
  */
 
 /* The plot box, in the SVG's own units. The card scales it; text does not. */
-const VIEW = { width: 1000, height: 270 };
-const PLOT = { x0: 6, x1: 988, y0: 18, y1: 252 };
+const VIEW = { width: 1000, height: 260 };
+const PLOT = { x0: 6, x1: 988, y0: 18, y1: 242 };
 /** Matches the HTML gutters reserved for the axis labels around the plot. */
-const AXIS = { left: 52, bottom: 26 };
+const AXIS = { left: 50, bottom: 26 };
 
-export function ReactionTrendChart({
+export interface TrendChartProps {
+  trend: Trend;
+  title: string;
+  /** One line on what a point counts. Required: the unit is the whole point. */
+  unitNote: string;
+  negativeLabel: string;
+  positiveLabel: string;
+  /** Live lifetime figures, so the tail lands on the numbers beside it. */
+  liveNegative: number;
+  livePositive: number;
+  emptyNote: string;
+}
+
+export function TrendChart({
   trend,
-  artifactType,
-  artifactId,
-  totals,
-}: {
-  trend: ReactionTrend;
-  artifactType: ArtifactType;
-  artifactId: string;
-  totals: ArtifactTotals;
-}) {
+  title,
+  unitNote,
+  negativeLabel,
+  positiveLabel,
+  liveNegative,
+  livePositive,
+  emptyNote,
+}: TrendChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const titleId = useId();
 
@@ -47,11 +62,9 @@ export function ReactionTrendChart({
    * point from the live figure keeps the line ending exactly on the number
    * printed beside it, without refetching the whole history for every tap.
    */
-  const live = useArtifact(artifactType, artifactId, { totals });
-
   const points = useMemo(
-    () => withLiveTail(trend.points, live.totals.rottenEggTotal, live.totals.medalTotal),
-    [trend.points, live.totals.rottenEggTotal, live.totals.medalTotal],
+    () => withLiveTail(trend.points, liveNegative, livePositive),
+    [trend.points, liveNegative, livePositive],
   );
 
   const geometry = useMemo(() => build(points), [points]);
@@ -59,67 +72,89 @@ export function ReactionTrendChart({
   const active = activeIndex === null || !points[activeIndex] ? null : points[activeIndex];
   const last = points.length > 0 ? points[points.length - 1] : null;
 
-  const eggValue = active ? active.cumulativeEggs : (last?.cumulativeEggs ?? live.totals.rottenEggTotal);
-  const medalValue = active ? active.cumulativeMedals : (last?.cumulativeMedals ?? live.totals.medalTotal);
+  const negativeValue = active ? active.cumulativeNegative : (last?.cumulativeNegative ?? liveNegative);
+  const positiveValue = active ? active.cumulativePositive : (last?.cumulativePositive ?? livePositive);
+
+  const noun = trend.measures === 'people' ? 'people' : 'reactions';
 
   const readout = active
-    ? `${formatBucket(active.at, trend.resolution, true)} — ${formatCount(active.cumulativeEggs)} eggs / ${formatCount(
-        active.cumulativeMedals,
-      )} medals`
-    : 'hover the chart to read a point';
+    ? `${formatBucket(active.at, trend.resolution, true)} — ${formatCount(
+        active.cumulativeNegative,
+      )} ${negativeLabel.toLowerCase()} / ${formatCount(active.cumulativePositive)} ${positiveLabel.toLowerCase()}`
+    : unitNote;
+
+  /** Moving the highlight with the keyboard, for anyone not using a pointer. */
+  const step = (delta: number) => {
+    if (points.length === 0) return;
+    setActiveIndex((current) => {
+      const next = (current ?? points.length - 1) + delta;
+      return Math.min(points.length - 1, Math.max(0, next));
+    });
+  };
 
   return (
-    <section className="paper p-[clamp(20px,2.6vw,40px)]" aria-labelledby={titleId}>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 id={titleId} className="display-sm m-0 text-[clamp(24px,2.8vw,40px)]">
-            Reaction trend
-          </h2>
-          <div
-            className="mt-2 text-[13px] font-medium leading-[1.5] text-[rgb(23_20_15_/_0.6)]"
-            suppressHydrationWarning
-          >
-            Running totals on one shared scale · {readout}
-          </div>
-        </div>
+    <section
+      className="paper min-w-[min(100%,300px)] flex-[1_1_440px] p-[clamp(18px,2.2vw,32px)]"
+      aria-labelledby={titleId}
+    >
+      <h3 id={titleId} className="display-sm m-0 text-[clamp(19px,2.1vw,28px)]">
+        {title}
+      </h3>
+      <div
+        className="mt-2 min-h-[2.6em] text-[12.5px] font-medium leading-[1.4] text-[rgb(23_20_15_/_0.62)]"
+        suppressHydrationWarning
+      >
+        {readout}
+      </div>
 
-        <div className="flex flex-none flex-wrap gap-[18px]">
-          <LegendItem kind="egg" value={eggValue} />
-          <LegendItem kind="medal" value={medalValue} />
-          {points.length > 1 && (
-            <span className="text-[11.5px] font-semibold uppercase leading-none tracking-[0.08em] text-[rgb(23_20_15_/_0.62)]">
-              {trend.resolution === 'hour' ? `Last ${points.length} hours` : `Last ${points.length} days`}
-            </span>
-          )}
-        </div>
+      <div className="mt-3 flex flex-wrap gap-x-[18px] gap-y-2">
+        <LegendItem kind="negative" label={negativeLabel} value={negativeValue} />
+        <LegendItem kind="positive" label={positiveLabel} value={positiveValue} />
+        {points.length > 1 && (
+          <span className="text-[11px] font-semibold uppercase leading-none tracking-[0.08em] text-[rgb(23_20_15_/_0.62)]">
+            {trend.resolution === 'hour' ? `Last ${points.length} hours` : `Last ${points.length} days`}
+          </span>
+        )}
       </div>
 
       {!geometry ? (
-        <p className="mt-6 max-w-[60ch] text-sm leading-relaxed text-[rgb(23_20_15_/_0.66)]">
-          Not enough history yet to draw a trend. The chart appears once this has been reacted to across more than one
-          hour.
-        </p>
+        <p className="mt-6 max-w-[48ch] text-[13.5px] leading-relaxed text-[rgb(23_20_15_/_0.66)]">{emptyNote}</p>
       ) : (
         <div
-          className="relative mt-[clamp(18px,2.2vw,28px)]"
+          className="relative mt-[clamp(14px,1.8vw,22px)]"
           style={{ padding: `0 0 ${AXIS.bottom}px ${AXIS.left}px` }}
         >
           <svg
             viewBox={`0 0 ${VIEW.width} ${VIEW.height}`}
             className="block h-auto w-full touch-pan-y overflow-visible"
             role="img"
-            aria-label={`Rotten Eggs and Medals over time. Rotten Eggs ${formatCount(
-              last?.cumulativeEggs ?? 0,
-            )}, Medals ${formatCount(last?.cumulativeMedals ?? 0)}.`}
+            tabIndex={0}
+            aria-label={`${title}. ${unitNote} ${negativeLabel} ${formatCount(
+              last?.cumulativeNegative ?? 0,
+            )}, ${positiveLabel} ${formatCount(
+              last?.cumulativePositive ?? 0,
+            )}. Use the left and right arrow keys to read individual points; the full figures follow in a table.`}
             onPointerMove={(event) => {
               const box = event.currentTarget.getBoundingClientRect();
               const ratio = (event.clientX - box.left) / box.width;
               const x = ratio * VIEW.width - PLOT.x0;
-              const step = (PLOT.x1 - PLOT.x0) / Math.max(1, points.length - 1);
-              const index = Math.round(x / step);
+              const width = (PLOT.x1 - PLOT.x0) / Math.max(1, points.length - 1);
+              const index = Math.round(x / width);
               setActiveIndex(Math.min(points.length - 1, Math.max(0, index)));
             }}
             onPointerLeave={() => setActiveIndex(null)}
+            onBlur={() => setActiveIndex(null)}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                step(1);
+              } else if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                step(-1);
+              } else if (event.key === 'Escape') {
+                setActiveIndex(null);
+              }
+            }}
           >
             {geometry.gridLines.map((line) => (
               <line
@@ -137,9 +172,8 @@ export function ReactionTrendChart({
             {/* The baseline is drawn heavier than the grid — it is the zero. */}
             <line x1="0" x2={PLOT.x1 - 6} y1={PLOT.y1} y2={PLOT.y1} stroke="#17140F" strokeWidth="2" />
 
-            {/* Medals dashed, Rotten Eggs solid — the shapes differ, not only the colour. */}
             <polyline
-              points={geometry.medalLine}
+              points={geometry.positiveLine}
               fill="none"
               stroke="var(--color-medal-line)"
               strokeWidth="4"
@@ -148,7 +182,7 @@ export function ReactionTrendChart({
               strokeLinecap="round"
             />
             <polyline
-              points={geometry.eggLine}
+              points={geometry.negativeLine}
               fill="none"
               stroke="var(--color-egg)"
               strokeWidth="6"
@@ -169,7 +203,7 @@ export function ReactionTrendChart({
                 />
                 <circle
                   cx={geometry.x(activeIndex)}
-                  cy={geometry.y(active.cumulativeMedals)}
+                  cy={geometry.y(active.cumulativePositive)}
                   r="7"
                   fill="var(--color-medal)"
                   stroke="#17140F"
@@ -177,7 +211,7 @@ export function ReactionTrendChart({
                 />
                 <circle
                   cx={geometry.x(activeIndex)}
-                  cy={geometry.y(active.cumulativeEggs)}
+                  cy={geometry.y(active.cumulativeNegative)}
                   r="8"
                   fill="var(--color-egg)"
                   stroke="#17140F"
@@ -188,11 +222,11 @@ export function ReactionTrendChart({
           </svg>
 
           {/* Axis labels live outside the SVG so they never scale with it. */}
-          <div className="absolute left-0 top-0 w-[44px]" style={{ bottom: AXIS.bottom }} aria-hidden="true">
+          <div className="absolute left-0 top-0 w-[42px]" style={{ bottom: AXIS.bottom }} aria-hidden="true">
             {geometry.gridLines.map((line) => (
               <span
                 key={line.value}
-                className="numeric absolute right-0 -translate-y-1/2 text-[13px] font-semibold leading-none text-[rgb(23_20_15_/_0.62)]"
+                className="numeric absolute right-0 -translate-y-1/2 text-[12px] font-semibold leading-none text-[rgb(23_20_15_/_0.62)]"
                 style={{ top: `${((line.y / VIEW.height) * 100).toFixed(2)}%` }}
               >
                 {formatCount(line.value)}
@@ -201,7 +235,7 @@ export function ReactionTrendChart({
           </div>
 
           <div
-            className="absolute right-0 bottom-0 flex justify-between text-[13px] font-semibold leading-none text-[rgb(23_20_15_/_0.62)]"
+            className="absolute bottom-0 right-0 flex justify-between text-[12px] font-semibold leading-none text-[rgb(23_20_15_/_0.62)]"
             style={{ left: AXIS.left }}
             aria-hidden="true"
           >
@@ -216,12 +250,18 @@ export function ReactionTrendChart({
 
       {/* The same figures, reachable without seeing the drawing. */}
       <table className="sr-only">
-        <caption>Rotten Eggs and Medals received over time</caption>
+        <caption>
+          {title}. {unitNote}
+        </caption>
         <thead>
           <tr>
             <th scope="col">Time</th>
-            <th scope="col">Rotten Eggs in total</th>
-            <th scope="col">Medals in total</th>
+            <th scope="col">
+              {negativeLabel} in total ({noun})
+            </th>
+            <th scope="col">
+              {positiveLabel} in total ({noun})
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -230,8 +270,8 @@ export function ReactionTrendChart({
               <th scope="row" suppressHydrationWarning>
                 {formatBucket(point.at, trend.resolution, true)}
               </th>
-              <td>{point.cumulativeEggs}</td>
-              <td>{point.cumulativeMedals}</td>
+              <td>{point.cumulativeNegative}</td>
+              <td>{point.cumulativePositive}</td>
             </tr>
           ))}
         </tbody>
@@ -240,23 +280,31 @@ export function ReactionTrendChart({
   );
 }
 
-function LegendItem({ kind, value }: { kind: 'egg' | 'medal'; value: number }) {
-  const isEgg = kind === 'egg';
+function LegendItem({
+  kind,
+  label,
+  value,
+}: {
+  kind: 'negative' | 'positive';
+  label: string;
+  value: number;
+}) {
+  const isNegative = kind === 'negative';
   return (
     <div className="flex items-center gap-2">
       <span
         aria-hidden="true"
         className="h-[5px] w-[26px] flex-none"
         style={
-          isEgg
+          isNegative
             ? { background: 'var(--color-egg)' }
             : {
                 background: 'repeating-linear-gradient(90deg, var(--color-medal-line) 0 7px, transparent 7px 12px)',
               }
         }
       />
-      <span className="whitespace-nowrap text-xs font-bold uppercase leading-none tracking-[0.06em]">
-        {isEgg ? 'Eggs' : 'Medals'} <span className="numeric">{formatCount(value)}</span>
+      <span className="whitespace-nowrap text-[11.5px] font-bold uppercase leading-none tracking-[0.06em]">
+        {label} <span className="numeric">{formatCount(value)}</span>
       </span>
     </div>
   );
@@ -266,30 +314,30 @@ function LegendItem({ kind, value }: { kind: 'egg' | 'medal'; value: number }) {
  * Replaces the closing point with the totals as they stand now.
  *
  * Only the tail moves: everything before it is recorded history and does not
- * change. The difference lands in the final bucket, which is where reactions
- * arriving right now genuinely belong.
+ * change. The difference lands in the final bucket, which is where activity
+ * arriving right now genuinely belongs.
  */
-function withLiveTail(points: TrendPoint[], eggs: number, medals: number): TrendPoint[] {
+function withLiveTail(points: TrendPoint[], negative: number, positive: number): TrendPoint[] {
   if (points.length === 0) return points;
 
   const last = points[points.length - 1];
-  if (last.cumulativeEggs === eggs && last.cumulativeMedals === medals) return points;
+  if (last.cumulativeNegative === negative && last.cumulativePositive === positive) return points;
 
   return [
     ...points.slice(0, -1),
     {
       ...last,
-      eggs: Math.max(0, last.eggs + (eggs - last.cumulativeEggs)),
-      medals: Math.max(0, last.medals + (medals - last.cumulativeMedals)),
-      cumulativeEggs: eggs,
-      cumulativeMedals: medals,
+      negative: Math.max(0, last.negative + (negative - last.cumulativeNegative)),
+      positive: Math.max(0, last.positive + (positive - last.cumulativePositive)),
+      cumulativeNegative: negative,
+      cumulativePositive: positive,
     },
   ];
 }
 
 interface Geometry {
-  eggLine: string;
-  medalLine: string;
+  negativeLine: string;
+  positiveLine: string;
   gridLines: Array<{ value: number; y: number }>;
   ticks: Array<{ at: string }>;
   x: (index: number) => number;
@@ -303,7 +351,7 @@ interface Geometry {
 function build(points: TrendPoint[]): Geometry | null {
   if (points.length < 2) return null;
 
-  const maximum = Math.max(1, ...points.map((point) => Math.max(point.cumulativeEggs, point.cumulativeMedals)));
+  const maximum = Math.max(1, ...points.map((point) => Math.max(point.cumulativeNegative, point.cumulativePositive)));
   const ceiling = niceCeiling(maximum);
 
   const x = (index: number) => PLOT.x0 + (index / (points.length - 1)) * (PLOT.x1 - PLOT.x0);
@@ -322,8 +370,8 @@ function build(points: TrendPoint[]): Geometry | null {
   }));
 
   return {
-    eggLine: line((point) => point.cumulativeEggs),
-    medalLine: line((point) => point.cumulativeMedals),
+    negativeLine: line((point) => point.cumulativeNegative),
+    positiveLine: line((point) => point.cumulativePositive),
     gridLines,
     ticks,
     x,

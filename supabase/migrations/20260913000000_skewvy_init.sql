@@ -141,6 +141,14 @@ CREATE TABLE IF NOT EXISTS reaction_aggregates (
 );
 CREATE INDEX IF NOT EXISTS idx_reaction_aggregates_artifact ON reaction_aggregates(artifact_type, artifact_id);
 
+-- Two kinds of number, kept apart on purpose.
+--
+-- `rotten_egg_total` and `medal_total` count taps: one person can add hundreds.
+-- `positive_opinion_total` and `negative_opinion_total` count people: one person
+-- adds exactly one, once, and never moves it. The contributor totals are the
+-- bridge between them — how many distinct people are behind each tap total —
+-- and they are maintained as their own columns rather than derived, because no
+-- arithmetic on a tap total can recover a head count.
 CREATE TABLE IF NOT EXISTS artifact_totals (
   artifact_type           TEXT NOT NULL CHECK (artifact_type IN ('entity', 'flash_news')),
   artifact_id             TEXT NOT NULL,
@@ -149,6 +157,8 @@ CREATE TABLE IF NOT EXISTS artifact_totals (
   positive_opinion_total  INTEGER NOT NULL DEFAULT 0,
   negative_opinion_total  INTEGER NOT NULL DEFAULT 0,
   unique_participant_total INTEGER NOT NULL DEFAULT 0,
+  rotten_egg_contributor_total INTEGER NOT NULL DEFAULT 0,
+  medal_contributor_total      INTEGER NOT NULL DEFAULT 0,
   updated_at              TEXT NOT NULL,
   PRIMARY KEY (artifact_type, artifact_id)
 );
@@ -182,6 +192,22 @@ CREATE TABLE IF NOT EXISTS reaction_timeline (
   PRIMARY KEY (artifact_type, artifact_id, bucket_start)
 );
 CREATE INDEX IF NOT EXISTS idx_reaction_timeline_artifact ON reaction_timeline(artifact_type, artifact_id, bucket_start);
+
+-- The same rollup for opinions, and deliberately a separate table.
+--
+-- An opinion bucket counts people who took a side during that hour — at most
+-- one increment per person, ever — so it can never be plotted on the same axis
+-- as the reaction buckets beside it. Keeping them apart in storage is what
+-- stops them being accidentally summed together later.
+CREATE TABLE IF NOT EXISTS opinion_timeline (
+  artifact_type  TEXT NOT NULL CHECK (artifact_type IN ('entity', 'flash_news')),
+  artifact_id    TEXT NOT NULL,
+  bucket_start   TEXT NOT NULL,
+  positive_count INTEGER NOT NULL DEFAULT 0,
+  negative_count INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (artifact_type, artifact_id, bucket_start)
+);
+CREATE INDEX IF NOT EXISTS idx_opinion_timeline_artifact ON opinion_timeline(artifact_type, artifact_id, bucket_start);
 
 -- Open discussion on an artifact. Unlike reactions, commenting has nothing to
 -- do with having taken a side: anyone signed in may post, whether or not they
@@ -233,7 +259,7 @@ DECLARE
   target text;
   supabase_roles boolean := EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon');
 BEGIN
-  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'comments', 'comment_votes', 'rate_limits', 'app_settings']
+  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'comments', 'comment_votes', 'rate_limits', 'app_settings']
   LOOP
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = target) THEN
       EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', target);

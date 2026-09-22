@@ -8,8 +8,13 @@ import {
   createVerifiedUser,
 } from './helpers';
 import { applyReactionBatch, artifactIsReactable } from '@/lib/services/reactions';
-import { getTotals, getContribution, recomputeTotals } from '@/lib/services/totals';
-import { query } from '@/lib/db';
+import {
+  getTotals,
+  getContribution,
+  recomputeTotals,
+  backfillContributorTotals,
+} from '@/lib/services/totals';
+import { execute, query } from '@/lib/db';
 
 beforeAll(setupTestDatabase);
 afterAll(teardownTestDatabase);
@@ -165,6 +170,110 @@ describe('reaction batches', () => {
     expect(recomputed.negativeOpinionTotal).toBe(1);
     expect(recomputed.positiveOpinionTotal).toBe(1);
     expect(recomputed.uniqueParticipantTotal).toBe(2);
+    expect(recomputed.rottenEggContributorTotal).toBe(1);
+    expect(recomputed.medalContributorTotal).toBe(1);
+  });
+});
+
+/**
+ * The distinction the whole product turns on: a reaction total is unbounded per
+ * person, and the contributor total beside it is a head count that moves once.
+ */
+describe('contributor totals', () => {
+  it('counts one person once, however many reactions they send', async () => {
+    const artifactId = await createTestFlashNews();
+    const userId = await createVerifiedUser();
+
+    for (let index = 0; index < 4; index += 1) {
+      await applyReactionBatch({
+        userId, artifactType: 'flash_news', artifactId,
+        reactionType: 'rotten_egg', quantity: 25, clientBatchId: `solo-${index}`,
+      });
+    }
+
+    const totals = await getTotals('flash_news', artifactId);
+    expect(totals.rottenEggTotal).toBe(100);
+    expect(totals.rottenEggContributorTotal).toBe(1);
+    expect(totals.medalContributorTotal).toBe(0);
+  });
+
+  it('separates a loud minority from a quiet majority', async () => {
+    const artifactId = await createTestFlashNews();
+
+    // Five appreciative people sending ten Medals each.
+    for (let index = 0; index < 5; index += 1) {
+      const userId = await createVerifiedUser(`fan-${index}@example.test`);
+      await applyReactionBatch({
+        userId, artifactType: 'flash_news', artifactId,
+        reactionType: 'medal', quantity: 10, clientBatchId: `fan-${index}`,
+      });
+    }
+
+    // One critical person sending a hundred Rotten Eggs.
+    const critic = await createVerifiedUser('critic@example.test');
+    await applyReactionBatch({
+      userId: critic, artifactType: 'flash_news', artifactId,
+      reactionType: 'rotten_egg', quantity: 100, clientBatchId: 'critic-1',
+    });
+
+    const totals = await getTotals('flash_news', artifactId);
+
+    // The reaction totals say the eggs win by two to one.
+    expect(totals.rottenEggTotal).toBe(100);
+    expect(totals.medalTotal).toBe(50);
+
+    // The people say the opposite, and that is the public verdict.
+    expect(totals.negativeOpinionTotal).toBe(1);
+    expect(totals.positiveOpinionTotal).toBe(5);
+    expect(totals.rottenEggContributorTotal).toBe(1);
+    expect(totals.medalContributorTotal).toBe(5);
+  });
+
+  it('does not credit a contributor for a batch the server refused', async () => {
+    const artifactId = await createTestFlashNews();
+    const userId = await createVerifiedUser();
+
+    await applyReactionBatch({
+      userId, artifactType: 'flash_news', artifactId,
+      reactionType: 'medal', quantity: 3, clientBatchId: 'first-side',
+    });
+    await applyReactionBatch({
+      userId, artifactType: 'flash_news', artifactId,
+      reactionType: 'rotten_egg', quantity: 50, clientBatchId: 'crossing',
+    });
+
+    const totals = await getTotals('flash_news', artifactId);
+    expect(totals.rottenEggTotal).toBe(0);
+    expect(totals.rottenEggContributorTotal).toBe(0);
+    expect(totals.medalContributorTotal).toBe(1);
+  });
+
+  it('is filled in for artifacts written before the columns existed', async () => {
+    const artifactId = await createTestFlashNews();
+    const userA = await createVerifiedUser('old-a@example.test');
+    const userB = await createVerifiedUser('old-b@example.test');
+
+    await applyReactionBatch({
+      userId: userA, artifactType: 'flash_news', artifactId,
+      reactionType: 'rotten_egg', quantity: 30, clientBatchId: 'old-a',
+    });
+    await applyReactionBatch({
+      userId: userB, artifactType: 'flash_news', artifactId,
+      reactionType: 'rotten_egg', quantity: 5, clientBatchId: 'old-b',
+    });
+
+    // Reproduce the pre-migration state: totals intact, head counts zeroed.
+    await execute(
+      `UPDATE artifact_totals SET rotten_egg_contributor_total = 0, medal_contributor_total = 0
+        WHERE artifact_id = $1`,
+      [artifactId],
+    );
+
+    expect(await backfillContributorTotals()).toBe(1);
+    expect((await getTotals('flash_news', artifactId)).rottenEggContributorTotal).toBe(2);
+
+    // Nothing left to repair, so a second run is a no-op.
+    expect(await backfillContributorTotals()).toBe(0);
   });
 });
 

@@ -2,7 +2,7 @@ import { transaction, queryOne } from '@/lib/db';
 import type { SqlExecutor } from '@/lib/db';
 import { newId } from './crypto';
 import { applyTotalsDelta, getTotals, getContribution } from './totals';
-import { recordTimelineBatch } from './timeline';
+import { recordTimelineBatch, recordOpinionCommitment } from './timeline';
 import { publishArtifactEvent } from './realtime';
 import type { ArtifactTotals, ArtifactType, ReactionType, Stance, UserContribution } from '@/lib/domain/types';
 import { stanceForReaction } from '@/lib/domain/types';
@@ -68,14 +68,25 @@ export async function applyReactionBatch(input: ApplyBatchInput): Promise<ApplyB
       return null;
     }
 
-    const existingAggregate = await tx.query<{ id: string }>(
-      'SELECT id FROM reaction_aggregates WHERE user_id = $1 AND artifact_type = $2 AND artifact_id = $3',
+    const existingAggregate = await tx.query<{ rotten_egg_count: number; medal_count: number }>(
+      'SELECT rotten_egg_count, medal_count FROM reaction_aggregates WHERE user_id = $1 AND artifact_type = $2 AND artifact_id = $3',
       [input.userId, input.artifactType, input.artifactId],
     );
     const isNewParticipant = existingAggregate.length === 0;
 
     const eggDelta = input.reactionType === 'rotten_egg' ? input.quantity : 0;
     const medalDelta = input.reactionType === 'medal' ? input.quantity : 0;
+
+    /*
+     * A contributor count is a head count, so it moves on a person's *first*
+     * reaction on that side and never again — the hundredth Rotten Egg from the
+     * same account adds to the tap total alone. Read from what they had before
+     * this batch, which is the only moment the distinction is visible.
+     */
+    const heldEggs = Number(existingAggregate[0]?.rotten_egg_count ?? 0);
+    const heldMedals = Number(existingAggregate[0]?.medal_count ?? 0);
+    const isFirstEgg = eggDelta > 0 && heldEggs === 0;
+    const isFirstMedal = medalDelta > 0 && heldMedals === 0;
 
     const aggregateRows = await tx.query<{ rotten_egg_count: number; medal_count: number }>(
       `INSERT INTO reaction_aggregates (id, user_id, artifact_type, artifact_id, rotten_egg_count, medal_count, created_at, updated_at)
@@ -103,12 +114,21 @@ export async function applyReactionBatch(input: ApplyBatchInput): Promise<ApplyB
     await recordTimelineBatch(tx, input.artifactType, input.artifactId, input.reactionType, input.quantity, now);
 
     const isNewOpinion = previousStance === null;
+
+    // The opinion history gets its own bucket, and only on the batch that
+    // commits the side — one increment per person for the artifact's lifetime.
+    if (isNewOpinion) {
+      await recordOpinionCommitment(tx, input.artifactType, input.artifactId, stance, now);
+    }
+
     const totals = await applyTotalsDelta(tx, input.artifactType, input.artifactId, {
       rottenEggs: eggDelta,
       medals: medalDelta,
       positiveOpinions: isNewOpinion && stance === 'positive' ? 1 : 0,
       negativeOpinions: isNewOpinion && stance === 'negative' ? 1 : 0,
       participants: isNewParticipant ? 1 : 0,
+      rottenEggContributors: isFirstEgg ? 1 : 0,
+      medalContributors: isFirstMedal ? 1 : 0,
     });
 
     return {
@@ -169,30 +189,3 @@ export async function artifactIsReactable(artifactType: ArtifactType, artifactId
   return row?.status === 'published';
 }
 
-export interface RecentActivityItem {
-  reactionType: ReactionType;
-  quantity: number;
-  createdAt: string;
-}
-
-/** Feeds the "recent reaction activity" strip on the artifact page. */
-export async function recentActivity(
-  artifactType: ArtifactType,
-  artifactId: string,
-  limit = 12,
-): Promise<RecentActivityItem[]> {
-  const rows = await (
-    await import('@/lib/db')
-  ).query<{ reaction_type: string; quantity: number; created_at: string }>(
-    `SELECT reaction_type, quantity, created_at FROM reaction_batches
-      WHERE artifact_type = $1 AND artifact_id = $2
-      ORDER BY created_at DESC LIMIT $3`,
-    [artifactType, artifactId, limit],
-  );
-
-  return rows.map((row) => ({
-    reactionType: row.reaction_type as ReactionType,
-    quantity: Number(row.quantity),
-    createdAt: row.created_at,
-  }));
-}

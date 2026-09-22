@@ -7,7 +7,14 @@ import {
   createVerifiedUser,
 } from './helpers';
 import { applyReactionBatch } from '@/lib/services/reactions';
-import { reactionTrend, hourBucket, backfillReactionTimeline } from '@/lib/services/timeline';
+import {
+  reactionTrend,
+  opinionTrend,
+  artifactTrends,
+  hourBucket,
+  backfillReactionTimeline,
+  backfillOpinionTimeline,
+} from '@/lib/services/timeline';
 import { getTotals } from '@/lib/services/totals';
 import { execute, query } from '@/lib/db';
 
@@ -64,8 +71,8 @@ describe('reaction timeline', () => {
     const last = trend.points[trend.points.length - 1];
 
     expect(trend.resolution).toBe('hour');
-    expect(last.cumulativeEggs).toBe(totals.rottenEggTotal);
-    expect(last.cumulativeMedals).toBe(totals.medalTotal);
+    expect(last.cumulativeNegative).toBe(totals.rottenEggTotal);
+    expect(last.cumulativePositive).toBe(totals.medalTotal);
   });
 
   it('carries reactions older than the rollup in the opening figure', async () => {
@@ -97,9 +104,9 @@ describe('reaction timeline', () => {
     const trend = await reactionTrend('flash_news', artifactId);
     const last = trend.points[trend.points.length - 1];
 
-    expect(trend.openingEggs).toBe(1000);
-    expect(trend.windowEggs).toBe(25);
-    expect(last.cumulativeEggs).toBe(1025);
+    expect(trend.openingNegative).toBe(1000);
+    expect(trend.windowNegative).toBe(25);
+    expect(last.cumulativeNegative).toBe(1025);
   });
 
   it('fills quiet buckets instead of leaving gaps', async () => {
@@ -119,7 +126,7 @@ describe('reaction timeline', () => {
     expect(trend.points.length).toBeGreaterThanOrEqual(5);
     // The running total never falls back, even across a silent hour.
     for (let index = 1; index < trend.points.length; index += 1) {
-      expect(trend.points[index].cumulativeEggs).toBeGreaterThanOrEqual(trend.points[index - 1].cumulativeEggs);
+      expect(trend.points[index].cumulativeNegative).toBeGreaterThanOrEqual(trend.points[index - 1].cumulativeNegative);
     }
   });
 
@@ -152,5 +159,122 @@ describe('reaction timeline', () => {
     const artifactId = await createTestFlashNews();
     const trend = await reactionTrend('flash_news', artifactId);
     expect(trend.points).toHaveLength(0);
+  });
+});
+
+/**
+ * The second history, which counts people rather than taps. It must never move
+ * more than once per person, and it must never be confused with the first.
+ */
+describe('opinion timeline', () => {
+  it('records a person once, on the batch that commits their side', async () => {
+    const artifactId = await createTestFlashNews();
+    const userId = await createVerifiedUser();
+
+    for (let index = 0; index < 6; index += 1) {
+      await applyReactionBatch({
+        userId,
+        artifactType: 'flash_news',
+        artifactId,
+        reactionType: 'rotten_egg',
+        quantity: 40,
+        clientBatchId: `opinion-bucket-${index}`,
+      });
+    }
+
+    const rows = await query<{ negative_count: number; positive_count: number }>(
+      'SELECT negative_count, positive_count FROM opinion_timeline WHERE artifact_id = $1',
+      [artifactId],
+    );
+
+    expect(rows).toHaveLength(1);
+    // 240 taps, one person.
+    expect(Number(rows[0].negative_count)).toBe(1);
+    expect(Number(rows[0].positive_count)).toBe(0);
+  });
+
+  it('is read on its own scale, not the reaction one', async () => {
+    const artifactId = await createTestFlashNews();
+
+    for (let index = 0; index < 3; index += 1) {
+      const userId = await createVerifiedUser(`voice-${index}@example.test`);
+      await applyReactionBatch({
+        userId,
+        artifactType: 'flash_news',
+        artifactId,
+        reactionType: index === 0 ? 'rotten_egg' : 'medal',
+        quantity: index === 0 ? 200 : 4,
+        clientBatchId: `voice-${index}`,
+      });
+    }
+
+    const { reactions, opinions } = await artifactTrends('flash_news', artifactId);
+
+    expect(reactions.measures).toBe('reactions');
+    expect(opinions.measures).toBe('people');
+
+    const lastReactions = reactions.points[reactions.points.length - 1];
+    const lastOpinions = opinions.points[opinions.points.length - 1];
+
+    expect(lastReactions.cumulativeNegative).toBe(200);
+    expect(lastReactions.cumulativePositive).toBe(8);
+    // The same crowd, counted as people, says something quite different.
+    expect(lastOpinions.cumulativeNegative).toBe(1);
+    expect(lastOpinions.cumulativePositive).toBe(2);
+  });
+
+  it('ends on the artifact’s lifetime opinion totals', async () => {
+    const artifactId = await createTestFlashNews();
+    for (let index = 0; index < 4; index += 1) {
+      const userId = await createVerifiedUser(`tail-${index}@example.test`);
+      await applyReactionBatch({
+        userId,
+        artifactType: 'flash_news',
+        artifactId,
+        reactionType: 'medal',
+        quantity: 2,
+        clientBatchId: `tail-${index}`,
+      });
+    }
+
+    const trend = await opinionTrend('flash_news', artifactId);
+    const totals = await getTotals('flash_news', artifactId);
+    const last = trend.points[trend.points.length - 1];
+
+    expect(last.cumulativePositive).toBe(totals.positiveOpinionTotal);
+    expect(last.cumulativeNegative).toBe(totals.negativeOpinionTotal);
+  });
+
+  it('returns no points for an artifact nobody has taken a side on', async () => {
+    const artifactId = await createTestFlashNews();
+    const trend = await opinionTrend('flash_news', artifactId);
+    expect(trend.points).toHaveLength(0);
+    expect(trend.measures).toBe('people');
+  });
+
+  it('reconstructs exactly for opinions recorded before the rollup existed', async () => {
+    const artifactId = await createTestFlashNews();
+    const userId = await createVerifiedUser();
+    const when = new Date(Date.now() - 5 * 3_600_000).toISOString();
+
+    await execute(
+      `INSERT INTO opinions (id, user_id, artifact_type, artifact_id, stance, created_at, updated_at)
+       VALUES ($1, $2, 'flash_news', $3, 'negative', $4, $4)`,
+      [crypto.randomUUID(), userId, artifactId, when],
+    );
+
+    expect(await backfillOpinionTimeline()).toBe(1);
+
+    const rows = await query<{ bucket_start: string; negative_count: number }>(
+      'SELECT bucket_start, negative_count FROM opinion_timeline WHERE artifact_id = $1',
+      [artifactId],
+    );
+    expect(rows).toHaveLength(1);
+    // Exact, not approximate: the opinion row carries its own timestamp.
+    expect(rows[0].bucket_start).toBe(hourBucket(when));
+    expect(Number(rows[0].negative_count)).toBe(1);
+
+    // Running it again leaves the recorded history alone.
+    expect(await backfillOpinionTimeline()).toBe(0);
   });
 });

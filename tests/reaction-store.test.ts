@@ -40,6 +40,58 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('picking a position', () => {
+  it('lets an undecided person move between the two sides freely', () => {
+    reactionStore.setAuthenticated(true);
+
+    expect(reactionStore.select(ARTIFACT.type, ARTIFACT.id, 'positive')).toBe(true);
+    expect(reactionStore.get(ARTIFACT.type, ARTIFACT.id)!.selectedStance).toBe('positive');
+
+    expect(reactionStore.select(ARTIFACT.type, ARTIFACT.id, 'negative')).toBe(true);
+    expect(reactionStore.get(ARTIFACT.type, ARTIFACT.id)!.selectedStance).toBe('negative');
+
+    // Selecting is not reacting: nothing has moved and nothing is queued.
+    const state = reactionStore.get(ARTIFACT.type, ARTIFACT.id)!;
+    expect(state.totals.rottenEggTotal).toBe(100);
+    expect(state.totals.negativeOpinionTotal).toBe(0);
+    expect(state.contribution.stance).toBeNull();
+    expect(reactionStore.pendingReactions()).toHaveLength(0);
+  });
+
+  it('is also free while signed out, since it records nothing', () => {
+    expect(reactionStore.select(ARTIFACT.type, ARTIFACT.id, 'negative')).toBe(true);
+    expect(reactionStore.get(ARTIFACT.type, ARTIFACT.id)!.selectedStance).toBe('negative');
+  });
+
+  it('is committed by the first reaction, and cannot be moved afterwards', () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    reactionStore.setAuthenticated(true);
+
+    reactionStore.select(ARTIFACT.type, ARTIFACT.id, 'negative');
+    reactionStore.react(ARTIFACT.type, ARTIFACT.id, 'rotten_egg', 1);
+
+    expect(reactionStore.get(ARTIFACT.type, ARTIFACT.id)!.contribution.stance).toBe('negative');
+
+    // The other side is now refused, and the selection stays where it was.
+    expect(reactionStore.select(ARTIFACT.type, ARTIFACT.id, 'positive')).toBe(false);
+    expect(reactionStore.get(ARTIFACT.type, ARTIFACT.id)!.selectedStance).toBe('negative');
+  });
+
+  it('treats a side recorded on a previous visit as already chosen', async () => {
+    const snapshot = reactionStore.getSnapshot();
+    delete snapshot[artifactKey(ARTIFACT.type, ARTIFACT.id)];
+    reactionStore.hydrate([
+      {
+        totals: { ...emptyTotals(ARTIFACT.type, ARTIFACT.id), medalTotal: 9, positiveOpinionTotal: 1 },
+        contribution: { rottenEggCount: 0, medalCount: 9, stance: 'positive' },
+      },
+    ]);
+    await settle();
+
+    expect(reactionStore.get(ARTIFACT.type, ARTIFACT.id)!.selectedStance).toBe('positive');
+  });
+});
+
 describe('signed out', () => {
   it('records nothing and asks for sign-in instead', () => {
     const onAuthRequired = vi.fn();
@@ -122,6 +174,51 @@ describe('signed in', () => {
     expect(state.contribution.medalCount).toBe(0);
     expect(state.contribution.stance).toBe('negative');
     expect(state.totals.uniqueParticipantTotal).toBe(1);
+  });
+
+  it('counts the person once in the contributor total, however many taps', () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    reactionStore.setAuthenticated(true);
+
+    for (let index = 0; index < 40; index += 1) {
+      reactionStore.react(ARTIFACT.type, ARTIFACT.id, 'rotten_egg', 1);
+    }
+
+    const state = reactionStore.get(ARTIFACT.type, ARTIFACT.id)!;
+    expect(state.totals.rottenEggTotal).toBe(140);
+    // Forty taps, one head. The optimistic update must agree with what the
+    // server will do, or the number would jump when the batch lands.
+    expect(state.totals.rottenEggContributorTotal).toBe(1);
+    expect(state.totals.medalContributorTotal).toBe(0);
+  });
+
+  it('reconciles against the server’s authoritative contributor counts', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        totals: {
+          ...emptyTotals(ARTIFACT.type, ARTIFACT.id),
+          rottenEggTotal: 105,
+          medalTotal: 40,
+          negativeOpinionTotal: 3,
+          rottenEggContributorTotal: 3,
+        },
+        contribution: { rottenEggCount: 5, medalCount: 0, stance: 'negative' },
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+    reactionStore.setAuthenticated(true);
+
+    for (let index = 0; index < 5; index += 1) {
+      reactionStore.react(ARTIFACT.type, ARTIFACT.id, 'rotten_egg', 1);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 700));
+
+    const state = reactionStore.get(ARTIFACT.type, ARTIFACT.id)!;
+    // Two other people were behind the rest of that total; the optimistic
+    // guess of one is replaced rather than added to.
+    expect(state.totals.rottenEggContributorTotal).toBe(3);
   });
 
   it('collapses a burst of taps into a single batched request', async () => {

@@ -423,7 +423,8 @@ export async function renderReceipt(input: ReceiptInput, format: ReceiptFormat):
   }
 
   const panelPad = story ? 34 : 24;
-  const panelHeight = story ? 356 : 252;
+  // Tall enough for the head-count line that rides under each tap total.
+  const panelHeight = story ? 384 : 272;
 
   const footerSize = story ? 30 : 24;
   const footerHeight = footerSize + (story ? 64 : 48);
@@ -530,6 +531,11 @@ export async function renderReceipt(input: ReceiptInput, format: ReceiptFormat):
 
   // Scoreboard.
   const panelTop = y;
+  /** "from 5 people" — the line that stops a tap total reading as a head count. */
+  const fromPeople = (contributors: number) =>
+    contributors === 0
+      ? 'from nobody yet'
+      : `from ${formatCount(contributors)} ${contributors === 1 ? 'person' : 'people'}`;
   const people = totals.negativeOpinionTotal + totals.positiveOpinionTotal;
   const negativeShare = sharePercent(totals.negativeOpinionTotal, people);
 
@@ -552,9 +558,27 @@ export async function renderReceipt(input: ReceiptInput, format: ReceiptFormat):
   const columnX = [M + panelPad, M + contentWidth / 2 + (story ? 8 : 5)];
   const columnRoom = contentWidth / 2 - panelPad - markSize - 26;
 
-  const columns: Array<{ value: number; label: string; colour: string; mark: 'egg' | 'medal' }> = [
-    { value: totals.rottenEggTotal, label: 'ROTTEN EGGS · TAPS', colour: palette.egg, mark: 'egg' },
-    { value: totals.medalTotal, label: 'MEDALS · TAPS', colour: palette.medal, mark: 'medal' },
+  const columns: Array<{
+    value: number;
+    label: string;
+    colour: string;
+    mark: 'egg' | 'medal';
+    from: string;
+  }> = [
+    {
+      value: totals.rottenEggTotal,
+      label: 'ROTTEN EGGS · TAPS',
+      colour: palette.egg,
+      mark: 'egg',
+      from: fromPeople(totals.rottenEggContributorTotal),
+    },
+    {
+      value: totals.medalTotal,
+      label: 'MEDALS · TAPS',
+      colour: palette.medal,
+      mark: 'medal',
+      from: fromPeople(totals.medalContributorTotal),
+    },
   ];
 
   /*
@@ -590,11 +614,16 @@ export async function renderReceipt(input: ReceiptInput, format: ReceiptFormat):
     setTracking(context, '0.1em');
     context.fillText(column.label, x, panelY + (story ? 36 : 27));
     setTracking(context, '0em');
+
+    // The head count travels with the tap total wherever it goes, including
+    // onto a poster somebody will screenshot out of context.
+    context.font = bodyFont(story ? 17 : 13, 500);
+    context.fillText(column.from, x, panelY + (story ? 60 : 45));
     context.globalAlpha = 1;
   }
 
   // People, as a balance.
-  panelY += story ? 82 : 60;
+  panelY += story ? 110 : 80;
   const barWidth = contentWidth - panelPad * 2;
   const barHeight = story ? 18 : 13;
 
