@@ -1,4 +1,4 @@
-import { SCHEMA_SQL, postgresHardeningSql, storageSetupSql } from './schema';
+import { SCHEMA_SQL, addedColumnsSql, postgresHardeningSql, storageSetupSql } from './schema';
 
 /**
  * The Supabase migration file, generated from the schema module.
@@ -22,6 +22,13 @@ export function migrationFileContents(): string {
 --   or paste into the SQL editor in the Supabase dashboard.
 
 ${SCHEMA_SQL}
+
+-- ---------------------------------------------------------------------------
+-- Columns added to tables that already existed. CREATE TABLE IF NOT EXISTS
+-- does nothing to a live table, so these have to be stated separately or a
+-- database that predates them keeps the old shape. See addedColumnsSql().
+-- ---------------------------------------------------------------------------
+${addedColumnsSql()}
 
 -- ---------------------------------------------------------------------------
 -- Keep these tables out of the public API. See postgresHardeningSql().

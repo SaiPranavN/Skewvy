@@ -252,6 +252,16 @@ CREATE TABLE IF NOT EXISTS app_settings (
 
 
 -- ---------------------------------------------------------------------------
+-- Columns added to tables that already existed. CREATE TABLE IF NOT EXISTS
+-- does nothing to a live table, so these have to be stated separately or a
+-- database that predates them keeps the old shape. See addedColumnsSql().
+-- ---------------------------------------------------------------------------
+ALTER TABLE users ADD COLUMN IF NOT EXISTS suspended_at TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS suspended_reason TEXT;
+ALTER TABLE artifact_totals ADD COLUMN IF NOT EXISTS rotten_egg_contributor_total INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE artifact_totals ADD COLUMN IF NOT EXISTS medal_contributor_total INTEGER NOT NULL DEFAULT 0;
+
+-- ---------------------------------------------------------------------------
 -- Keep these tables out of the public API. See postgresHardeningSql().
 -- ---------------------------------------------------------------------------
 DO $skewvy$

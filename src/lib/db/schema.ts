@@ -264,6 +264,27 @@ export const ADDED_COLUMNS: Array<{ table: string; column: string; definition: s
   { table: 'artifact_totals', column: 'medal_contributor_total', definition: 'INTEGER NOT NULL DEFAULT 0' },
 ];
 
+/**
+ * The added columns as PostgreSQL statements, for the generated migration file.
+ *
+ * `CREATE TABLE IF NOT EXISTS` is a no-op against a table that already exists,
+ * so a schema file alone cannot add a column to a live database — it would
+ * create the new tables, skip the altered one, and leave the application
+ * querying a column that is not there. `migrate()` handles this by checking
+ * each column and adding what is missing, but anyone applying the `.sql` file
+ * directly (`supabase db push`, or the dashboard SQL editor) never runs that
+ * code. Emitting the statements here means both routes arrive at the same
+ * schema.
+ *
+ * PostgreSQL only, which is what the file is for: `IF NOT EXISTS` on
+ * `ADD COLUMN` is not something SQLite accepts.
+ */
+export function addedColumnsSql(): string {
+  return ADDED_COLUMNS.map(
+    ({ table, column, definition }) => `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${column} ${definition};`,
+  ).join('\n');
+}
+
 /** Every table the schema defines, in creation order. */
 export function schemaTables(): string[] {
   return [...SCHEMA_SQL.matchAll(/CREATE TABLE IF NOT EXISTS\s+(\w+)/gi)].map((match) => match[1]);
