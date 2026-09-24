@@ -1,12 +1,19 @@
 'use client';
 
-import { useCallback, useId, useState, useTransition } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, useTransition } from 'react';
 import { RelativeTime } from '@/components/ui/TimeAgo';
 import { useArtifact } from '@/components/reactions/useArtifact';
 import { useReactionContext } from '@/components/reactions/ReactionProvider';
 import { initialsFor } from '@/components/ui/Media';
 import { formatCount } from '@/lib/domain/format';
 import { COMMENT_MAX_LENGTH } from '@/lib/validation/schemas';
+import { Modal } from '@/components/ui/Modal';
+import {
+  REPORT_DETAILS_MAX_LENGTH,
+  REPORT_REASONS,
+  REPORT_REASON_LABELS,
+  type ReportReason,
+} from '@/lib/domain/reports';
 import type {
   CommentPage,
   CommentSort,
@@ -56,6 +63,7 @@ export function CommentSection({
   const [posted, setPosted] = useState(false);
   const [posting, setPosting] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [reporting, setReporting] = useState<CommentView | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const viewerStance = state.contribution.stance;
@@ -216,6 +224,21 @@ export function CommentSection({
     }));
   };
 
+  const startReport = (comment: CommentView) => {
+    if (!isAuthenticated) {
+      requestSignIn();
+      return;
+    }
+    setReporting(comment);
+  };
+
+  const markReported = (commentId: string) => {
+    setPage((current) => ({
+      ...current,
+      comments: current.comments.map((item) => (item.id === commentId ? { ...item, viewerHasReported: true } : item)),
+    }));
+  };
+
   const remaining = COMMENT_MAX_LENGTH - draft.length;
   const canPost = draft.trim().length >= 2 && !posting;
 
@@ -372,7 +395,7 @@ export function CommentSection({
                 index % 2 === 1 ? 'bg-[rgb(23_20_15_/_0.035)]' : ''
               }`}
             >
-              <Comment comment={comment} onVote={vote} onDelete={remove} />
+              <Comment comment={comment} onVote={vote} onDelete={remove} onReport={startReport} />
             </li>
           ))}
         </ul>
@@ -388,6 +411,16 @@ export function CommentSection({
           {loadingMore ? 'Loading…' : 'Show more comments'}
         </button>
       )}
+
+      <ReportDialog
+        comment={reporting}
+        onClose={() => setReporting(null)}
+        onReported={markReported}
+        onSignInNeeded={() => {
+          setReporting(null);
+          requestSignIn();
+        }}
+      />
     </section>
   );
 }
@@ -398,10 +431,12 @@ function Comment({
   comment,
   onVote,
   onDelete,
+  onReport,
 }: {
   comment: CommentView;
   onVote: (comment: CommentView, value: Exclude<VoteValue, 0>) => void;
   onDelete: (comment: CommentView) => void;
+  onReport: (comment: CommentView) => void;
 }) {
   const score = comment.likeCount - comment.dislikeCount;
 
@@ -419,6 +454,7 @@ function Comment({
             iso={comment.createdAt}
             className="text-[11.5px] font-medium uppercase leading-none tracking-[0.06em] text-[rgb(23_20_15_/_0.62)]"
           />
+          <CommentMenu comment={comment} onDelete={onDelete} onReport={onReport} />
         </div>
 
         <p className="m-0 max-w-[72ch] whitespace-pre-line text-pretty text-[15.5px] leading-[1.55]">
@@ -444,19 +480,351 @@ function Comment({
           >
             {score > 0 ? `+${formatCount(score)}` : score < 0 ? `−${formatCount(Math.abs(score))}` : '0'}
           </span>
-
-          {comment.viewerCanDelete && (
-            <button
-              type="button"
-              onClick={() => onDelete(comment)}
-              className="btn btn-ink ml-auto min-h-9 px-2.5 text-xs font-bold text-[rgb(23_20_15_/_0.62)] hover:text-ink"
-            >
-              Delete
-            </button>
-          )}
         </div>
       </div>
     </article>
+  );
+}
+
+/**
+ * The three-dot menu on a comment.
+ *
+ * Report sits behind it rather than beside the votes so it is there when
+ * needed and never the first thing within reach. Delete moved in with it: both
+ * are rare, and a bare Delete next to Like is one slip from the wrong tap.
+ *
+ * Follows the menu-button pattern: arrow keys move between items, Escape and
+ * Tab close, and focus goes back to the button it came from.
+ */
+function CommentMenu({
+  comment,
+  onDelete,
+  onReport,
+}: {
+  comment: CommentView;
+  onDelete: (comment: CommentView) => void;
+  onReport: (comment: CommentView) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuId = useId();
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  const items = (): HTMLElement[] =>
+    Array.from(listRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []);
+
+  useEffect(() => {
+    if (!open) return;
+    items()[0]?.focus();
+
+    const onPointer = (event: PointerEvent) => {
+      if (!wrapperRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointer);
+    return () => document.removeEventListener('pointerdown', onPointer);
+  }, [open]);
+
+  const close = (refocus: boolean) => {
+    setOpen(false);
+    if (refocus) buttonRef.current?.focus();
+  };
+
+  const onMenuKey = (event: React.KeyboardEvent) => {
+    const list = items();
+    const index = list.indexOf(document.activeElement as HTMLElement);
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close(true);
+    } else if (event.key === 'Tab') {
+      close(false);
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      list[(index + step + list.length) % list.length]?.focus();
+    } else if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      list[event.key === 'Home' ? 0 : list.length - 1]?.focus();
+    }
+  };
+
+  const canReport = !comment.viewerIsAuthor;
+
+  return (
+    <div ref={wrapperRef} className="relative ml-auto">
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        aria-label={`More options for ${comment.author.displayName}’s comment`}
+        onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown' && !open) {
+            event.preventDefault();
+            setOpen(true);
+          }
+        }}
+        className={`flex h-9 w-9 items-center justify-center border-2 text-ink transition-colors duration-150 ${
+          open ? 'border-ink bg-[rgb(23_20_15_/_0.08)]' : 'border-transparent hover:border-ink'
+        }`}
+      >
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+          <circle cx="9" cy="3.5" r="1.9" />
+          <circle cx="9" cy="9" r="1.9" />
+          <circle cx="9" cy="14.5" r="1.9" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          ref={listRef}
+          id={menuId}
+          role="menu"
+          aria-label="Comment options"
+          className="menu-list pop-in"
+          onKeyDown={onMenuKey}
+        >
+          {canReport &&
+            (comment.viewerHasReported ? (
+              <div role="menuitem" tabIndex={-1} aria-disabled="true" className="menu-item">
+                <span aria-hidden="true">✓</span> Reported — thanks
+              </div>
+            ) : (
+              <button
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                className="menu-item"
+                onClick={() => {
+                  // Focus goes back to the button first, so the dialog returns it there.
+                  close(true);
+                  onReport(comment);
+                }}
+              >
+                <span aria-hidden="true">⚑</span> Report comment
+              </button>
+            ))}
+          {comment.viewerCanDelete && (
+            <button
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              className="menu-item text-[color:var(--color-negative-deep)]"
+              onClick={() => {
+                close(true);
+                onDelete(comment);
+              }}
+            >
+              <span aria-hidden="true">✕</span> Delete comment
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Why a comment is being reported. One modal for the whole thread, pointed at
+ * whichever comment asked for it.
+ */
+function ReportDialog({
+  comment,
+  onClose,
+  onReported,
+  onSignInNeeded,
+}: {
+  comment: CommentView | null;
+  onClose: () => void;
+  onReported: (commentId: string) => void;
+  onSignInNeeded: () => void;
+}) {
+  const headingId = useId();
+  const detailsId = useId();
+  const firstReasonRef = useRef<HTMLInputElement | null>(null);
+  const doneRef = useRef<HTMLButtonElement | null>(null);
+
+  const [reason, setReason] = useState<ReportReason | null>(null);
+  const [details, setDetails] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+
+  // A fresh form for each comment.
+  const commentId = comment?.id ?? null;
+  useEffect(() => {
+    setReason(null);
+    setDetails('');
+    setError(null);
+    setSent(false);
+    setSending(false);
+  }, [commentId]);
+
+  useEffect(() => {
+    if (sent) doneRef.current?.focus();
+  }, [sent]);
+
+  const needsDetails = reason === 'other';
+  const canSend = reason !== null && (!needsDetails || details.trim().length >= 3) && !sending;
+
+  const send = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!comment || !reason || !canSend) return;
+    setSending(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/comments/${comment.id}/report`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ reason, details: details.trim() || undefined }),
+      });
+
+      if (response.status === 401) {
+        onSignInNeeded();
+        return;
+      }
+      if (response.status === 429) {
+        setError('You have sent a lot of reports in a short time. Try again later.');
+        return;
+      }
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { message?: string };
+        setError(payload.message ?? 'That did not go through. Try again.');
+        return;
+      }
+
+      onReported(comment.id);
+      setSent(true);
+    } catch {
+      setError('Could not reach the server. Try again.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={comment !== null}
+      onClose={onClose}
+      labelledBy={headingId}
+      initialFocus={firstReasonRef}
+      dismissible={!sending}
+    >
+      {comment &&
+        (sent ? (
+          <div role="status">
+            <p className="eyebrow-ink m-0">Report received</p>
+            <h2 id={headingId} className="display-sm m-0 mt-2.5 text-[clamp(22px,2.4vw,28px)]">
+              Thanks. We will take a look.
+            </h2>
+            <p className="m-0 mt-3 text-[14.5px] leading-[1.5] text-[rgb(23_20_15_/_0.75)]">
+              A moderator reviews every report. The comment stays up until then, and {comment.author.displayName} is
+              not told who reported it.
+            </p>
+            <div className="mt-5 flex justify-end">
+              <button ref={doneRef} type="button" onClick={onClose} className="btn btn-ink min-h-11 px-4 py-3 text-[14px]">
+                Done
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={send}>
+            <p className="eyebrow-ink m-0">Report comment</p>
+            <h2 id={headingId} className="display-sm m-0 mt-2.5 text-[clamp(22px,2.4vw,28px)]">
+              What is wrong with it?
+            </h2>
+
+            <blockquote className="m-0 mt-3.5 border-l-4 border-ink bg-[rgb(23_20_15_/_0.05)] px-3.5 py-2.5 text-[13.5px] leading-[1.5]">
+              <span className="block text-[11.5px] font-extrabold uppercase tracking-[0.06em] text-[rgb(23_20_15_/_0.6)]">
+                {comment.author.displayName}
+              </span>
+              <span className="line-clamp-3 whitespace-pre-line">{comment.body}</span>
+            </blockquote>
+
+            <fieldset className="m-0 mt-4 border-0 p-0">
+              <legend className="sr-only">Reason</legend>
+              <div className="flex flex-col gap-1.5">
+                {REPORT_REASONS.map((value, index) => (
+                  <label
+                    key={value}
+                    className={`flex cursor-pointer items-start gap-3 border-2 px-3 py-2.5 transition-colors duration-150 ${
+                      reason === value ? 'border-ink bg-[rgb(23_20_15_/_0.06)]' : 'border-[var(--rule-default)] hover:border-ink'
+                    }`}
+                  >
+                    <input
+                      ref={index === 0 ? firstReasonRef : undefined}
+                      type="radio"
+                      name="report-reason"
+                      value={value}
+                      checked={reason === value}
+                      onChange={() => setReason(value)}
+                      className="mt-0.5 h-4 w-4 flex-none accent-[var(--color-ink)]"
+                    />
+                    <span>
+                      <span className="block text-[14px] font-extrabold leading-[1.25]">
+                        {REPORT_REASON_LABELS[value].label}
+                      </span>
+                      <span className="mt-0.5 block text-[12.5px] leading-[1.4] text-[rgb(23_20_15_/_0.66)]">
+                        {REPORT_REASON_LABELS[value].hint}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            {reason && (
+              <div className="mt-3.5">
+                <label htmlFor={detailsId} className="text-[12.5px] font-bold">
+                  {needsDetails ? 'What is wrong?' : 'Anything to add? (optional)'}
+                </label>
+                <textarea
+                  id={detailsId}
+                  value={details}
+                  onChange={(event) => setDetails(event.target.value.slice(0, REPORT_DETAILS_MAX_LENGTH))}
+                  rows={2}
+                  required={needsDetails}
+                  className="mt-1.5 block w-full resize-y border-2 border-ink bg-transparent p-2.5 text-[14px] leading-[1.45] outline-none focus-visible:shadow-[3px_3px_0_var(--color-ink)]"
+                />
+              </div>
+            )}
+
+            <p className="m-0 mt-3.5 text-[12.5px] leading-[1.45] text-[rgb(23_20_15_/_0.62)]">
+              Reports are for comments that break the rules — not for ones you disagree with. That is what the
+              dislike button is for.
+            </p>
+
+            {error && (
+              <p role="alert" className="m-0 mt-3 text-[13.5px] font-bold text-[color:var(--color-negative-deep)]">
+                {error}
+              </p>
+            )}
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={sending}
+                className="btn btn-ink min-h-11 px-4 py-3 text-[14px]"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!canSend}
+                className={`btn min-h-11 px-4 py-3 text-[14px] font-extrabold ${
+                  canSend ? 'border-2 border-ink bg-ink text-paper' : 'bg-[rgb(23_20_15_/_0.1)] text-[rgb(23_20_15_/_0.6)]'
+                }`}
+              >
+                {sending ? 'Sending…' : 'Send report'}
+              </button>
+            </div>
+          </form>
+        ))}
+    </Modal>
   );
 }
 

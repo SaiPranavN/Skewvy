@@ -30,7 +30,7 @@ export function RelatedEntityAside({
       className="min-w-[min(100%,280px)] max-w-[420px] flex-[1_1_300px] border border-[var(--border-default)] p-[clamp(18px,2vw,26px)]"
     >
       <h2 id="related-entity-heading" className="eyebrow mb-[18px] text-[color:var(--color-indigo-soft)]">
-        {entities.length > 1 ? 'Related entities' : 'Related entity'}
+        {entities.length > 1 ? 'Related profiles' : 'Related profile'}
       </h2>
 
       <div className="flex flex-col gap-5">
@@ -80,7 +80,7 @@ export function RelatedEntityAside({
       </div>
 
       <p className="m-0 mt-4 text-[12.5px] leading-[1.5] text-tertiary">
-        Lifetime totals cover every item for {entities.length > 1 ? 'these entities' : entities[0].name}, not this story
+        Lifetime totals cover every item for {entities.length > 1 ? 'these profiles' : entities[0].name}, not this story
         on its own.
       </p>
     </aside>

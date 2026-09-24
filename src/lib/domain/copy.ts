@@ -11,7 +11,7 @@ import type { ArtifactTotals } from './types';
 export const HERO_HEADLINE = 'Public sentiment, counted.';
 
 export const HERO_SUPPORT =
-  'React to the stories, decisions and entities shaping the moment. Send Rotten Eggs when something deserves criticism. Award Medals when it deserves recognition.';
+  'React to the stories, decisions and profiles shaping the moment. Send Rotten Eggs when something deserves criticism. Award Medals when it deserves recognition.';
 
 /** The distinction the whole product rests on. Stated plainly, everywhere. */
 export const MEASUREMENT_PRINCIPLE =
@@ -180,9 +180,9 @@ export function opinionPhrase(totals: ArtifactTotals): string {
 /** Section headings for the ranked surfaces. Descriptive, not promotional. */
 export const SECTION_TITLES = {
   trending: 'Most active today',
-  scrutiny: 'Entities under scrutiny',
+  scrutiny: 'Profiles under scrutiny',
   recognition: 'Earning recognition',
-  latest: 'Latest Flash News',
+  latest: 'Latest Stories',
   shifting: 'Sentiment shifting',
   fresh: 'Recently added',
 } as const;

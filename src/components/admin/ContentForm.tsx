@@ -321,9 +321,9 @@ export function FlashNewsForm({
       <ImageField name="imageUrl" defaultValue={values.imageUrl} />
 
       <fieldset className="space-y-2.5">
-        <legend className="text-sm font-medium text-secondary">Related Entities</legend>
+        <legend className="text-sm font-medium text-secondary">Related Profiles</legend>
         <p className="text-xs text-tertiary">
-          A Flash News item can belong to one Entity, several, or none at all.
+          A Story can belong to one Profile, several, or none at all.
         </p>
 
         {selectedEntities.map((id) => (

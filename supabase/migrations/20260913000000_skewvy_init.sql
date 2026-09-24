@@ -255,6 +255,24 @@ CREATE TABLE IF NOT EXISTS comment_votes (
 );
 CREATE INDEX IF NOT EXISTS idx_comment_votes_user ON comment_votes(user_id);
 
+-- A person flagging a comment for review. One report per person per comment,
+-- so repeating a report cannot inflate the count the review queue sorts by.
+-- Resolution is kept rather than the row deleted: a dismissed report is the
+-- record that somebody looked, and when.
+CREATE TABLE IF NOT EXISTS comment_reports (
+  id          TEXT PRIMARY KEY,
+  comment_id  TEXT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+  reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reason      TEXT NOT NULL CHECK (reason IN ('harassment', 'hate', 'spam', 'misinformation', 'other')),
+  details     TEXT,
+  created_at  TEXT NOT NULL,
+  resolved_at TEXT,
+  resolution  TEXT CHECK (resolution IN ('removed', 'dismissed')),
+  resolved_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE (comment_id, reporter_id)
+);
+CREATE INDEX IF NOT EXISTS idx_comment_reports_open ON comment_reports(resolved_at, created_at);
+
 -- Server-side rate limiting; a fixed window keyed by action + subject.
 CREATE TABLE IF NOT EXISTS rate_limits (
   bucket_key   TEXT PRIMARY KEY,
@@ -287,7 +305,7 @@ DECLARE
   target text;
   supabase_roles boolean := EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon');
 BEGIN
-  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'opinion_changes', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'comments', 'comment_votes', 'rate_limits', 'app_settings']
+  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'opinion_changes', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'comments', 'comment_votes', 'comment_reports', 'rate_limits', 'app_settings']
   LOOP
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = target) THEN
       EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', target);

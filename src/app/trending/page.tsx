@@ -63,7 +63,7 @@ export default async function TrendingPage({ searchParams }: { searchParams: Pro
           <EmptyState
             title="No reactions in the last 24 hours"
             description="Nothing has been ranked for this window yet."
-            action={{ href: '/flash-news', label: 'Browse Flash News' }}
+            action={{ href: '/flash-news', label: 'Browse Stories' }}
           />
         ) : (
           <ul>
@@ -85,7 +85,7 @@ export default async function TrendingPage({ searchParams }: { searchParams: Pro
           <div className="mb-[clamp(16px,2vw,28px)]">
             <h2 className="display m-0 text-[clamp(26px,3.4vw,48px)]">Recently added</h2>
             <p className="mt-3 text-[15px] leading-[1.5] text-secondary">
-              Newly published Flash News. Not ranked — the counters are still filling.
+              Newly published Stories. Not ranked — the counters are still filling.
             </p>
           </div>
           <CardGrid cards={fresh} columns={4} />

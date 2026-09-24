@@ -25,7 +25,7 @@ export function SentimentMarker({ totals, className = '' }: { totals: ArtifactTo
 
 /** Plain text artifact type. No badge, no container. */
 export function TypeLabel({ type, className = '' }: { type: ArtifactType; className?: string }) {
-  return <span className={`eyebrow ${className}`}>{type === 'entity' ? 'Entity' : 'Flash News'}</span>;
+  return <span className={`eyebrow ${className}`}>{type === 'entity' ? 'Profile' : 'Story'}</span>;
 }
 
 /** A metadata row: category, time, related links — separated by thin bullets. */

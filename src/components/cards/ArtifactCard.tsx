@@ -53,7 +53,7 @@ export function ArtifactCard({ card, priority = false }: { card: ArtifactCardMod
 
       <div className="flex flex-1 flex-col gap-2.5 p-4">
         <p className="text-[11px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
-          {card.type === 'entity' ? 'Entity' : 'Flash News'} · <RelativeTime iso={card.publishedAt} />
+          {card.type === 'entity' ? 'Profile' : 'Story'} · <RelativeTime iso={card.publishedAt} />
         </p>
 
         <h3 className="display-sm text-pretty text-[19px]">

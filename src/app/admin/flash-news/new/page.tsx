@@ -4,7 +4,7 @@ import { saveFlashNewsAction, type ActionResult } from '@/app/admin/actions';
 import { listEntities } from '@/lib/services/content';
 import { FLASH_NEWS_CATEGORIES } from '@/lib/domain/types';
 
-export const metadata: Metadata = { title: 'Admin · New Flash News' };
+export const metadata: Metadata = { title: 'Admin · New Story' };
 export const dynamic = 'force-dynamic';
 
 export default async function NewFlashNewsPage() {
@@ -18,7 +18,7 @@ export default async function NewFlashNewsPage() {
   return (
     <div className="max-w-3xl space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-primary">New Flash News</h2>
+        <h2 className="text-lg font-semibold text-primary">New Story</h2>
         <p className="mt-1 text-sm text-secondary">
           A specific event, announcement, decision, release or achievement the crowd can react to.
         </p>

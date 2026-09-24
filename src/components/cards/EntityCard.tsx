@@ -96,7 +96,7 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
             href={`/entities/${card.slug}#stories`}
             className="card-action ml-auto self-end border-b-2 border-[color:var(--color-indigo)] pb-0.5 text-[13px] font-bold leading-none"
           >
-            {formatCount(itemCount)} Flash News {itemCount === 1 ? 'item' : 'items'} →
+            {formatCount(itemCount)} {itemCount === 1 ? 'Story' : 'Stories'} →
           </Link>
         )}
       </div>

@@ -14,7 +14,7 @@ import type { ArtifactCard } from '@/lib/domain/types';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Flash News',
+  title: 'Stories',
   description: 'Specific events, decisions and announcements the public is reacting to.',
 };
 
@@ -62,7 +62,7 @@ export default async function FlashNewsPage({
 
       <section className="rail">
         <PageIntro
-          eyebrow="Flash News"
+          eyebrow="Stories"
           title="Things that just happened, and what it cost them"
           description="Specific events, decisions and releases. Every total below counts taps, not people."
         />
@@ -82,7 +82,7 @@ export default async function FlashNewsPage({
           sorts={SORTS}
           activeSort={sort ?? null}
           searchPlaceholder="Search headlines"
-          searchLabel="Search Flash News"
+          searchLabel="Search Stories"
           searchValue={q ?? ''}
         />
 
@@ -102,8 +102,8 @@ export default async function FlashNewsPage({
             title="Nothing published here yet"
             description={
               category
-                ? `No published Flash News in ${category}.`
-                : 'No published Flash News yet. Publish an item from the admin area and it appears here.'
+                ? `No published Stories in ${category}.`
+                : 'No published Stories yet. Publish an item from the admin area and it appears here.'
             }
             action={{ href: '/flash-news', label: 'Show everything' }}
           />

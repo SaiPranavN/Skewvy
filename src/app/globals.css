@@ -431,6 +431,77 @@ body {
     z-index: 2;
   }
 
+  /*
+   * A modal: a slab of paper in the top layer. The dialog element itself has
+   * no padding, so a click that lands on it rather than on the body is a click
+   * on the backdrop — which is how the component knows to dismiss.
+   */
+  .modal {
+    width: min(480px, calc(100% - 32px));
+    max-height: calc(100dvh - 32px);
+    margin: auto;
+    padding: 0;
+    border: 3px solid var(--color-ink);
+    border-radius: 0;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    box-shadow: 8px 8px 0 var(--color-ink);
+    overflow: auto;
+  }
+
+  .modal[open] {
+    animation: skv-pop 200ms var(--ease-standard) both;
+  }
+
+  .modal::backdrop {
+    background-color: rgb(23 20 15 / 0.6);
+  }
+
+  .modal-body {
+    padding: clamp(18px, 2.4vw, 28px);
+  }
+
+  /* The three-dot menu on a comment, and the list it opens. */
+  .menu-list {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 20;
+    min-width: 188px;
+    border: 2px solid var(--color-ink);
+    background-color: var(--color-paper);
+    box-shadow: 4px 4px 0 var(--color-ink);
+    padding: 4px;
+  }
+
+  .menu-item {
+    display: flex;
+    width: 100%;
+    min-height: 40px;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    font-size: 13.5px;
+    font-weight: 700;
+    text-align: left;
+    color: var(--color-ink);
+  }
+
+  .menu-item:hover,
+  .menu-item:focus-visible {
+    background-color: rgb(23 20 15 / 0.08);
+    outline: none;
+  }
+
+  .menu-item[aria-disabled='true'] {
+    color: rgb(23 20 15 / 0.5);
+    cursor: default;
+  }
+
+  .menu-item[aria-disabled='true']:hover {
+    background-color: transparent;
+  }
+
   /* The image well. Carries the tone when there is no picture to show. */
   .tile {
     background-color: var(--tone, var(--color-surface-2));
@@ -1362,7 +1433,8 @@ body {
     transform: none;
   }
 
-  .page-enter {
+  .page-enter,
+  .modal[open] {
     animation: none;
   }
 

@@ -113,7 +113,7 @@ export default async function ProfilePage() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-primary">{row.title}</span>
                     <span className="eyebrow mt-0.5 block">
-                      {row.artifact_type === 'entity' ? 'Entity' : 'Flash News'}
+                      {row.artifact_type === 'entity' ? 'Profile' : 'Story'}
                     </span>
                   </span>
 

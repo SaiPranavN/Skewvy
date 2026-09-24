@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { requireAdmin, getCurrentUser } from '@/lib/auth/current-user';
+import { countOpenReports } from '@/lib/services/comments';
 
 const ADMIN_NAV = [
   { href: '/admin', label: 'Overview' },
-  { href: '/admin/entities', label: 'Entities' },
-  { href: '/admin/flash-news', label: 'Flash News' },
+  { href: '/admin/entities', label: 'Profiles' },
+  { href: '/admin/flash-news', label: 'Stories' },
+  { href: '/admin/reports', label: 'Reports' },
   { href: '/admin/accounts', label: 'Accounts' },
 ];
 
@@ -37,6 +39,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     );
   }
 
+  const openReports = await countOpenReports();
+
   return (
     <div className="rail py-8">
       <div className="mb-8 flex flex-wrap items-center gap-4 border-b border-[var(--border-default)] pb-5">
@@ -53,6 +57,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               className="border-b-[3px] border-transparent px-3 py-2.5 text-[13px] font-semibold leading-none text-tertiary transition-colors duration-150 hover:border-[var(--border-strong)] hover:text-primary"
             >
               {item.label}
+              {item.href === '/admin/reports' && openReports > 0 && (
+                <span className="ml-1.5 bg-[color:var(--color-egg)] px-1.5 py-0.5 text-[11px] font-bold text-[color:var(--color-ink)]">
+                  {openReports}
+                </span>
+              )}
             </Link>
           ))}
         </nav>

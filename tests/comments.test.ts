@@ -6,7 +6,17 @@ import {
   createTestFlashNews,
   createVerifiedUser,
 } from './helpers';
-import { createComment, listComments, voteOnComment, deleteComment } from '@/lib/services/comments';
+import {
+  createComment,
+  listComments,
+  voteOnComment,
+  deleteComment,
+  reportComment,
+  listReportedComments,
+  countOpenReports,
+  resolveCommentReports,
+} from '@/lib/services/comments';
+import { commentReportSchema } from '@/lib/validation/schemas';
 import { applyReactionBatch } from '@/lib/services/reactions';
 
 beforeAll(setupTestDatabase);
@@ -211,5 +221,109 @@ describe('filtering by recorded position', () => {
     // not a score, and nothing on it is bigger for having tapped harder.
     expect(page.comments[0].authorStance).toBe('negative');
     expect(JSON.stringify(page.comments[0])).not.toContain('200');
+  });
+});
+
+/**
+ * Reporting a comment. A report is a request for a person to look, not a
+ * vote: it hides nothing, counts once per reporter, and never touches tallies.
+ */
+describe('reporting a comment', () => {
+  async function thread() {
+    const artifactId = await createTestFlashNews();
+    const author = await createVerifiedUser('author@example.test');
+    const reader = await createVerifiedUser('reader@example.test');
+    const comment = await createComment({
+      userId: author,
+      artifactType: 'flash_news',
+      artifactId,
+      body: 'Something somebody will object to.',
+    });
+    return { artifactId, author, reader, commentId: comment.id };
+  }
+
+  it('takes one report per person, and a repeat is not a second one', async () => {
+    const { reader, commentId } = await thread();
+
+    expect(await reportComment({ userId: reader, commentId, reason: 'spam' })).toBe('reported');
+    expect(await reportComment({ userId: reader, commentId, reason: 'hate' })).toBe('already_reported');
+
+    const [queued] = await listReportedComments();
+    expect(queued.reportCount).toBe(1);
+    expect(queued.reasons).toEqual([{ reason: 'spam', count: 1 }]);
+  });
+
+  it('refuses a report on your own comment', async () => {
+    const { author, commentId } = await thread();
+    expect(await reportComment({ userId: author, commentId, reason: 'spam' })).toBe('own_comment');
+    expect(await listReportedComments()).toHaveLength(0);
+  });
+
+  it('leaves the comment up and tells only the reporter they reported it', async () => {
+    const { artifactId, author, reader, commentId } = await thread();
+    await reportComment({ userId: reader, commentId, reason: 'harassment', details: 'Aimed at one person.' });
+
+    const asReader = await listComments('flash_news', artifactId, { viewerId: reader });
+    expect(asReader.total).toBe(1);
+    expect(asReader.comments[0].viewerHasReported).toBe(true);
+    expect(asReader.comments[0].viewerIsAuthor).toBe(false);
+
+    const asAuthor = await listComments('flash_news', artifactId, { viewerId: author });
+    expect(asAuthor.comments[0].viewerHasReported).toBe(false);
+    expect(asAuthor.comments[0].viewerIsAuthor).toBe(true);
+  });
+
+  it('queues the most-reported comment first, with every reason and note', async () => {
+    const { artifactId, author, reader, commentId } = await thread();
+    const other = await createComment({ userId: reader, artifactType: 'flash_news', artifactId, body: 'A second one.' });
+    const third = await createVerifiedUser('third@example.test');
+
+    await reportComment({ userId: author, commentId: other.id, reason: 'spam' });
+    await reportComment({ userId: reader, commentId, reason: 'harassment' });
+    await reportComment({ userId: third, commentId, reason: 'other', details: 'Posts the same thing everywhere.' });
+
+    const queue = await listReportedComments();
+    expect(queue.map((item) => item.commentId)).toEqual([commentId, other.id]);
+    expect(queue[0].reportCount).toBe(2);
+    expect(queue[0].notes).toEqual(['Posts the same thing everywhere.']);
+    expect(queue[0].artifact.type).toBe('flash_news');
+    expect(queue[0].artifact.title).not.toBeNull();
+    expect(await countOpenReports()).toBe(2);
+  });
+
+  it('keeps a dismissed comment up and takes a removed one down', async () => {
+    const { artifactId, author, reader, commentId } = await thread();
+    const admin = await createVerifiedUser('admin@example.test');
+    const other = await createComment({ userId: author, artifactType: 'flash_news', artifactId, body: 'Another take.' });
+    await reportComment({ userId: reader, commentId, reason: 'spam' });
+    await reportComment({ userId: reader, commentId: other.id, reason: 'hate' });
+
+    await resolveCommentReports({ commentId, adminId: admin, action: 'dismiss' });
+    await resolveCommentReports({ commentId: other.id, adminId: admin, action: 'remove' });
+
+    const page = await listComments('flash_news', artifactId);
+    expect(page.comments.map((comment) => comment.id)).toEqual([commentId]);
+    expect(await listReportedComments()).toHaveLength(0);
+
+    // A dismissed report stays dismissed: the same person cannot requeue it.
+    expect(await reportComment({ userId: reader, commentId, reason: 'spam' })).toBe('already_reported');
+    expect(await countOpenReports()).toBe(0);
+  });
+
+  it('closes the reports when the author deletes the comment', async () => {
+    const { author, reader, commentId } = await thread();
+    await reportComment({ userId: reader, commentId, reason: 'spam' });
+
+    await deleteComment({ commentId, userId: author, isAdmin: false });
+
+    expect(await countOpenReports()).toBe(0);
+    expect(await reportComment({ userId: reader, commentId, reason: 'spam' })).toBe('not_found');
+  });
+
+  it('asks for a few words when the reason is "something else"', () => {
+    expect(commentReportSchema.safeParse({ reason: 'other' }).success).toBe(false);
+    expect(commentReportSchema.safeParse({ reason: 'other', details: 'Doxxing' }).success).toBe(true);
+    expect(commentReportSchema.safeParse({ reason: 'spam' }).success).toBe(true);
+    expect(commentReportSchema.safeParse({ reason: 'disagree' }).success).toBe(false);
   });
 });

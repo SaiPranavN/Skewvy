@@ -10,9 +10,11 @@ const BROWSE: Array<[string, string]> = [
 ];
 
 /** The two rules the whole product rests on, stated plainly at the bottom. */
+const CONTACT_EMAIL = 'team@skewvy.com';
+
 const RULES = [
   'Sentiment applies to decisions and events, not private individuals.',
-  'A side, once taken, is final. Later reactions must agree with it.',
+  'On a Story, a side once taken is final. On a Profile you can change it, and what you already sent still counts.',
 ];
 
 export function SiteFooter() {
@@ -50,6 +52,19 @@ export function SiteFooter() {
               <li key={rule}>{rule}</li>
             ))}
           </ul>
+        </div>
+
+        <div className="flex-[1_1_200px]">
+          <h2 className="eyebrow mb-3.5">Contact</h2>
+          <p className="max-w-[30ch] text-sm leading-[1.5] text-secondary">
+            Questions, corrections, partnerships or anything else — write to us.
+          </p>
+          <a
+            href={`mailto:${CONTACT_EMAIL}`}
+            className="mt-3 inline-block break-all text-[14.5px] font-semibold leading-none text-primary underline decoration-2 underline-offset-4 transition-colors duration-150 hover:text-brand"
+          >
+            {CONTACT_EMAIL}
+          </a>
         </div>
       </div>
     </footer>

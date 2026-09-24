@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     template: '%s · Skewvy',
   },
   description:
-    'React to the stories, decisions and entities shaping the moment. Send Rotten Eggs when something deserves criticism. Award Medals when it deserves recognition.',
+    'React to the stories, decisions and profiles shaping the moment. Send Rotten Eggs when something deserves criticism. Award Medals when it deserves recognition.',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   openGraph: {
     title: 'Skewvy — Public sentiment, counted',

@@ -8,7 +8,7 @@ import { getTotals } from '@/lib/services/totals';
 import { formatCount } from '@/lib/domain/format';
 import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
-export const metadata: Metadata = { title: 'Admin · Edit Entity' };
+export const metadata: Metadata = { title: 'Admin · Edit Profile' };
 export const dynamic = 'force-dynamic';
 
 export default async function EditEntityPage({ params }: { params: Promise<{ id: string }> }) {
@@ -27,7 +27,7 @@ export default async function EditEntityPage({ params }: { params: Promise<{ id:
     <div className="max-w-3xl space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-primary">Edit Entity</h2>
+          <h2 className="text-lg font-semibold text-primary">Edit Profile</h2>
           <p className="mt-1 text-sm text-secondary">
             {formatCount(totals.rottenEggTotal)} <EggIcon /> · {formatCount(totals.medalTotal)} <MedalIcon /> ·{' '}
             {totals.uniqueParticipantTotal === 1 ? '1 person' : `${formatCount(totals.uniqueParticipantTotal)} people`}

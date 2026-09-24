@@ -1,6 +1,7 @@
 import { query, queryOne, transaction } from '@/lib/db';
 import { newId } from './crypto';
 import type { ArtifactType, Stance } from '@/lib/domain/types';
+import type { ReportReason } from '@/lib/domain/reports';
 
 /**
  * Open discussion attached to an artifact.
@@ -43,6 +44,10 @@ export interface CommentView {
   viewerVote: VoteValue;
   /** True when the viewer may remove it: their own comment, or an admin. */
   viewerCanDelete: boolean;
+  /** The viewer wrote it. Nobody reports their own comment; they delete it. */
+  viewerIsAuthor: boolean;
+  /** The viewer has already flagged it for review. */
+  viewerHasReported: boolean;
 }
 
 export interface CommentPage {
@@ -65,6 +70,7 @@ interface CommentRow {
   display_name: string;
   stance: string | null;
   viewer_vote: number | null;
+  viewer_report: string | null;
 }
 
 function toView(row: CommentRow, viewerId: string | null, viewerIsAdmin: boolean): CommentView {
@@ -78,6 +84,8 @@ function toView(row: CommentRow, viewerId: string | null, viewerIsAdmin: boolean
     authorStance: (row.stance as Stance | null) ?? null,
     viewerVote: (Number(row.viewer_vote ?? 0) || 0) as VoteValue,
     viewerCanDelete: viewerIsAdmin || (viewerId !== null && viewerId === row.user_id),
+    viewerIsAuthor: viewerId !== null && viewerId === row.user_id,
+    viewerHasReported: row.viewer_report !== null && row.viewer_report !== undefined,
   };
 }
 
@@ -114,13 +122,16 @@ export async function listComments(
     `SELECT c.id, c.body, c.created_at, c.like_count, c.dislike_count, c.user_id,
             u.display_name,
             o.stance AS stance,
-            v.value  AS viewer_vote
+            v.value  AS viewer_vote,
+            r.id     AS viewer_report
        FROM comments c
        JOIN users u ON u.id = c.user_id
        LEFT JOIN opinions o
          ON o.user_id = c.user_id AND o.artifact_type = c.artifact_type AND o.artifact_id = c.artifact_id
        LEFT JOIN comment_votes v
          ON v.comment_id = c.id AND v.user_id = $3
+       LEFT JOIN comment_reports r
+         ON r.comment_id = c.id AND r.reporter_id = $3
       WHERE c.artifact_type = $1 AND c.artifact_id = $2 AND c.deleted_at IS NULL${stanceClause}
       ORDER BY ${order}
       LIMIT $4 OFFSET $5`,
@@ -191,7 +202,8 @@ export async function createComment(input: {
     `SELECT c.id, c.body, c.created_at, c.like_count, c.dislike_count, c.user_id,
             u.display_name,
             o.stance AS stance,
-            NULL AS viewer_vote
+            NULL AS viewer_vote,
+            NULL AS viewer_report
        FROM comments c
        JOIN users u ON u.id = c.user_id
        LEFT JOIN opinions o
@@ -301,6 +313,177 @@ export async function deleteComment(input: {
   if (!input.isAdmin && row.user_id !== input.userId) return 'forbidden';
 
   const now = new Date().toISOString();
-  await query('UPDATE comments SET deleted_at = $2, updated_at = $2 WHERE id = $1', [input.commentId, now]);
+  await transaction(async (tx) => {
+    await tx.execute('UPDATE comments SET deleted_at = $2, updated_at = $2 WHERE id = $1', [input.commentId, now]);
+    // A comment that is gone has nothing left to review.
+    await tx.execute(
+      `UPDATE comment_reports SET resolved_at = $2, resolution = 'removed', resolved_by = $3
+        WHERE comment_id = $1 AND resolved_at IS NULL`,
+      [input.commentId, now, input.userId],
+    );
+  });
   return 'deleted';
+}
+
+/* --------------------------------- reports --------------------------------- */
+
+export type ReportOutcome = 'reported' | 'already_reported' | 'own_comment' | 'not_found';
+
+/**
+ * Flags a comment for an administrator to look at.
+ *
+ * A report changes nothing on its own: the comment stays up, its votes stay
+ * where they are, and nobody else can see that it was reported. It only puts
+ * the comment in the review queue. Hiding on a report count would hand every
+ * pile-on a delete button.
+ */
+export async function reportComment(input: {
+  userId: string;
+  commentId: string;
+  reason: ReportReason;
+  details?: string | null;
+}): Promise<ReportOutcome> {
+  const comment = await queryOne<{ user_id: string }>(
+    'SELECT user_id FROM comments WHERE id = $1 AND deleted_at IS NULL',
+    [input.commentId],
+  );
+  if (!comment) return 'not_found';
+  if (comment.user_id === input.userId) return 'own_comment';
+
+  const details = input.details?.trim() || null;
+  const inserted = await query<{ id: string }>(
+    `INSERT INTO comment_reports (id, comment_id, reporter_id, reason, details, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (comment_id, reporter_id) DO NOTHING
+     RETURNING id`,
+    [newId(), input.commentId, input.userId, input.reason, details, new Date().toISOString()],
+  );
+
+  return inserted.length > 0 ? 'reported' : 'already_reported';
+}
+
+export interface ReportedComment {
+  commentId: string;
+  body: string;
+  createdAt: string;
+  author: { id: string; displayName: string };
+  artifact: { type: ArtifactType; id: string; slug: string | null; title: string | null };
+  /** Open reports only. */
+  reportCount: number;
+  reasons: Array<{ reason: ReportReason; count: number }>;
+  /** What reporters wrote, newest first. */
+  notes: string[];
+  firstReportedAt: string;
+  lastReportedAt: string;
+}
+
+/**
+ * The review queue: every comment with an open report, most-reported first.
+ *
+ * Reports are read as rows and folded here rather than grouped in SQL, so the
+ * reasons and notes arrive together without a second query per comment.
+ */
+export async function listReportedComments(limit = 100): Promise<ReportedComment[]> {
+  const rows = await query<{
+    comment_id: string;
+    body: string;
+    comment_created_at: string;
+    author_id: string;
+    author_name: string;
+    artifact_type: ArtifactType;
+    artifact_id: string;
+    slug: string | null;
+    title: string | null;
+    reason: ReportReason;
+    details: string | null;
+    reported_at: string;
+  }>(
+    `SELECT c.id AS comment_id, c.body, c.created_at AS comment_created_at,
+            u.id AS author_id, u.display_name AS author_name,
+            c.artifact_type, c.artifact_id,
+            COALESCE(e.slug, f.slug) AS slug,
+            COALESCE(e.name, f.headline) AS title,
+            r.reason, r.details, r.created_at AS reported_at
+       FROM comment_reports r
+       JOIN comments c ON c.id = r.comment_id
+       JOIN users u ON u.id = c.user_id
+       LEFT JOIN entities e ON c.artifact_type = 'entity' AND e.id = c.artifact_id
+       LEFT JOIN flash_news f ON c.artifact_type = 'flash_news' AND f.id = c.artifact_id
+      WHERE r.resolved_at IS NULL AND c.deleted_at IS NULL
+      ORDER BY r.created_at DESC`,
+  );
+
+  const byComment = new Map<string, ReportedComment>();
+  for (const row of rows) {
+    let entry = byComment.get(row.comment_id);
+    if (!entry) {
+      entry = {
+        commentId: row.comment_id,
+        body: row.body,
+        createdAt: row.comment_created_at,
+        author: { id: row.author_id, displayName: row.author_name },
+        artifact: { type: row.artifact_type, id: row.artifact_id, slug: row.slug, title: row.title },
+        reportCount: 0,
+        reasons: [],
+        notes: [],
+        firstReportedAt: row.reported_at,
+        lastReportedAt: row.reported_at,
+      };
+      byComment.set(row.comment_id, entry);
+    }
+
+    entry.reportCount += 1;
+    const reason = entry.reasons.find((item) => item.reason === row.reason);
+    if (reason) reason.count += 1;
+    else entry.reasons.push({ reason: row.reason, count: 1 });
+    if (row.details) entry.notes.push(row.details);
+    // Rows arrive newest first, so each later row is an earlier report.
+    entry.firstReportedAt = row.reported_at;
+  }
+
+  return [...byComment.values()]
+    .map((entry) => ({ ...entry, reasons: entry.reasons.sort((a, b) => b.count - a.count) }))
+    .sort((a, b) => b.reportCount - a.reportCount || b.lastReportedAt.localeCompare(a.lastReportedAt))
+    .slice(0, limit);
+}
+
+export async function countOpenReports(): Promise<number> {
+  const row = await queryOne<{ total: number }>(
+    `SELECT COUNT(DISTINCT r.comment_id) AS total
+       FROM comment_reports r
+       JOIN comments c ON c.id = r.comment_id
+      WHERE r.resolved_at IS NULL AND c.deleted_at IS NULL`,
+  );
+  return Number(row?.total ?? 0);
+}
+
+/**
+ * Closes every open report on one comment, either by taking the comment down
+ * or by deciding it can stay. Admin only; the caller checks.
+ */
+export async function resolveCommentReports(input: {
+  commentId: string;
+  adminId: string;
+  action: 'remove' | 'dismiss';
+}): Promise<'resolved' | 'not_found'> {
+  const now = new Date().toISOString();
+
+  return transaction(async (tx) => {
+    const found = await tx.query<{ id: string }>('SELECT id FROM comments WHERE id = $1', [input.commentId]);
+    if (found.length === 0) return 'not_found';
+
+    if (input.action === 'remove') {
+      await tx.execute(
+        'UPDATE comments SET deleted_at = $2, updated_at = $2 WHERE id = $1 AND deleted_at IS NULL',
+        [input.commentId, now],
+      );
+    }
+
+    await tx.execute(
+      `UPDATE comment_reports SET resolved_at = $2, resolution = $3, resolved_by = $4
+        WHERE comment_id = $1 AND resolved_at IS NULL`,
+      [input.commentId, now, input.action === 'remove' ? 'removed' : 'dismissed', input.adminId],
+    );
+    return 'resolved';
+  });
 }

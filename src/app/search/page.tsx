@@ -10,7 +10,7 @@ import { formatCount } from '@/lib/domain/format';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = { title: 'Search', description: 'Find an Entity or a Flash News item.' };
+export const metadata: Metadata = { title: 'Search', description: 'Find a Profile or a Story.' };
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
@@ -25,7 +25,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         <PageIntro
           eyebrow="Search"
           title={results.query ? `Results for “${results.query}”` : 'Find something to react to'}
-          description="Across every entity and Flash News item on Skewvy."
+          description="Across every Profile and Story on Skewvy."
         />
 
         <div className="mt-[clamp(26px,3.4vw,54px)]">
@@ -34,7 +34,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
             categories={[]}
             activeCategory={null}
             allLabel="Everything"
-            searchPlaceholder="Search entities and headlines"
+            searchPlaceholder="Search profiles and headlines"
             searchLabel="Search Skewvy"
             searchValue={q ?? ''}
           />
@@ -45,27 +45,27 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         {!results.query ? (
           <EmptyState
             title="Type a name or a headline"
-            description="Results cover both entities and Flash News."
+            description="Results cover both Profiles and Stories."
             action={{ href: '/trending', label: 'Or see what is most active' }}
           />
         ) : results.total === 0 ? (
           <EmptyState
             title={`Nothing matches “${results.query}”`}
-            description="Try a shorter term, or browse the full Flash News feed."
-            action={{ href: '/flash-news', label: 'Browse Flash News' }}
+            description="Try a shorter term, or browse the full Stories feed."
+            action={{ href: '/flash-news', label: 'Browse Stories' }}
           />
         ) : (
           <div className="flex flex-col gap-[clamp(32px,4vw,60px)]">
             {results.flashNews.length > 0 && (
               <section aria-labelledby="search-flash-news">
-                <ResultHeading id="search-flash-news" title="Flash News" count={results.flashNews.length} />
+                <ResultHeading id="search-flash-news" title="Stories" count={results.flashNews.length} />
                 <CardGrid cards={results.flashNews} columns={4} />
               </section>
             )}
 
             {results.entities.length > 0 && (
               <section aria-labelledby="search-entities">
-                <ResultHeading id="search-entities" title="Entities" count={results.entities.length} />
+                <ResultHeading id="search-entities" title="Profiles" count={results.entities.length} />
                 <CardGrid cards={results.entities} columns={4} />
               </section>
             )}

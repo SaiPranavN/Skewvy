@@ -12,7 +12,7 @@ export default function NotFound() {
           href="/flash-news"
           className="min-h-11 rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
         >
-          Browse Flash News
+          Browse Stories
         </Link>
         <Link
           href="/"

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { REPORT_REASONS, REPORT_DETAILS_MAX_LENGTH } from '@/lib/domain/reports';
 
 /** Shared by the client forms and the route handlers so rules can never drift. */
 
@@ -126,6 +127,17 @@ export const commentInputSchema = z.object({
 export const commentVoteSchema = z.object({
   value: z.union([z.literal(-1), z.literal(0), z.literal(1)]),
 });
+
+/** "Something else" needs the few words that say what; the listed reasons speak for themselves. */
+export const commentReportSchema = z
+  .object({
+    reason: z.enum(REPORT_REASONS),
+    details: z.string().trim().max(REPORT_DETAILS_MAX_LENGTH).optional(),
+  })
+  .refine((value) => value.reason !== 'other' || (value.details?.length ?? 0) >= 3, {
+    message: 'Say briefly what is wrong with this comment.',
+    path: ['details'],
+  });
 
 export const contentStatusSchema = z.enum(['draft', 'published', 'archived']);
 

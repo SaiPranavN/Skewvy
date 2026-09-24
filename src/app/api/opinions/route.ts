@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   const outcome = await switchOpinion({ userId: session.user.id, artifactType, artifactId, stance });
 
   if (outcome.status === 'final') {
-    return apiError(403, 'opinion_final', 'A position on a Flash News item is final and cannot be changed.');
+    return apiError(403, 'opinion_final', 'A position on a Story is final and cannot be changed.');
   }
   if (outcome.status === 'no_opinion') {
     return apiError(409, 'no_opinion', 'You have not taken a side on this yet. Your first reaction takes one.');

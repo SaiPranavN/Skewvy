@@ -24,6 +24,7 @@ import {
   deleteAccount,
   type AccountActionOutcome,
 } from '@/lib/services/accounts';
+import { resolveCommentReports } from '@/lib/services/comments';
 
 /**
  * Admin mutations. Every one of these re-checks the admin flag on the server —
@@ -77,13 +78,13 @@ export async function saveEntityAction(id: string | null, _previous: ActionResul
   }
 
   const entity = id ? await updateEntity(id, parsed.data) : await createEntity(parsed.data);
-  if (!entity) return { ok: false, message: 'That Entity no longer exists.' };
+  if (!entity) return { ok: false, message: 'That Profile no longer exists.' };
 
   revalidatePath('/admin/entities');
   revalidatePath('/entities');
   revalidatePath(`/entities/${entity.slug}`);
 
-  return { ok: true, message: id ? 'Entity saved.' : 'Entity created.', redirectTo: `/admin/entities/${entity.id}/edit` };
+  return { ok: true, message: id ? 'Profile saved.' : 'Profile created.', redirectTo: `/admin/entities/${entity.id}/edit` };
 }
 
 function readFlashNewsForm(formData: FormData) {
@@ -123,7 +124,7 @@ export async function saveFlashNewsAction(
   }
 
   const item = id ? await updateFlashNews(id, parsed.data) : await createFlashNews(parsed.data);
-  if (!item) return { ok: false, message: 'That Flash News item no longer exists.' };
+  if (!item) return { ok: false, message: 'That Story no longer exists.' };
 
   revalidatePath('/admin/flash-news');
   revalidatePath('/flash-news');
@@ -131,7 +132,7 @@ export async function saveFlashNewsAction(
 
   return {
     ok: true,
-    message: id ? 'Flash News saved.' : 'Flash News created.',
+    message: id ? 'Story saved.' : 'Story created.',
     redirectTo: `/admin/flash-news/${item.id}/edit`,
   };
 }
@@ -267,4 +268,29 @@ function accountOutcome(outcome: AccountActionOutcome, success: string): ActionR
     case 'refused_admin':
       return { ok: false, message: 'Remove the administrator flag first — admins are protected here.' };
   }
+}
+
+/* --------------------------------- reports --------------------------------- */
+
+/**
+ * Closes the reports on one comment. Removing takes the comment down for
+ * everyone; dismissing leaves it up and clears it from the queue.
+ */
+export async function resolveReportAction(commentId: string, action: 'remove' | 'dismiss'): Promise<ActionResult> {
+  const blocked = await guard();
+  if (blocked) return blocked;
+
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, message: 'Administrator access required.' };
+  if (action !== 'remove' && action !== 'dismiss') return { ok: false, message: 'Unknown action.' };
+
+  const outcome = await resolveCommentReports({ commentId, adminId: admin.id, action });
+  if (outcome === 'not_found') return { ok: false, message: 'That comment no longer exists.' };
+
+  revalidatePath('/admin/reports');
+  revalidatePath('/admin');
+  return {
+    ok: true,
+    message: action === 'remove' ? 'Comment removed and its reports closed.' : 'Reports dismissed. The comment stays up.',
+  };
 }

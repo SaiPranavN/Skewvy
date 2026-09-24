@@ -13,7 +13,7 @@ import type { ArtifactCard } from '@/lib/domain/types';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Entities',
+  title: 'Profiles',
   description: 'Companies, clubs, studios and public bodies with a lifetime sentiment record.',
 };
 
@@ -56,9 +56,9 @@ export default async function EntitiesPage({
 
       <section className="rail">
         <PageIntro
-          eyebrow="Entities"
+          eyebrow="Profiles"
           title="The subjects with a permanent record"
-          description="Organizations, products, teams and public initiatives. Totals here are lifetime, across every Flash News item — not a single event."
+          description="Organizations, products, teams and public initiatives. Totals here are lifetime, across every Story — not a single event."
         />
 
         <div className="mt-[clamp(26px,3.4vw,54px)]">
@@ -68,15 +68,15 @@ export default async function EntitiesPage({
             activeCategory={category ?? null}
             sorts={SORTS}
             activeSort={sort ?? null}
-            searchPlaceholder="Search entities"
-            searchLabel="Search Entities"
+            searchPlaceholder="Search profiles"
+            searchLabel="Search Profiles"
             searchValue={q ?? ''}
           />
 
           <div className="mt-5 flex flex-wrap items-baseline justify-between gap-3 text-xs">
             <p className="font-semibold text-secondary">
               <span className="numeric">{formatCount(cards.length)}</span>{' '}
-              {cards.length === 1 ? 'entity' : 'entities'} · sorted by {sortLabel.toLowerCase()}
+              {cards.length === 1 ? 'profile' : 'profiles'} · sorted by {sortLabel.toLowerCase()}
             </p>
             <p className="eyebrow">Lifetime totals</p>
           </div>
@@ -86,9 +86,9 @@ export default async function EntitiesPage({
       <section className="rail mt-5 pb-[clamp(30px,4vw,64px)]">
         {cards.length === 0 ? (
           <EmptyState
-            title="No Entities match"
+            title="No Profiles match"
             description="Try a different category, or clear the search."
-            action={{ href: '/entities', label: 'Show all Entities' }}
+            action={{ href: '/entities', label: 'Show all Profiles' }}
           />
         ) : (
           <CardGrid cards={cards} columns={4} priorityCount={4} />

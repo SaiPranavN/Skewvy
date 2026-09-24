@@ -55,7 +55,7 @@ export function LeadStory({
             <span className="flag">{card.category}</span>
             <span className="text-[11px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
               <RelativeTime iso={card.publishedAt} />
-              {entityName && ` · Entity: ${entityName}`}
+              {entityName && ` · Profile: ${entityName}`}
             </span>
           </div>
 

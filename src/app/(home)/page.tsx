@@ -55,7 +55,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <div className="rail py-20">
         <EmptyState
           title="No published content yet"
-          description="Publish an Entity or a Flash News item from the admin area and it appears here."
+          description="Publish a Profile or a Story from the admin area and it appears here."
           action={{ href: '/admin', label: 'Open admin' }}
         />
       </div>

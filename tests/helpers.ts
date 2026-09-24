@@ -34,6 +34,7 @@ export async function teardownTestDatabase(): Promise<void> {
 /** Wipes every table between tests without re-running the migration. */
 export async function truncateAll(): Promise<void> {
   for (const table of [
+    'comment_reports',
     'comment_votes',
     'comments',
     'reaction_timeline',

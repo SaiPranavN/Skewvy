@@ -24,14 +24,14 @@ export default async function AdminEntitiesPage({ searchParams }: { searchParams
     imageUrl: entity.imageUrl,
     status: entity.status,
     totals: totals.get(`entity:${entity.id}`) ?? emptyTotals('entity', entity.id),
-    meta: `${counts.get(entity.id) ?? 0} Flash News`,
+    meta: `${counts.get(entity.id) ?? 0} ${counts.get(entity.id) === 1 ? 'Story' : 'Stories'}`,
   }));
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-primary">
-          Entities <span className="text-tertiary">({rows.length})</span>
+          Profiles <span className="text-tertiary">({rows.length})</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           <AdminSearch basePath="/admin/entities" initialValue={q ?? ''} />
@@ -39,7 +39,7 @@ export default async function AdminEntitiesPage({ searchParams }: { searchParams
             href="/admin/entities/new"
             className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
           >
-            New Entity
+            New Profile
           </Link>
         </div>
       </div>

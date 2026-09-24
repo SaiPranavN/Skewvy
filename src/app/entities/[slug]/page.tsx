@@ -80,7 +80,7 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
             className="mb-[clamp(16px,2vw,24px)] flex flex-wrap items-center gap-2 text-xs font-semibold uppercase leading-none tracking-[0.06em] text-tertiary"
           >
             <Link href="/entities" className="text-secondary hover:text-primary">
-              Entities
+              Profiles
             </Link>
             <span aria-hidden="true">/</span>
             <span>{entity.category}</span>
@@ -118,7 +118,7 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
                 href="#stories"
                 className="border-b-2 border-[color:var(--color-indigo-bright)] px-4 py-3.5 text-[13px] font-bold leading-none text-primary"
               >
-                {formatCount(relatedFlashNews.length)} Flash News {relatedFlashNews.length === 1 ? 'item' : 'items'}
+                {formatCount(relatedFlashNews.length)} {relatedFlashNews.length === 1 ? 'Story' : 'Stories'}
               </a>
             )}
           </div>
@@ -149,7 +149,7 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
             <p className="mt-3 text-[15px] font-bold leading-[1.4] text-primary">{opinionPhrase(card.totals)}</p>
 
             <p className="mt-3 text-xs leading-[1.5] text-tertiary">
-              These totals belong to the entity itself. Reactions to individual Flash News items are counted separately
+              These totals belong to the profile itself. Reactions to individual Stories are counted separately
               on those pages.
             </p>
           </div>
@@ -170,7 +170,7 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
 
       <section id="stories" className={`rail scroll-mt-24 ${sectionPad}`}>
         <div className="mb-[clamp(16px,2vw,28px)]">
-          <h2 className="display m-0 text-[clamp(26px,3.4vw,48px)]">Related Flash News</h2>
+          <h2 className="display m-0 text-[clamp(26px,3.4vw,48px)]">Related Stories</h2>
           <p className="mt-3 max-w-[56ch] text-[15px] leading-[1.5] text-secondary">
             Specific events involving {entity.name}, each with its own reaction totals.
           </p>
@@ -178,9 +178,9 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
 
         {relatedFlashNews.length === 0 ? (
           <EmptyState
-            title="No Flash News yet"
+            title="No Stories yet"
             description="Nothing specific has been filed against this entity. Its lifetime counters above remain open."
-            action={{ href: '/flash-news', label: 'Browse Flash News' }}
+            action={{ href: '/flash-news', label: 'Browse Stories' }}
           />
         ) : (
           <CardGrid cards={relatedFlashNews} columns={4} />

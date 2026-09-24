@@ -75,7 +75,7 @@ export default async function AdminOverviewPage() {
                 {counts?.published_entities ?? 0}
                 <span className="text-base font-medium text-tertiary"> / {counts?.entities ?? 0}</span>
               </p>
-              <p className="mt-1 text-sm text-secondary">Entities published</p>
+              <p className="mt-1 text-sm text-secondary">Profiles published</p>
             </Link>
 
             <Link href="/admin/flash-news" className="rounded-[var(--radius-card)] border border-[var(--border-subtle)] p-4 transition-colors hover:border-[var(--border-strong)]">
@@ -83,7 +83,7 @@ export default async function AdminOverviewPage() {
                 {counts?.published_flash_news ?? 0}
                 <span className="text-base font-medium text-tertiary"> / {counts?.flash_news ?? 0}</span>
               </p>
-              <p className="mt-1 text-sm text-secondary">Flash News published</p>
+              <p className="mt-1 text-sm text-secondary">Stories published</p>
             </Link>
           </div>
 
@@ -92,13 +92,13 @@ export default async function AdminOverviewPage() {
               href="/admin/entities/new"
               className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
             >
-              New Entity
+              New Profile
             </Link>
             <Link
               href="/admin/flash-news/new"
               className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] border border-[var(--border-default)] px-4 py-2.5 text-sm text-primary transition-colors duration-150 hover:border-[var(--border-strong)]"
             >
-              New Flash News
+              New Story
             </Link>
           </div>
         </section>

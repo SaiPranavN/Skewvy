@@ -8,7 +8,7 @@ import { getTotals } from '@/lib/services/totals';
 import { formatCount } from '@/lib/domain/format';
 import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
-export const metadata: Metadata = { title: 'Admin · Edit Flash News' };
+export const metadata: Metadata = { title: 'Admin · Edit Story' };
 export const dynamic = 'force-dynamic';
 
 export default async function EditFlashNewsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -31,7 +31,7 @@ export default async function EditFlashNewsPage({ params }: { params: Promise<{ 
     <div className="max-w-3xl space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-primary">Edit Flash News</h2>
+          <h2 className="text-lg font-semibold text-primary">Edit Story</h2>
           <p className="mt-1 text-sm text-secondary">
             {formatCount(totals.rottenEggTotal)} <EggIcon /> · {formatCount(totals.medalTotal)} <MedalIcon /> ·{' '}
             {formatCount(totals.negativeOpinionTotal)}/{formatCount(totals.positiveOpinionTotal)} opinions

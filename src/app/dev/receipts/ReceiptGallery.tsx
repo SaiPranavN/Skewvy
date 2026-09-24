@@ -57,7 +57,7 @@ const CASES: Case[] = [
   },
   {
     name: 'Medal contributor',
-    note: 'Entity with a logo.',
+    note: 'Profile with a logo.',
     input: {
       title: 'Skewvy',
       artifactType: 'entity' as ArtifactType,

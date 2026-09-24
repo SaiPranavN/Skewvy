@@ -86,7 +86,7 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
             className="mb-[clamp(16px,2vw,24px)] flex flex-wrap items-center gap-2 text-xs font-semibold uppercase leading-none tracking-[0.06em] text-tertiary"
           >
             <Link href="/flash-news" className="text-secondary hover:text-primary">
-              Flash News
+              Stories
             </Link>
             {primaryEntity && (
               <>
@@ -122,7 +122,7 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
                 href="#entity"
                 className="border-b-2 border-[color:var(--color-indigo-bright)] px-4 py-3.5 text-[13px] font-bold leading-none text-primary"
               >
-                Related entity: {primaryEntity.name}
+                Related profile: {primaryEntity.name}
               </a>
             )}
           </div>
@@ -193,7 +193,7 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
               href={`/entities/${primaryEntity.slug}`}
               className="border-b-2 border-[color:var(--color-indigo)] pb-1 text-[13px] font-bold leading-none"
             >
-              Entity page →
+              Profile page →
             </Link>
           </div>
           <CardGrid cards={moreFromEntity} columns={3} />

@@ -6,7 +6,7 @@ import { listFlashNews, entitiesForFlashNewsBulk } from '@/lib/services/content'
 import { getTotalsFor } from '@/lib/services/totals';
 import { emptyTotals } from '@/lib/domain/types';
 
-export const metadata: Metadata = { title: 'Admin · Flash News' };
+export const metadata: Metadata = { title: 'Admin · Stories' };
 export const dynamic = 'force-dynamic';
 
 export default async function AdminFlashNewsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
@@ -34,7 +34,7 @@ export default async function AdminFlashNewsPage({ searchParams }: { searchParam
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-primary">
-          Flash News <span className="text-tertiary">({rows.length})</span>
+          Stories <span className="text-tertiary">({rows.length})</span>
         </h2>
         <div className="flex flex-wrap items-center gap-2">
           <AdminSearch basePath="/admin/flash-news" initialValue={q ?? ''} />
@@ -42,7 +42,7 @@ export default async function AdminFlashNewsPage({ searchParams }: { searchParam
             href="/admin/flash-news/new"
             className="inline-flex min-h-11 items-center rounded-[var(--radius-control)] bg-primary px-4 py-2.5 text-sm font-medium text-ground transition-opacity duration-150 hover:opacity-90"
           >
-            New Flash News
+            New Story
           </Link>
         </div>
       </div>

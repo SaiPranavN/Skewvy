@@ -7,14 +7,14 @@ const STEPS = [
     mark: 'find' as const,
     tone: 'var(--color-indigo-soft)',
     title: 'Find a topic',
-    body: 'A release, a policy, a rebrand nobody asked for. Entities hold the long view; Flash News covers the incident.',
+    body: 'A release, a policy, a rebrand nobody asked for. Profiles hold the long view; Stories cover the incident.',
   },
   {
     number: '02',
     mark: 'egg' as const,
     tone: 'var(--color-egg-deep)',
-    title: 'Pick your side, once',
-    body: "Eggs for the ones who earned them, medals for the ones who didn't deserve the eggs. Your side is recorded once and stays put.",
+    title: 'Pick your side',
+    body: "Eggs for the ones who earned them, medals for the ones who didn't deserve the eggs. Your side counts you once. On a Story it stays put; on a Profile you can change your mind later.",
   },
   {
     number: '03',
@@ -60,7 +60,7 @@ export function HowItWorks() {
 
         <div className="mt-[clamp(24px,3vw,44px)] flex flex-wrap items-center justify-between gap-5 border-t-2 border-ink pt-[clamp(18px,2.2vw,28px)]">
           <p className="m-0 max-w-[48ch] text-[clamp(15px,1.2vw,18px)] font-bold leading-[1.45]">
-            Reactions count taps. Opinions count people. One side per person per item, and that side is final.
+            Reactions count taps. Opinions count people. One side per person per item — final on a Story, changeable on a Profile.
           </p>
 
           <Link

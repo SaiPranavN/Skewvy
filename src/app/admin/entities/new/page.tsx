@@ -3,7 +3,7 @@ import { EntityForm } from '@/components/admin/ContentForm';
 import { saveEntityAction, type ActionResult } from '@/app/admin/actions';
 import { ENTITY_CATEGORIES } from '@/lib/domain/types';
 
-export const metadata: Metadata = { title: 'Admin · New Entity' };
+export const metadata: Metadata = { title: 'Admin · New Profile' };
 
 export default function NewEntityPage() {
   async function action(previous: ActionResult, formData: FormData) {
@@ -14,7 +14,7 @@ export default function NewEntityPage() {
   return (
     <div className="max-w-3xl space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-primary">New Entity</h2>
+        <h2 className="text-lg font-semibold text-primary">New Profile</h2>
         <p className="mt-1 text-sm text-secondary">
           A persistent subject that accumulates public sentiment over time — a company, club, studio, product or public
           body.

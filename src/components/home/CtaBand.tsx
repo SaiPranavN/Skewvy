@@ -18,13 +18,13 @@ export function CtaBand() {
 
         <div className="flex flex-none flex-col gap-3">
           <Link href="/flash-news" className="btn justify-start bg-ink px-6 py-4 text-[14px] font-extrabold text-paper">
-            Browse Flash News →
+            Browse Stories →
           </Link>
           <Link
             href="/entities"
             className="btn justify-start border-2 border-paper px-6 py-4 text-[14px] font-extrabold text-paper"
           >
-            Browse Entities →
+            Browse Profiles →
           </Link>
         </div>
       </div>

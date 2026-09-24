@@ -53,7 +53,7 @@ export function RankedRow({
           {card.title}
         </Link>
         <span className="mt-1 block truncate text-xs text-tertiary">
-          {card.type === 'entity' ? 'Entity' : 'Flash News'} · {card.category} · {badge.flashLabel}
+          {card.type === 'entity' ? 'Profile' : 'Story'} · {card.category} · {badge.flashLabel}
         </span>
       </span>
 

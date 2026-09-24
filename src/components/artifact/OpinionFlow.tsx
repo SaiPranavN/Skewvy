@@ -7,6 +7,7 @@ import { useHoldToReact } from '@/components/reactions/useHoldToReact';
 import { useReactionContext } from '@/components/reactions/ReactionProvider';
 import { reactionStore } from '@/lib/client/reaction-store';
 import { Overlay } from '@/components/ui/Overlay';
+import { Modal } from '@/components/ui/Modal';
 import { formatCount, sharePercent } from '@/lib/domain/format';
 import { contributorPhrase } from '@/lib/domain/copy';
 import { canChangeSide } from '@/lib/domain/types';
@@ -82,9 +83,10 @@ export function OpinionFlow({ card }: { card: ArtifactCard }) {
   const [switchError, setSwitchError] = useState<string | null>(null);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
 
-  useEffect(() => {
-    if (pendingSwitch) confirmRef.current?.focus();
-  }, [pendingSwitch]);
+  const cancelSwitch = () => {
+    setPendingSwitch(null);
+    setSwitchError(null);
+  };
 
   const confirmSwitch = async () => {
     if (!pendingSwitch) return;
@@ -231,65 +233,78 @@ export function OpinionFlow({ card }: { card: ArtifactCard }) {
         />
       </div>
 
-      {pendingSwitch && committed && (
-        <div
-          role="group"
-          aria-labelledby={`${card.id}-switch-heading`}
-          className="pop-in mt-[clamp(16px,2vw,24px)] border-2 border-ink bg-paper p-[clamp(14px,1.6vw,20px)]"
-          style={{ boxShadow: '5px 5px 0 var(--color-ink)' }}
-        >
-          <p id={`${card.id}-switch-heading`} className="m-0 text-[16px] font-extrabold leading-[1.3]">
-            Switch your position to {pendingSwitch === 'positive' ? 'Positive' : 'Negative'}?
-          </p>
-          <p className="m-0 mt-2 max-w-[70ch] text-[13.5px] leading-[1.5] text-[rgb(23_20_15_/_0.72)]">
-            You will count as {pendingSwitch === 'positive' ? 'appreciative' : 'critical'} from now on, and{' '}
-            {pendingSwitch === 'positive' ? 'Medals' : 'Rotten Eggs'} open up in place of{' '}
-            {pendingSwitch === 'positive' ? 'Rotten Eggs' : 'Medals'}.{' '}
-            {ownOnCurrent > 0
-              ? `The ${formatCount(ownOnCurrent)} ${
-                  committed === 'negative'
-                    ? ownOnCurrent === 1
-                      ? 'Rotten Egg'
-                      : 'Rotten Eggs'
-                    : ownOnCurrent === 1
-                      ? 'Medal'
-                      : 'Medals'
-                } you already sent stay on the record.`
-              : 'Nothing you have already done is removed.'}
-          </p>
+      <Modal
+        open={pendingSwitch !== null && committed !== null}
+        onClose={cancelSwitch}
+        labelledBy={`${card.id}-switch-heading`}
+        describedBy={`${card.id}-switch-body`}
+        initialFocus={confirmRef}
+        dismissible={!switching}
+      >
+        {pendingSwitch && committed && (
+          <>
+            <p className="eyebrow-ink m-0">Change your position</p>
+            <h2 id={`${card.id}-switch-heading`} className="display-sm m-0 mt-2.5 text-[clamp(22px,2.4vw,28px)]">
+              Switch to {pendingSwitch === 'positive' ? 'Positive' : 'Negative'}?
+            </h2>
 
-          <div className="mt-3.5 flex flex-wrap gap-2.5">
-            <button
-              ref={confirmRef}
-              type="button"
-              onClick={() => void confirmSwitch()}
-              disabled={switching}
-              className={`btn min-h-11 px-4 py-3 text-[14px] font-extrabold ${
-                pendingSwitch === 'positive' ? 'btn-positive w-auto' : 'btn-negative w-auto'
-              }`}
-            >
-              {switching ? 'Switching…' : `Switch to ${pendingSwitch === 'positive' ? 'Positive' : 'Negative'}`}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPendingSwitch(null);
-                setSwitchError(null);
-              }}
-              disabled={switching}
-              className="btn btn-ink min-h-11 px-4 py-3 text-[14px]"
-            >
-              Keep {committed === 'positive' ? 'Positive' : 'Negative'}
-            </button>
-          </div>
+            <div className="mt-4 flex items-center gap-2.5" aria-hidden="true">
+              <SideChip stance={committed} />
+              <span className="text-[18px] font-extrabold leading-none">→</span>
+              <SideChip stance={pendingSwitch} />
+            </div>
 
-          {switchError && (
-            <p role="alert" className="m-0 mt-3 text-[13px] font-bold text-[color:var(--color-negative-deep)]">
-              {switchError}
-            </p>
-          )}
-        </div>
-      )}
+            <div id={`${card.id}-switch-body`}>
+              <p className="m-0 mt-4 text-[14.5px] leading-[1.5] text-[rgb(23_20_15_/_0.78)]">
+                You will count as {pendingSwitch === 'positive' ? 'appreciative' : 'critical'} from now on, and{' '}
+                {pendingSwitch === 'positive' ? 'Medals' : 'Rotten Eggs'} open up in place of{' '}
+                {pendingSwitch === 'positive' ? 'Rotten Eggs' : 'Medals'}.
+              </p>
+              <p className="m-0 mt-2.5 text-[14.5px] font-bold leading-[1.5]">
+                {ownOnCurrent > 0
+                  ? `The ${formatCount(ownOnCurrent)} ${
+                      committed === 'negative'
+                        ? ownOnCurrent === 1
+                          ? 'Rotten Egg'
+                          : 'Rotten Eggs'
+                        : ownOnCurrent === 1
+                          ? 'Medal'
+                          : 'Medals'
+                    } you already sent stay on the record.`
+                  : 'Nothing you have already done is removed.'}
+              </p>
+            </div>
+
+            {switchError && (
+              <p role="alert" className="m-0 mt-3.5 text-[13.5px] font-bold text-[color:var(--color-negative-deep)]">
+                {switchError}
+              </p>
+            )}
+
+            <div className="mt-5 flex flex-wrap justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={cancelSwitch}
+                disabled={switching}
+                className="btn btn-ink min-h-11 px-4 py-3 text-[14px]"
+              >
+                Keep {committed === 'positive' ? 'Positive' : 'Negative'}
+              </button>
+              <button
+                ref={confirmRef}
+                type="button"
+                onClick={() => void confirmSwitch()}
+                disabled={switching}
+                className={`btn min-h-11 w-auto px-4 py-3 text-[14px] font-extrabold ${
+                  pendingSwitch === 'positive' ? 'btn-positive' : 'btn-negative'
+                }`}
+              >
+                {switching ? 'Switching…' : `Switch to ${pendingSwitch === 'positive' ? 'Positive' : 'Negative'}`}
+              </button>
+            </div>
+          </>
+        )}
+      </Modal>
 
       <p className="m-0 mt-[clamp(14px,1.8vw,22px)] max-w-[80ch] text-[13px] leading-[1.5] text-[rgb(23_20_15_/_0.62)]">
         {committed
@@ -313,6 +328,20 @@ export function OpinionFlow({ card }: { card: ArtifactCard }) {
         {commitmentNote}
       </p>
     </section>
+  );
+}
+
+/** A side, as the modal names it: the branch colour and its emoji. */
+function SideChip({ stance }: { stance: Stance }) {
+  const positive = stance === 'positive';
+  return (
+    <span
+      className="inline-flex items-center gap-2 border-2 border-ink px-2.5 py-1.5 text-[13px] font-extrabold leading-none text-ink"
+      style={{ backgroundColor: positive ? 'var(--color-positive)' : 'var(--color-negative)' }}
+    >
+      <span className="text-[16px]">{positive ? '🏅' : '🥚'}</span>
+      {positive ? 'Positive' : 'Negative'}
+    </span>
   );
 }
 
