@@ -3,8 +3,8 @@ import { Wordmark } from './Wordmark';
 
 const BROWSE: Array<[string, string]> = [
   ['/', 'Home'],
-  ['/flash-news', 'Flash News'],
-  ['/entities', 'Entities'],
+  ['/flash-news', 'Stories'],
+  ['/entities', 'Profiles'],
   ['/trending', 'Leaderboards'],
   ['/search', 'Search'],
 ];

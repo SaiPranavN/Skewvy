@@ -8,8 +8,10 @@ import type { PublicUser } from '@/lib/domain/types';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Home' },
-  { href: '/flash-news', label: 'Flash News' },
-  { href: '/entities', label: 'Entities' },
+  // Display names only. The routes, and everything stored, keep the original
+  // names — renaming those would break every link already shared.
+  { href: '/flash-news', label: 'Stories' },
+  { href: '/entities', label: 'Profiles' },
   { href: '/trending', label: 'Leaderboards' },
 ];
 

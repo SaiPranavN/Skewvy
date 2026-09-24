@@ -8,7 +8,6 @@ import { Overlay } from '@/components/ui/Overlay';
 import { formatCount } from '@/lib/domain/format';
 import { contributorPhrase } from '@/lib/domain/copy';
 import type { ArtifactCard, ReactionType } from '@/lib/domain/types';
-import { ReactionMark } from '@/components/ui/icons';
 
 /**
  * The reaction tray: one control, for the side this person actually took.
@@ -104,7 +103,14 @@ function Tray({ card, reactionType }: { card: ArtifactCard; reactionType: Reacti
        * appear without the head count beside it.
        */}
       <div className="flex min-w-0 items-center gap-2.5 border-r border-[var(--rule-default)] px-3.5 py-2.5">
-        <ReactionMark reactionType={reactionType} size={19} className="flex-none" />
+        <span
+          className="emoji-chip"
+          data-kind={isEgg ? 'egg' : 'medal'}
+          style={{ '--chip': '30px' } as React.CSSProperties}
+          aria-hidden="true"
+        >
+          {isEgg ? '🥚' : '🏅'}
+        </span>
         <span className="min-w-0">
           <span
             ref={numberRef}
@@ -112,7 +118,7 @@ function Tray({ card, reactionType }: { card: ArtifactCard; reactionType: Reacti
             style={{
               fontSize: 'clamp(18px,2.4vw,24px)',
               lineHeight: 1,
-              color: isEgg ? 'var(--color-egg-deep)' : '#8a6500',
+              color: isEgg ? 'var(--color-negative-deep)' : 'var(--color-positive-deep)',
             }}
           >
             {formatCount(total)}
@@ -129,7 +135,7 @@ function Tray({ card, reactionType }: { card: ArtifactCard; reactionType: Reacti
         {...buttonProps}
         aria-label={srStatus}
         className={`btn mark-inherit min-h-[52px] flex-none border-0 px-[18px] py-2.5 text-[clamp(13px,1.3vw,15px)] font-extrabold ${
-          isEgg ? 'bg-egg text-ink' : 'bg-medal text-ink'
+          isEgg ? 'bg-[color:var(--color-negative)] text-ink' : 'bg-[color:var(--color-positive)] text-ink'
         }`}
       >
         {TRAY_COPY[reactionType].action}

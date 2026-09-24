@@ -38,6 +38,7 @@ export async function truncateAll(): Promise<void> {
     'comments',
     'reaction_timeline',
     'opinion_timeline',
+    'opinion_changes',
     'reaction_batches',
     'reaction_aggregates',
     'opinions',

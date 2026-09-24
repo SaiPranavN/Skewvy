@@ -3,6 +3,8 @@ import { formatCount, formatCompact, sharePercent } from '@/lib/domain/format';
 import { sentimentLabel, cardTone, intensityComparison, contributorPhrase } from '@/lib/domain/copy';
 import { stanceForReaction, emptyTotals } from '@/lib/domain/types';
 import { toSqlitePlaceholders } from '@/lib/db/sqlite';
+import { bucketStart, nextBucket, previousBucket, defaultRange } from '@/lib/domain/trend-ranges';
+import { receiptVariant } from '@/lib/client/receipt';
 
 describe('number presentation', () => {
   it('shows reaction totals in full, never abbreviated', () => {
@@ -174,5 +176,38 @@ describe('reaction totals never stand alone', () => {
   it('never implies the tap total is a number of people', () => {
     // 392 Medals from 5 people must never render as "392 people".
     expect(contributorPhrase('medal', 5)).not.toContain('392');
+  });
+});
+
+describe('trend range buckets', () => {
+  it('starts weeks on Monday and months on the first, in UTC', () => {
+    // Wednesday 24 September 2026, mid-afternoon.
+    const wednesday = Date.UTC(2026, 8, 24, 15, 30);
+    expect(new Date(bucketStart(wednesday, 'week')).toISOString()).toBe('2026-09-21T00:00:00.000Z');
+    expect(new Date(bucketStart(wednesday, 'month')).toISOString()).toBe('2026-09-01T00:00:00.000Z');
+    expect(new Date(bucketStart(wednesday, 'hour')).toISOString()).toBe('2026-09-24T15:00:00.000Z');
+  });
+
+  it('steps months by the calendar, not by thirty days', () => {
+    const january = Date.UTC(2026, 0, 1);
+    expect(new Date(nextBucket(january, 'month')).toISOString()).toBe('2026-02-01T00:00:00.000Z');
+    expect(new Date(previousBucket(january, 'month')).toISOString()).toBe('2025-12-01T00:00:00.000Z');
+  });
+
+  it('opens on the range that fits the history', () => {
+    const now = Date.UTC(2026, 8, 24);
+    expect(defaultRange(null, now)).toBe('1m');
+    expect(defaultRange(now - 3_600_000, now)).toBe('24h');
+    expect(defaultRange(now - 5 * 86_400_000, now)).toBe('1w');
+    expect(defaultRange(now - 400 * 86_400_000, now)).toBe('5y');
+  });
+});
+
+describe('the share receipt', () => {
+  it('leads with the side a person holds now, not their larger count', () => {
+    // Gave 300 Medals to an entity, then turned critical and sent 4 Eggs.
+    expect(receiptVariant({ medalCount: 300, rottenEggCount: 4, stance: 'negative' })).toBe('egg');
+    expect(receiptVariant({ medalCount: 2, rottenEggCount: 90, stance: 'positive' })).toBe('medal');
+    expect(receiptVariant({ medalCount: 0, rottenEggCount: 0, stance: null })).toBe('public');
   });
 });

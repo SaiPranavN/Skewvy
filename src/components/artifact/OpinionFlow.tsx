@@ -7,9 +7,9 @@ import { useHoldToReact } from '@/components/reactions/useHoldToReact';
 import { useReactionContext } from '@/components/reactions/ReactionProvider';
 import { reactionStore } from '@/lib/client/reaction-store';
 import { Overlay } from '@/components/ui/Overlay';
-import { ReactionMark } from '@/components/ui/icons';
 import { formatCount, sharePercent } from '@/lib/domain/format';
 import { contributorPhrase } from '@/lib/domain/copy';
+import { canChangeSide } from '@/lib/domain/types';
 import type { ArtifactCard, ReactionType, Stance } from '@/lib/domain/types';
 
 /**
@@ -26,9 +26,11 @@ import type { ArtifactCard, ReactionType, Stance } from '@/lib/domain/types';
  *
  * Picking a side is free and reversible — it writes nothing and moves no
  * counter — right up until the first reaction lands. That reaction is what
- * commits the opinion, and from then on the other branch is visibly locked
- * rather than hidden: a person should be able to see the rule that is being
- * applied to them.
+ * commits the opinion. On a Flash News item the other branch is then visibly
+ * locked rather than hidden: a person should be able to see the rule being
+ * applied to them. On an Entity it stays open behind a confirmation, because
+ * a standing record is allowed a change of mind — and the confirmation says
+ * plainly that everything already sent stays counted.
  */
 
 const BRANCH = {
@@ -43,6 +45,8 @@ const BRANCH = {
     action: 'Give a Medal',
     actionAgain: 'Give another',
     contributorLabel: 'Given by',
+    emoji: '🏅',
+    kind: 'medal',
   },
   negative: {
     stance: 'negative' as Stance,
@@ -55,6 +59,8 @@ const BRANCH = {
     action: 'Send an Egg',
     actionAgain: 'Send another',
     contributorLabel: 'Sent by',
+    emoji: '🥚',
+    kind: 'egg',
   },
 } as const;
 
@@ -64,6 +70,40 @@ export function OpinionFlow({ card }: { card: ArtifactCard }) {
 
   const committed = state.contribution.stance;
   const selected = committed ?? state.selectedStance;
+  const switchable = canChangeSide(card.type);
+
+  /*
+   * A change of side on an Entity goes through a confirmation. It moves two
+   * public head counts at once, and the person should hear — before they do
+   * it — that the reactions they already sent are staying where they are.
+   */
+  const [pendingSwitch, setPendingSwitch] = useState<Stance | null>(null);
+  const [switching, setSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
+  const confirmRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (pendingSwitch) confirmRef.current?.focus();
+  }, [pendingSwitch]);
+
+  const confirmSwitch = async () => {
+    if (!pendingSwitch) return;
+    setSwitching(true);
+    setSwitchError(null);
+    const result = await reactionStore.switchStance(card.type, card.id, pendingSwitch);
+    setSwitching(false);
+    if (result.ok) {
+      setPendingSwitch(null);
+      return;
+    }
+    setSwitchError(
+      result.reason === 'rate_limited'
+        ? 'That is a lot of changes in a short time. Try again in a few minutes.'
+        : result.reason === 'unauthenticated'
+          ? 'Sign in to change your position.'
+          : 'That did not go through. Nothing changed — try again.',
+    );
+  };
 
   /*
    * Commitment is announced once, quietly. Reaction totals are announced by the
@@ -73,15 +113,21 @@ export function OpinionFlow({ card }: { card: ArtifactCard }) {
   const previouslyCommitted = useRef<Stance | null>(committed);
 
   useEffect(() => {
-    if (committed && previouslyCommitted.current !== committed) {
+    const before = previouslyCommitted.current;
+    if (committed && before !== committed) {
+      const side = committed === 'negative' ? 'negative' : 'positive';
+      const open = committed === 'negative' ? 'Rotten Eggs' : 'Medals';
+      const closed = committed === 'negative' ? 'Medals' : 'Rotten Eggs';
       setCommitmentNote(
-        committed === 'negative'
-          ? 'Your position is recorded as negative. Rotten Eggs stay open to you; Medals are now locked on this item.'
-          : 'Your position is recorded as positive. Medals stay open to you; Rotten Eggs are now locked on this item.',
+        before
+          ? `Your position is now ${side}. ${open} are open to you and ${closed} are closed. Everything you sent before still counts.`
+          : `Your position is recorded as ${side}. ${open} stay open to you; ${closed} are now closed on this item.`,
       );
     }
     previouslyCommitted.current = committed;
   }, [committed]);
+
+  const ownOnCurrent = committed === 'negative' ? state.contribution.rottenEggCount : state.contribution.medalCount;
 
   const critical = state.totals.negativeOpinionTotal;
   const appreciative = state.totals.positiveOpinionTotal;
@@ -137,6 +183,8 @@ export function OpinionFlow({ card }: { card: ArtifactCard }) {
             people={people}
             selected={selected === 'positive'}
             committed={committed}
+            switchable={switchable}
+            onRequestSwitch={setPendingSwitch}
           />
           <OpinionChoice
             card={card}
@@ -145,6 +193,8 @@ export function OpinionFlow({ card }: { card: ArtifactCard }) {
             people={people}
             selected={selected === 'negative'}
             committed={committed}
+            switchable={switchable}
+            onRequestSwitch={setPendingSwitch}
           />
         </div>
 
@@ -165,19 +215,95 @@ export function OpinionFlow({ card }: { card: ArtifactCard }) {
           aria-hidden="true"
         />
 
-        <ReactionBranch card={card} branch="positive" selected={selected} committed={committed} />
-        <ReactionBranch card={card} branch="negative" selected={selected} committed={committed} />
+        <ReactionBranch
+          card={card}
+          branch="positive"
+          selected={selected}
+          committed={committed}
+          switchable={switchable}
+        />
+        <ReactionBranch
+          card={card}
+          branch="negative"
+          selected={selected}
+          committed={committed}
+          switchable={switchable}
+        />
       </div>
+
+      {pendingSwitch && committed && (
+        <div
+          role="group"
+          aria-labelledby={`${card.id}-switch-heading`}
+          className="pop-in mt-[clamp(16px,2vw,24px)] border-2 border-ink bg-paper p-[clamp(14px,1.6vw,20px)]"
+          style={{ boxShadow: '5px 5px 0 var(--color-ink)' }}
+        >
+          <p id={`${card.id}-switch-heading`} className="m-0 text-[16px] font-extrabold leading-[1.3]">
+            Switch your position to {pendingSwitch === 'positive' ? 'Positive' : 'Negative'}?
+          </p>
+          <p className="m-0 mt-2 max-w-[70ch] text-[13.5px] leading-[1.5] text-[rgb(23_20_15_/_0.72)]">
+            You will count as {pendingSwitch === 'positive' ? 'appreciative' : 'critical'} from now on, and{' '}
+            {pendingSwitch === 'positive' ? 'Medals' : 'Rotten Eggs'} open up in place of{' '}
+            {pendingSwitch === 'positive' ? 'Rotten Eggs' : 'Medals'}.{' '}
+            {ownOnCurrent > 0
+              ? `The ${formatCount(ownOnCurrent)} ${
+                  committed === 'negative'
+                    ? ownOnCurrent === 1
+                      ? 'Rotten Egg'
+                      : 'Rotten Eggs'
+                    : ownOnCurrent === 1
+                      ? 'Medal'
+                      : 'Medals'
+                } you already sent stay on the record.`
+              : 'Nothing you have already done is removed.'}
+          </p>
+
+          <div className="mt-3.5 flex flex-wrap gap-2.5">
+            <button
+              ref={confirmRef}
+              type="button"
+              onClick={() => void confirmSwitch()}
+              disabled={switching}
+              className={`btn min-h-11 px-4 py-3 text-[14px] font-extrabold ${
+                pendingSwitch === 'positive' ? 'btn-positive w-auto' : 'btn-negative w-auto'
+              }`}
+            >
+              {switching ? 'Switching…' : `Switch to ${pendingSwitch === 'positive' ? 'Positive' : 'Negative'}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPendingSwitch(null);
+                setSwitchError(null);
+              }}
+              disabled={switching}
+              className="btn btn-ink min-h-11 px-4 py-3 text-[14px]"
+            >
+              Keep {committed === 'positive' ? 'Positive' : 'Negative'}
+            </button>
+          </div>
+
+          {switchError && (
+            <p role="alert" className="m-0 mt-3 text-[13px] font-bold text-[color:var(--color-negative-deep)]">
+              {switchError}
+            </p>
+          )}
+        </div>
+      )}
 
       <p className="m-0 mt-[clamp(14px,1.8vw,22px)] max-w-[80ch] text-[13px] leading-[1.5] text-[rgb(23_20_15_/_0.62)]">
         {committed
-          ? `Your position is recorded and final, so the ${
-              committed === 'negative' ? 'Medal' : 'Rotten Egg'
-            } branch is closed to you here. You can keep adding ${
-              committed === 'negative' ? 'Rotten Eggs' : 'Medals'
-            } for as long as you like — they raise the reaction total, never the head count.`
+          ? switchable
+            ? `Your position is recorded. This is a standing record, so you can switch sides whenever your view changes — pick the other position above. Everything you have already sent stays counted either way.`
+            : `Your position is recorded and final, so the ${
+                committed === 'negative' ? 'Medal' : 'Rotten Egg'
+              } branch is closed to you here. You can keep adding ${
+                committed === 'negative' ? 'Rotten Eggs' : 'Medals'
+              } for as long as you like — they raise the reaction total, never the head count.`
           : selected
-            ? 'Nothing is recorded yet. You can still switch sides until your first reaction lands, and that reaction is what fixes your position for good.'
+            ? switchable
+              ? 'Nothing is recorded yet. Your first reaction records your position — and on a profile you can change it later.'
+              : 'Nothing is recorded yet. You can still switch sides until your first reaction lands, and that reaction is what fixes your position for good.'
             : isAuthenticated
               ? 'Pick a position to unlock the reaction controls.'
               : 'Pick a position to unlock the reaction controls. You will be asked to sign in before anything is recorded.'}
@@ -199,6 +325,8 @@ function OpinionChoice({
   people,
   selected,
   committed,
+  switchable,
+  onRequestSwitch,
 }: {
   card: ArtifactCard;
   branch: keyof typeof BRANCH;
@@ -206,10 +334,15 @@ function OpinionChoice({
   people: number;
   selected: boolean;
   committed: Stance | null;
+  switchable: boolean;
+  onRequestSwitch: (stance: Stance) => void;
 }) {
   const copy = BRANCH[branch];
   const isCommittedHere = committed === copy.stance;
-  const isLockedOut = committed !== null && !isCommittedHere;
+  const isOtherSide = committed !== null && !isCommittedHere;
+  // On a Flash News item the other side is closed; on an Entity it is a switch away.
+  const isLockedOut = isOtherSide && !switchable;
+  const canSwitchHere = isOtherSide && switchable;
   const percent = people > 0 ? sharePercent(count, people) : null;
 
   return (
@@ -226,8 +359,8 @@ function OpinionChoice({
       } ${
         selected
           ? branch === 'positive'
-            ? 'branch-live bg-medal'
-            : 'branch-live bg-egg'
+            ? 'branch-live bg-[color:var(--color-positive)]'
+            : 'branch-live bg-[color:var(--color-negative)]'
           : 'bg-[rgb(23_20_15_/_0.03)]'
       } has-[:focus-visible]:outline has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-[3px] has-[:focus-visible]:outline-[color:var(--color-indigo)]`}
     >
@@ -237,16 +370,18 @@ function OpinionChoice({
         value={copy.stance}
         checked={selected}
         disabled={isLockedOut}
-        onChange={() => reactionStore.select(card.type, card.id, copy.stance)}
+        aria-describedby={canSwitchHere ? `${card.id}-${copy.stance}-switch-hint` : undefined}
+        onChange={() => {
+          if (canSwitchHere) onRequestSwitch(copy.stance);
+          else reactionStore.select(card.type, card.id, copy.stance);
+        }}
         className="sr-only"
       />
 
-      <span className="flex flex-wrap items-center gap-2">
-        <ReactionMark
-          reactionType={copy.reactionType}
-          size={18}
-          className={`flex-none ${selected ? 'mark-inherit' : ''}`}
-        />
+      <span className="flex flex-wrap items-center gap-2.5">
+        <span className="emoji-chip" data-kind={copy.kind} aria-hidden="true">
+          {copy.emoji}
+        </span>
         <span className="text-[clamp(15px,1.5vw,20px)] font-extrabold leading-none">{copy.opinionTitle}</span>
         {isCommittedHere && (
           <span className="ml-auto border border-ink bg-paper px-1.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.08em]">
@@ -261,9 +396,22 @@ function OpinionChoice({
             🔒 Locked
           </span>
         )}
+        {canSwitchHere && (
+          <span
+            id={`${card.id}-${copy.stance}-switch-hint`}
+            className="ml-auto border border-dashed border-ink px-1.5 py-1 text-[10px] font-bold uppercase leading-none tracking-[0.08em]"
+          >
+            ⇄ Switch here
+          </span>
+        )}
       </span>
 
-      <span className="mt-1.5 block text-[12.5px] font-medium leading-[1.4] text-[rgb(23_20_15_/_0.72)]">
+      {/* Full ink on a filled card: the muted tone would sink into the red. */}
+      <span
+        className={`mt-2 block text-[12.5px] font-medium leading-[1.4] ${
+          selected ? 'text-ink' : 'text-[rgb(23_20_15_/_0.72)]'
+        }`}
+      >
         “{copy.opinionClaim}”
       </span>
 
@@ -276,7 +424,9 @@ function OpinionChoice({
 
       <span className="mt-1.5 block text-[12px] font-bold leading-[1.35]">
         {count === 1 ? `1 ${copy.peopleNoun} person` : `${formatCount(count)} ${copy.peopleNoun} people`}
-        {percent !== null && <span className="font-medium text-[rgb(23_20_15_/_0.66)]"> · {percent}%</span>}
+        {percent !== null && (
+          <span className={`font-medium ${selected ? 'text-ink' : 'text-[rgb(23_20_15_/_0.66)]'}`}> · {percent}%</span>
+        )}
       </span>
     </label>
   );
@@ -289,13 +439,16 @@ function ReactionBranch({
   branch,
   selected,
   committed,
+  switchable,
 }: {
   card: ArtifactCard;
   branch: keyof typeof BRANCH;
   selected: Stance | null;
   committed: Stance | null;
+  switchable: boolean;
 }) {
   const copy = BRANCH[branch];
+  const other = copy.stance === 'positive' ? 'Negative' : 'Positive';
   const panelRef = useRef<HTMLDivElement | null>(null);
   const numberRef = useRef<HTMLDivElement | null>(null);
 
@@ -337,7 +490,9 @@ function ReactionBranch({
           <p className="eyebrow-ink">{copy.opinionTitle} branch</p>
           <h3 className="display-sm m-0 mt-2 text-[clamp(17px,1.8vw,24px)]">{copy.step2Title}</h3>
         </div>
-        <ReactionMark reactionType={copy.reactionType} size={26} className="flex-none" />
+        <span className="emoji-chip" data-kind={copy.kind} style={{ '--chip': '42px' } as React.CSSProperties} aria-hidden="true">
+          {copy.emoji}
+        </span>
       </div>
 
       <p className="m-0 mt-2 max-w-[34ch] text-[12.5px] leading-[1.45] text-[rgb(23_20_15_/_0.66)]">
@@ -355,7 +510,7 @@ function ReactionBranch({
         style={{
           fontSize: 'clamp(38px,5vw,66px)',
           lineHeight: 0.86,
-          color: copy.reactionType === 'rotten_egg' ? 'var(--color-egg-deep)' : 'var(--color-medal-deep)',
+          color: copy.reactionType === 'rotten_egg' ? 'var(--color-negative-deep)' : 'var(--color-positive-deep)',
         }}
       >
         {formatCount(total)}
@@ -375,17 +530,23 @@ function ReactionBranch({
         aria-disabled={!isLive}
         aria-describedby={`${card.id}-${copy.reactionType}-status`}
         className={`btn mt-[14px] ${
-          !isLive ? 'btn-locked' : copy.reactionType === 'rotten_egg' ? 'btn-egg' : 'btn-medal'
+          !isLive ? 'btn-locked' : copy.reactionType === 'rotten_egg' ? 'btn-negative' : 'btn-positive'
         }`}
       >
         {isLockedOut ? (
-          'Closed to you 🔒'
+          switchable ? (
+            `Switch to ${copy.opinionTitle} to unlock`
+          ) : (
+            'Closed to you 🔒'
+          )
         ) : !isLive ? (
           'Pick a position to unlock'
         ) : (
           <>
             {own > 0 ? copy.actionAgain : copy.action}
-            <ReactionMark reactionType={copy.reactionType} size={19} />
+            <span className="emoji text-[1.15em]" aria-hidden="true">
+              {copy.emoji}
+            </span>
           </>
         )}
       </button>
@@ -410,12 +571,20 @@ function ReactionBranch({
 
       {nudged && (
         <Nudge
-          title={isLockedOut ? `The ${copy.step2Title} branch is closed to you.` : 'Pick a position first.'}
+          title={
+            isLockedOut
+              ? switchable
+                ? `Your position is ${other}.`
+                : `The ${copy.step2Title} branch is closed to you.`
+              : 'Pick a position first.'
+          }
           body={
             isLockedOut
-              ? `You recorded the opposite position on this item, and that is final. ${
-                  copy.reactionType === 'rotten_egg' ? 'Medals' : 'Rotten Eggs'
-                } stay unlimited.`
+              ? switchable
+                ? `To send these, switch to ${copy.opinionTitle} above. Everything you have already sent stays counted.`
+                : `You recorded the opposite position on this item, and that is final. ${
+                    copy.reactionType === 'rotten_egg' ? 'Medals' : 'Rotten Eggs'
+                  } stay unlimited.`
               : `Choose ${copy.opinionTitle} above to unlock this. Choosing records nothing — your first reaction does.`
           }
         />
@@ -433,7 +602,10 @@ function Nudge({ title, body }: { title: string; body: string }) {
         className="pointer-events-none fixed left-1/2 z-[90] max-w-[min(92vw,440px)] -translate-x-1/2"
         style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 86px)' }}
       >
-        <div className="pop-in border-2 border-ink bg-medal px-[18px] py-[15px] text-ink">
+        <div
+          className="pop-in border-2 border-ink bg-paper px-[18px] py-[15px] text-ink"
+          style={{ boxShadow: '5px 5px 0 var(--color-ink)' }}
+        >
           <div className="text-[16.5px] font-extrabold leading-[1.2]">{title}</div>
           <p className="mt-[7px] text-[13px] font-medium leading-[1.45] text-[rgb(23_20_15_/_0.78)]">{body}</p>
         </div>

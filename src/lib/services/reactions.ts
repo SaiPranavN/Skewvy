@@ -36,11 +36,12 @@ export interface ApplyBatchResult {
  * row per person per artifact. The two are never mixed: `rotten_egg_total`
  * counts taps, `negative_opinion_total` counts people.
  *
- * **A side, once taken, is final.** The first reaction to an artifact fixes
- * that person's opinion, and every later reaction must agree with it. A batch
- * that contradicts it is refused outright rather than moving the opinion across
- * — so `positive_opinion_total` and `negative_opinion_total` only ever grow, and
- * the split reflects where people first landed.
+ * **A reaction never moves a side.** The first reaction to an artifact fixes
+ * that person's opinion, and every later reaction must agree with whatever
+ * their opinion currently is. A batch that contradicts it is refused outright
+ * rather than moving the opinion across. On Flash News that makes the side
+ * final; on an Entity the person can change it, but only deliberately, through
+ * `switchOpinion` — never as a side effect of tapping the other button.
  *
  * The whole thing is idempotent on `(user_id, client_batch_id)`, so a retried
  * request can never double-count.

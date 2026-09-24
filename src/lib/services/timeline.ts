@@ -1,7 +1,16 @@
-import { query, execute } from '@/lib/db';
+import { query, queryOne, execute } from '@/lib/db';
 import type { SqlExecutor } from '@/lib/db';
 import { getTotals } from './totals';
 import type { ArtifactType, ReactionType, Stance } from '@/lib/domain/types';
+import {
+  RANGE_SPEC,
+  bucketStart,
+  defaultRange,
+  nextBucket,
+  previousBucket,
+  type TrendRange,
+  type TrendStep,
+} from '@/lib/domain/trend-ranges';
 
 /**
  * The history behind the two trend charts.
@@ -14,10 +23,9 @@ import type { ArtifactType, ReactionType, Stance } from '@/lib/domain/types';
  * exactly once and never again.
  */
 
-const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 
-export type TrendResolution = 'hour' | 'day';
+export type TrendResolution = TrendStep;
 
 /**
  * One bucket of either history.
@@ -43,6 +51,9 @@ export interface TrendPoint {
 export interface Trend {
   /** What a point counts: unbounded taps, or people counted once each. */
   measures: 'reactions' | 'people';
+  /** The window this was read over. */
+  range: TrendRange;
+  /** The bucket size that window is drawn at. */
   resolution: TrendResolution;
   points: TrendPoint[];
   /** Running totals at the moment the window opens. */
@@ -55,6 +66,8 @@ export interface Trend {
 
 /** Both histories for one artifact, read together but never merged. */
 export interface ArtifactTrends {
+  /** Shared by both, so the two charts always cover the same stretch of time. */
+  range: TrendRange;
   reactions: Trend;
   opinions: Trend;
 }
@@ -120,155 +133,169 @@ export async function recordOpinionCommitment(
 }
 
 /**
- * Reads one artifact's reaction history — Rotten Eggs against Medals, in taps.
+ * Moves one person from one side to the other in the opinion history.
  *
- * The window is chosen from the data rather than fixed: an artifact whose
- * history is under two days is drawn hour by hour, anything older day by day.
- * Buckets with no activity are filled in as flat, so a quiet stretch reads as
- * quiet rather than as a missing segment.
- *
- * The running total starts from whatever the artifact had accumulated before
- * the window opened, so the last point equals the lifetime total on the page.
+ * A pair of opposite deltas in the hour it happened, so the running totals
+ * drop on one line and rise on the other at the moment of the change, and
+ * every earlier point keeps saying what was true at the time.
  */
-export async function reactionTrend(
+export async function recordOpinionSwitch(
+  tx: SqlExecutor,
   artifactType: ArtifactType,
   artifactId: string,
-  options: { maxPoints?: number } = {},
-): Promise<Trend> {
-  const [rows, totals] = await Promise.all([
-    query<{ bucket_start: string; rotten_egg_count: number; medal_count: number }>(
-      `SELECT bucket_start, rotten_egg_count, medal_count FROM reaction_timeline
-        WHERE artifact_type = $1 AND artifact_id = $2
-        ORDER BY bucket_start`,
-      [artifactType, artifactId],
-    ),
-    getTotals(artifactType, artifactId),
-  ]);
+  to: Stance,
+  at: string,
+): Promise<void> {
+  const positive = to === 'positive' ? 1 : -1;
+  const negative = -positive;
 
-  return assemble({
-    measures: 'reactions',
-    maxPoints: options.maxPoints ?? 32,
-    lifetimeNegative: totals.rottenEggTotal,
-    lifetimePositive: totals.medalTotal,
-    rows: rows.map((row) => ({
-      at: row.bucket_start,
-      negative: Number(row.rotten_egg_count),
-      positive: Number(row.medal_count),
-    })),
-  });
+  await tx.execute(
+    `INSERT INTO opinion_timeline (artifact_type, artifact_id, bucket_start, positive_count, negative_count)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (artifact_type, artifact_id, bucket_start) DO UPDATE SET
+       positive_count = opinion_timeline.positive_count + $4,
+       negative_count = opinion_timeline.negative_count + $5`,
+    [artifactType, artifactId, hourBucket(at), positive, negative],
+  );
 }
 
 /**
- * Reads one artifact's opinion history — critical people against appreciative
- * people, each counted once on the hour they took a side.
- *
- * Shares the shaping logic with the reaction trend but nothing else: the two
- * are separate reads of separate tables, and are never plotted together.
+ * The two timelines, described once so the readers below share every line of
+ * logic and differ only in which table and which columns they read.
  */
-export async function opinionTrend(
-  artifactType: ArtifactType,
-  artifactId: string,
-  options: { maxPoints?: number } = {},
-): Promise<Trend> {
-  const [rows, totals] = await Promise.all([
-    query<{ bucket_start: string; positive_count: number; negative_count: number }>(
-      `SELECT bucket_start, positive_count, negative_count FROM opinion_timeline
-        WHERE artifact_type = $1 AND artifact_id = $2
-        ORDER BY bucket_start`,
-      [artifactType, artifactId],
-    ),
-    getTotals(artifactType, artifactId),
-  ]);
-
-  return assemble({
-    measures: 'people',
-    maxPoints: options.maxPoints ?? 32,
-    lifetimeNegative: totals.negativeOpinionTotal,
-    lifetimePositive: totals.positiveOpinionTotal,
-    rows: rows.map((row) => ({
-      at: row.bucket_start,
-      negative: Number(row.negative_count),
-      positive: Number(row.positive_count),
-    })),
-  });
-}
-
-/** Both histories for one artifact, fetched in parallel and kept apart. */
-export async function artifactTrends(
-  artifactType: ArtifactType,
-  artifactId: string,
-  options: { maxPoints?: number } = {},
-): Promise<ArtifactTrends> {
-  const [reactions, opinions] = await Promise.all([
-    reactionTrend(artifactType, artifactId, options),
-    opinionTrend(artifactType, artifactId, options),
-  ]);
-  return { reactions, opinions };
-}
+const SOURCES = {
+  reactions: {
+    table: 'reaction_timeline',
+    negative: 'rotten_egg_count',
+    positive: 'medal_count',
+  },
+  people: {
+    table: 'opinion_timeline',
+    negative: 'negative_count',
+    positive: 'positive_count',
+  },
+} as const;
 
 interface RawBucket {
-  at: string;
+  at: number;
   negative: number;
   positive: number;
 }
 
 /**
- * Turns raw hourly buckets into a drawable running series.
+ * Reads one timeline's buckets over a window, at the grain the window wants.
  *
- * Identical arithmetic for both histories, which is the point: whatever the
- * chart shows, the last plotted value is the lifetime figure printed beside it.
+ * Anything coarser than an hour is summed by day in SQL first — `substr` on
+ * the ISO text is the one date truncation SQLite and PostgreSQL agree on — so
+ * five years of an active artifact arrives as at most ~1,800 day rows rather
+ * than ~44,000 hourly ones. Days are then folded into weeks or months here.
  */
-function assemble(input: {
-  measures: Trend['measures'];
-  maxPoints: number;
-  lifetimeNegative: number;
-  lifetimePositive: number;
-  rows: RawBucket[];
-}): Trend {
-  const { measures, maxPoints, lifetimeNegative, lifetimePositive, rows } = input;
+async function readWindow(
+  measures: Trend['measures'],
+  artifactType: ArtifactType,
+  artifactId: string,
+  since: number,
+  step: TrendStep,
+): Promise<RawBucket[]> {
+  const source = SOURCES[measures];
+  const sinceIso = new Date(since).toISOString();
 
-  if (rows.length === 0) {
+  if (step === 'hour') {
+    const rows = await query<{ bucket_start: string; negative: number; positive: number }>(
+      `SELECT bucket_start, ${source.negative} AS negative, ${source.positive} AS positive
+         FROM ${source.table}
+        WHERE artifact_type = $1 AND artifact_id = $2 AND bucket_start >= $3`,
+      [artifactType, artifactId, sinceIso],
+    );
+    return rows.map((row) => ({
+      at: bucketStart(new Date(row.bucket_start).getTime(), step),
+      negative: Number(row.negative),
+      positive: Number(row.positive),
+    }));
+  }
+
+  const rows = await query<{ day: string; negative: number | null; positive: number | null }>(
+    `SELECT substr(bucket_start, 1, 10) AS day,
+            SUM(${source.negative}) AS negative,
+            SUM(${source.positive}) AS positive
+       FROM ${source.table}
+      WHERE artifact_type = $1 AND artifact_id = $2 AND bucket_start >= $3
+      GROUP BY substr(bucket_start, 1, 10)`,
+    [artifactType, artifactId, sinceIso],
+  );
+  return rows.map((row) => ({
+    at: bucketStart(new Date(`${row.day}T00:00:00.000Z`).getTime(), step),
+    negative: Number(row.negative ?? 0),
+    positive: Number(row.positive ?? 0),
+  }));
+}
+
+/** When a timeline first recorded anything for this artifact, if ever. */
+async function firstActivity(
+  measures: Trend['measures'],
+  artifactType: ArtifactType,
+  artifactId: string,
+): Promise<number | null> {
+  const source = SOURCES[measures];
+  const row = await queryOne<{ first: string | null }>(
+    `SELECT MIN(bucket_start) AS first FROM ${source.table} WHERE artifact_type = $1 AND artifact_id = $2`,
+    [artifactType, artifactId],
+  );
+  return row?.first ? new Date(row.first).getTime() : null;
+}
+
+/**
+ * Reads one history over one range.
+ *
+ * The chart starts at whichever is later: the start of the range, or one
+ * bucket before this artifact's first recorded activity. A three-day-old story
+ * on "5Y" therefore shows its three days rather than five years of empty axis,
+ * and the extra bucket in front gives even a single day of history a starting
+ * point to rise from.
+ *
+ * Buckets with no activity are filled in as flat, so a quiet stretch reads as
+ * quiet rather than as a missing segment. The running total opens at the
+ * lifetime figure minus everything inside the window — which folds in activity
+ * from before the rollup existed as well — so the last point always equals the
+ * lifetime total printed beside the chart.
+ */
+async function readTrend(
+  measures: Trend['measures'],
+  artifactType: ArtifactType,
+  artifactId: string,
+  range: TrendRange,
+  lifetime: { negative: number; positive: number },
+  now = Date.now(),
+): Promise<Trend> {
+  const step = RANGE_SPEC[range].step;
+  const rangeStart = bucketStart(now - RANGE_SPEC[range].days * DAY_MS, step);
+  const lastBucket = bucketStart(now, step);
+
+  const first = await firstActivity(measures, artifactType, artifactId);
+
+  if (first === null) {
     return {
       measures,
-      resolution: 'day',
+      range,
+      resolution: step,
       points: [],
-      openingNegative: lifetimeNegative,
-      openingPositive: lifetimePositive,
+      openingNegative: lifetime.negative,
+      openingPositive: lifetime.positive,
       windowNegative: 0,
       windowPositive: 0,
     };
   }
 
-  const firstAt = new Date(rows[0].at).getTime();
-  const lastAt = Math.max(new Date(rows[rows.length - 1].at).getTime(), Date.now() - HOUR_MS);
-  const resolution: TrendResolution = lastAt - firstAt <= 2 * DAY_MS ? 'hour' : 'day';
-  const step = resolution === 'hour' ? HOUR_MS : DAY_MS;
-
-  // Keep the chart readable: never more buckets than the axis can carry, and
-  // when there are more, show the most recent ones.
-  const alignedLast = Math.floor(lastAt / step) * step;
-  const alignedFirst = Math.max(
-    Math.floor(firstAt / step) * step,
-    alignedLast - (maxPoints - 1) * step,
-  );
+  const windowStart = Math.max(rangeStart, previousBucket(bucketStart(first, step), step));
+  const rows = await readWindow(measures, artifactType, artifactId, windowStart, step);
 
   const buckets = new Map<number, { negative: number; positive: number }>();
-  let beforeWindowNegative = 0;
-  let beforeWindowPositive = 0;
-
   for (const row of rows) {
-    const at = Math.floor(new Date(row.at).getTime() / step) * step;
-
-    if (at < alignedFirst) {
-      beforeWindowNegative += row.negative;
-      beforeWindowPositive += row.positive;
-      continue;
-    }
-
-    const existing = buckets.get(at) ?? { negative: 0, positive: 0 };
+    if (row.at < windowStart) continue;
+    const existing = buckets.get(row.at) ?? { negative: 0, positive: 0 };
     existing.negative += row.negative;
     existing.positive += row.positive;
-    buckets.set(at, existing);
+    buckets.set(row.at, existing);
   }
 
   let windowNegative = 0;
@@ -278,21 +305,13 @@ function assemble(input: {
     windowPositive += bucket.positive;
   }
 
-  /*
-   * Everything the artifact holds that the recorded history does not account
-   * for — activity from before this rollup existed — sits in the opening
-   * figure. Without it the line would end below the total printed beside it.
-   */
-  const recordedNegative = beforeWindowNegative + windowNegative;
-  const recordedPositive = beforeWindowPositive + windowPositive;
-  let cumulativeNegative = Math.max(0, lifetimeNegative - recordedNegative) + beforeWindowNegative;
-  let cumulativePositive = Math.max(0, lifetimePositive - recordedPositive) + beforeWindowPositive;
-
+  let cumulativeNegative = Math.max(0, lifetime.negative - windowNegative);
+  let cumulativePositive = Math.max(0, lifetime.positive - windowPositive);
   const openingNegative = cumulativeNegative;
   const openingPositive = cumulativePositive;
 
   const points: TrendPoint[] = [];
-  for (let at = alignedFirst; at <= alignedLast; at += step) {
+  for (let at = windowStart; at <= lastBucket; at = nextBucket(at, step)) {
     const bucket = buckets.get(at) ?? { negative: 0, positive: 0 };
     cumulativeNegative += bucket.negative;
     cumulativePositive += bucket.positive;
@@ -307,13 +326,85 @@ function assemble(input: {
 
   return {
     measures,
-    resolution,
+    range,
+    resolution: step,
     points,
     openingNegative,
     openingPositive,
     windowNegative,
     windowPositive,
   };
+}
+
+/**
+ * The range an artifact's charts open on when none is asked for: the smallest
+ * that holds its whole history. Read from the reaction timeline, which always
+ * starts no later than the opinion one — a side is taken by reacting.
+ */
+export async function defaultTrendRange(artifactType: ArtifactType, artifactId: string): Promise<TrendRange> {
+  return defaultRange(await firstActivity('reactions', artifactType, artifactId));
+}
+
+/** Rotten Eggs against Medals, in taps, over one range. */
+export async function reactionTrend(
+  artifactType: ArtifactType,
+  artifactId: string,
+  options: { range?: TrendRange } = {},
+): Promise<Trend> {
+  const [totals, range] = await Promise.all([
+    getTotals(artifactType, artifactId),
+    options.range ?? defaultTrendRange(artifactType, artifactId),
+  ]);
+  return readTrend('reactions', artifactType, artifactId, range, {
+    negative: totals.rottenEggTotal,
+    positive: totals.medalTotal,
+  });
+}
+
+/**
+ * Critical people against appreciative people, each counted once, over one
+ * range. Shares the shaping logic with the reaction trend but nothing else:
+ * the two are separate reads of separate tables and are never plotted
+ * together.
+ */
+export async function opinionTrend(
+  artifactType: ArtifactType,
+  artifactId: string,
+  options: { range?: TrendRange } = {},
+): Promise<Trend> {
+  const [totals, range] = await Promise.all([
+    getTotals(artifactType, artifactId),
+    options.range ?? defaultTrendRange(artifactType, artifactId),
+  ]);
+  return readTrend('people', artifactType, artifactId, range, {
+    negative: totals.negativeOpinionTotal,
+    positive: totals.positiveOpinionTotal,
+  });
+}
+
+/** Both histories for one artifact over the same range, fetched in parallel and kept apart. */
+export async function artifactTrends(
+  artifactType: ArtifactType,
+  artifactId: string,
+  options: { range?: TrendRange } = {},
+): Promise<ArtifactTrends> {
+  const [totals, range] = await Promise.all([
+    getTotals(artifactType, artifactId),
+    options.range ?? defaultTrendRange(artifactType, artifactId),
+  ]);
+
+  const [reactions, opinions] = await Promise.all([
+    readTrend('reactions', artifactType, artifactId, range, {
+      negative: totals.rottenEggTotal,
+      positive: totals.medalTotal,
+    }),
+    readTrend('people', artifactType, artifactId, range, {
+      negative: totals.negativeOpinionTotal,
+      positive: totals.positiveOpinionTotal,
+    }),
+  ]);
+
+  return { range, reactions, opinions };
 }
 
 /**
@@ -356,38 +447,83 @@ export async function rebuildTimelineFor(artifactType: ArtifactType, artifactId:
   await rebuildOpinionTimelineFor(artifactType, artifactId);
 }
 
+interface OpinionBucket {
+  type: string;
+  id: string;
+  at: string;
+  positive: number;
+  negative: number;
+}
+
 /**
- * Rebuilds one artifact's opinion history from the opinion rows.
+ * Replays recorded opinions, and every change of side, into hourly buckets.
  *
  * Exact rather than approximate, unlike its reaction counterpart: an opinion
- * row carries the moment the side was taken, which is precisely the moment the
- * bucket is meant to record.
+ * row carries the moment the side was first taken and each change carries its
+ * own moment, so the history can be reconstructed as it happened. A person
+ * who switched appears once on their original side at the start and then
+ * moves across at the time they moved — never counted on both at once.
  */
+async function replayOpinions(scope?: { artifactType: ArtifactType; artifactId: string }): Promise<Map<string, OpinionBucket>> {
+  const where = scope ? 'WHERE artifact_type = $1 AND artifact_id = $2' : '';
+  const params = scope ? [scope.artifactType, scope.artifactId] : [];
+
+  const [opinions, changes] = await Promise.all([
+    query<{ user_id: string; artifact_type: string; artifact_id: string; created_at: string; stance: string }>(
+      `SELECT user_id, artifact_type, artifact_id, created_at, stance FROM opinions ${where}`,
+      params,
+    ),
+    query<{ user_id: string; artifact_type: string; artifact_id: string; from_stance: string; to_stance: string; created_at: string }>(
+      `SELECT user_id, artifact_type, artifact_id, from_stance, to_stance, created_at
+         FROM opinion_changes ${where} ORDER BY created_at`,
+      params,
+    ),
+  ]);
+
+  const changesByPerson = new Map<string, typeof changes>();
+  for (const change of changes) {
+    const key = `${change.artifact_type}:${change.artifact_id}:${change.user_id}`;
+    const list = changesByPerson.get(key) ?? [];
+    list.push(change);
+    changesByPerson.set(key, list);
+  }
+
+  const buckets = new Map<string, OpinionBucket>();
+  const add = (type: string, id: string, iso: string, stance: string, delta: number) => {
+    const at = hourBucket(iso);
+    const key = `${type}:${id}:${at}`;
+    const bucket = buckets.get(key) ?? { type, id, at, positive: 0, negative: 0 };
+    if (stance === 'positive') bucket.positive += delta;
+    else bucket.negative += delta;
+    buckets.set(key, bucket);
+  };
+
+  for (const opinion of opinions) {
+    const history = changesByPerson.get(`${opinion.artifact_type}:${opinion.artifact_id}:${opinion.user_id}`) ?? [];
+    // The side they first took is the one their first change moved them away from.
+    const original = history[0]?.from_stance ?? opinion.stance;
+    add(opinion.artifact_type, opinion.artifact_id, opinion.created_at, original, 1);
+    for (const change of history) {
+      add(change.artifact_type, change.artifact_id, change.created_at, change.from_stance, -1);
+      add(change.artifact_type, change.artifact_id, change.created_at, change.to_stance, 1);
+    }
+  }
+
+  return buckets;
+}
+
+/** Rebuilds one artifact's opinion history from the opinion rows and their changes. */
 export async function rebuildOpinionTimelineFor(artifactType: ArtifactType, artifactId: string): Promise<void> {
   await execute('DELETE FROM opinion_timeline WHERE artifact_type = $1 AND artifact_id = $2', [
     artifactType,
     artifactId,
   ]);
 
-  const rows = await query<{ created_at: string; stance: string }>(
-    'SELECT created_at, stance FROM opinions WHERE artifact_type = $1 AND artifact_id = $2',
-    [artifactType, artifactId],
-  );
-
-  const buckets = new Map<string, { positive: number; negative: number }>();
-  for (const row of rows) {
-    const at = hourBucket(row.created_at);
-    const bucket = buckets.get(at) ?? { positive: 0, negative: 0 };
-    if (row.stance === 'positive') bucket.positive += 1;
-    else bucket.negative += 1;
-    buckets.set(at, bucket);
-  }
-
-  for (const [at, bucket] of buckets) {
+  for (const bucket of (await replayOpinions({ artifactType, artifactId })).values()) {
     await execute(
       `INSERT INTO opinion_timeline (artifact_type, artifact_id, bucket_start, positive_count, negative_count)
        VALUES ($1, $2, $3, $4, $5)`,
-      [artifactType, artifactId, at, bucket.positive, bucket.negative],
+      [artifactType, artifactId, bucket.at, bucket.positive, bucket.negative],
     );
   }
 }
@@ -464,33 +600,11 @@ export async function backfillOpinionTimeline(): Promise<number> {
     ).map((row) => `${row.artifact_type}:${row.artifact_id}`),
   );
 
-  const rows = await query<{
-    artifact_type: string;
-    artifact_id: string;
-    created_at: string;
-    stance: string;
-  }>('SELECT artifact_type, artifact_id, created_at, stance FROM opinions');
+  const buckets = [...(await replayOpinions()).values()].filter(
+    (bucket) => !covered.has(`${bucket.type}:${bucket.id}`),
+  );
 
-  const buckets = new Map<
-    string,
-    { type: string; id: string; at: string; positive: number; negative: number }
-  >();
-
-  for (const row of rows) {
-    const key = `${row.artifact_type}:${row.artifact_id}`;
-    if (covered.has(key)) continue;
-
-    const at = hourBucket(row.created_at);
-    const bucketKey = `${key}:${at}`;
-    const existing =
-      buckets.get(bucketKey) ??
-      { type: row.artifact_type, id: row.artifact_id, at, positive: 0, negative: 0 };
-    if (row.stance === 'positive') existing.positive += 1;
-    else existing.negative += 1;
-    buckets.set(bucketKey, existing);
-  }
-
-  for (const bucket of buckets.values()) {
+  for (const bucket of buckets) {
     await execute(
       `INSERT INTO opinion_timeline (artifact_type, artifact_id, bucket_start, positive_count, negative_count)
        VALUES ($1, $2, $3, $4, $5)
@@ -499,5 +613,5 @@ export async function backfillOpinionTimeline(): Promise<number> {
     );
   }
 
-  return buckets.size;
+  return buckets.length;
 }

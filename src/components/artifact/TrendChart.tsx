@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from 'react';
 import { formatCount } from '@/lib/domain/format';
 import type { Trend, TrendPoint } from '@/lib/services/timeline';
+import type { TrendStep } from '@/lib/domain/trend-ranges';
 
 /**
  * One running-total chart, drawn for either kind of history.
@@ -110,9 +111,15 @@ export function TrendChart({
       <div className="mt-3 flex flex-wrap gap-x-[18px] gap-y-2">
         <LegendItem kind="negative" label={negativeLabel} value={negativeValue} />
         <LegendItem kind="positive" label={positiveLabel} value={positiveValue} />
+        {/*
+         * The grain, not the range: the range is already in the picker, and a
+         * young artifact on "5Y" starts where its history does, so "last five
+         * years" would describe an axis the chart is not drawing.
+         */}
         {points.length > 1 && (
           <span className="text-[11px] font-semibold uppercase leading-none tracking-[0.08em] text-[rgb(23_20_15_/_0.62)]">
-            {trend.resolution === 'hour' ? `Last ${points.length} hours` : `Last ${points.length} days`}
+            {points.length} {STEP_NOUN[trend.resolution]}
+            {points.length === 1 ? '' : 's'}
           </span>
         )}
       </div>
@@ -356,7 +363,7 @@ function build(points: TrendPoint[]): Geometry | null {
   if (points.length < 2) return null;
 
   const maximum = Math.max(1, ...points.map((point) => Math.max(point.cumulativeNegative, point.cumulativePositive)));
-  const ceiling = niceCeiling(maximum);
+  const { ceiling, lines } = axisFor(maximum);
 
   const x = (index: number) => PLOT.x0 + (index / (points.length - 1)) * (PLOT.x1 - PLOT.x0);
   const y = (value: number) => PLOT.y1 - (value / ceiling) * (PLOT.y1 - PLOT.y0);
@@ -364,10 +371,7 @@ function build(points: TrendPoint[]): Geometry | null {
   const line = (pick: (point: TrendPoint) => number) =>
     points.map((point, index) => `${x(index).toFixed(1)},${y(pick(point)).toFixed(1)}`).join(' ');
 
-  const gridLines = [0, 0.25, 0.5, 0.75, 1].map((fraction) => ({
-    value: Math.round(ceiling * fraction),
-    y: PLOT.y1 - fraction * (PLOT.y1 - PLOT.y0),
-  }));
+  const gridLines = lines.map((value) => ({ value, y: y(value) }));
 
   /*
    * First, middle, last — deduplicated, because a two-point series makes the
@@ -388,7 +392,25 @@ function build(points: TrendPoint[]): Geometry | null {
   };
 }
 
-/** Rounds the axis top up to something a person would choose. */
+/**
+ * The axis top and its gridlines, in whole numbers.
+ *
+ * Both series count whole things — people or taps — so a gridline at 0.25 of
+ * a person is meaningless, and rounding it for display produced the labels
+ * "0, 0, 1, 1, 1" on a chart that topped out at one person. Small maximums get
+ * one line per unit; larger ones get four equal steps, each a whole, round
+ * number, so every label is exactly the value its line sits at.
+ */
+function axisFor(maximum: number): { ceiling: number; lines: number[] } {
+  if (maximum <= 4) {
+    const ceiling = Math.max(1, Math.ceil(maximum));
+    return { ceiling, lines: Array.from({ length: ceiling + 1 }, (_, index) => index) };
+  }
+  const step = Math.ceil(niceCeiling(maximum / 4));
+  return { ceiling: step * 4, lines: [0, 1, 2, 3, 4].map((index) => index * step) };
+}
+
+/** Rounds a value up to something a person would choose. */
 function niceCeiling(value: number): number {
   const magnitude = 10 ** Math.floor(Math.log10(value));
   for (const step of [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10]) {
@@ -397,7 +419,9 @@ function niceCeiling(value: number): number {
   return 10 * magnitude;
 }
 
-function formatBucket(iso: string, resolution: 'hour' | 'day', long = false): string {
+const STEP_NOUN: Record<TrendStep, string> = { hour: 'hour', day: 'day', week: 'week', month: 'month' };
+
+function formatBucket(iso: string, resolution: TrendStep, long = false): string {
   const date = new Date(iso);
   if (resolution === 'hour') {
     return date.toLocaleTimeString(undefined, {
@@ -405,9 +429,16 @@ function formatBucket(iso: string, resolution: 'hour' | 'day', long = false): st
       ...(long ? { minute: '2-digit', month: 'short', day: 'numeric' } : {}),
     });
   }
-  return date.toLocaleDateString(undefined, {
+  if (resolution === 'month') {
+    const month = date.toLocaleDateString(undefined, { month: 'short', timeZone: 'UTC' });
+    // "Sep 26" reads as the 26th of September; the apostrophe makes it a year.
+    return long ? `${month} ${date.getUTCFullYear()}` : `${month} ’${String(date.getUTCFullYear()).slice(2)}`;
+  }
+  const label = date.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
+    timeZone: 'UTC',
     ...(long ? { year: 'numeric' } : {}),
   });
+  return long && resolution === 'week' ? `Week of ${label}` : label;
 }

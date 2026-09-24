@@ -120,7 +120,13 @@ export function receiptVariant(contribution?: UserContribution | null): ReceiptV
   if (!contribution) return 'public';
   const { rottenEggCount, medalCount } = contribution;
   if (rottenEggCount === 0 && medalCount === 0) return 'public';
-  if (rottenEggCount === medalCount) return contribution.stance === 'positive' ? 'medal' : 'egg';
+  /*
+   * The side they stand on now, when they have sent anything on it. Someone
+   * who gave 300 Medals to an Entity and has since turned critical is critical
+   * — a receipt led by the larger count would advertise the view they left.
+   */
+  if (contribution.stance === 'negative' && rottenEggCount > 0) return 'egg';
+  if (contribution.stance === 'positive' && medalCount > 0) return 'medal';
   return rottenEggCount > medalCount ? 'egg' : 'medal';
 }
 

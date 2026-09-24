@@ -5,6 +5,7 @@ import { consumeRateLimit, RATE_RULES } from '@/lib/services/rate-limit';
 import { SESSION_COOKIE, resolveSession } from '@/lib/services/sessions';
 import { apiError, validationError, rateLimited } from '@/lib/api/responses';
 import { requestContext } from '@/lib/api/request-context';
+import { canChangeSide } from '@/lib/domain/types';
 
 /**
  * The batch reaction endpoint.
@@ -52,16 +53,17 @@ export async function POST(request: NextRequest) {
 
   void ip;
 
-  // A side, once taken, is final. Contradicting batches are refused and the
+  // A reaction never moves a side. Contradicting batches are refused and the
   // caller is told which stance it is held to, so the UI can lock the control.
   if (result.lockedTo) {
+    const how = canChangeSide(artifactType) ? ' Change your position first if you have changed your mind.' : '';
     return NextResponse.json(
       {
         error: 'opinion_locked',
         message:
-          result.lockedTo === 'negative'
-            ? 'You already reacted critically to this. You can keep sending Rotten Eggs, but not Medals.'
-            : 'You already reacted appreciatively to this. You can keep awarding Medals, but not Rotten Eggs.',
+          (result.lockedTo === 'negative'
+            ? 'Your position on this is critical. You can keep sending Rotten Eggs, but not Medals.'
+            : 'Your position on this is appreciative. You can keep awarding Medals, but not Rotten Eggs.') + how,
         lockedTo: result.lockedTo,
         totals: result.totals,
         contribution: result.contribution,

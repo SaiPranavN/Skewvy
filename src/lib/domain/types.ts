@@ -158,6 +158,19 @@ export function emptyTotals(artifactType: ArtifactType, artifactId: string): Art
   };
 }
 
+/**
+ * Whether a person may move their position once it is recorded.
+ *
+ * A Flash News item is one event, and a reaction to it is a reaction to that
+ * moment — so the first side taken stays. An Entity is a standing record that
+ * keeps accumulating, and holding someone to what they thought of a company
+ * five years ago would make its opinion count describe the past, not the
+ * present. Only Entities allow a change.
+ */
+export function canChangeSide(artifactType: ArtifactType): boolean {
+  return artifactType === 'entity';
+}
+
 /** Rotten Eggs mean frustration; Medals mean appreciation. */
 export function stanceForReaction(reactionType: ReactionType): Stance {
   return reactionType === 'rotten_egg' ? 'negative' : 'positive';

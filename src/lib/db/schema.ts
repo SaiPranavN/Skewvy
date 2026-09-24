@@ -125,6 +125,24 @@ CREATE TABLE IF NOT EXISTS opinions (
 );
 CREATE INDEX IF NOT EXISTS idx_opinions_artifact ON opinions(artifact_type, artifact_id);
 
+-- Every change of side, kept for good.
+--
+-- A Flash News opinion is final, but an Entity is a standing record and a
+-- person's view of it can move. When it does, the opinions row is updated in
+-- place and the change is written here — which is what lets the opinion
+-- history be rebuilt exactly, and means a switch never erases the fact that
+-- this person once stood on the other side.
+CREATE TABLE IF NOT EXISTS opinion_changes (
+  id            TEXT PRIMARY KEY,
+  user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  artifact_type TEXT NOT NULL CHECK (artifact_type IN ('entity', 'flash_news')),
+  artifact_id   TEXT NOT NULL,
+  from_stance   TEXT NOT NULL CHECK (from_stance IN ('positive', 'negative')),
+  to_stance     TEXT NOT NULL CHECK (to_stance IN ('positive', 'negative')),
+  created_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_opinion_changes_artifact ON opinion_changes(artifact_type, artifact_id, created_at);
+
 -- Aggregated contribution per user per artifact. Never one row per tap.
 CREATE TABLE IF NOT EXISTS reaction_aggregates (
   id               TEXT PRIMARY KEY,

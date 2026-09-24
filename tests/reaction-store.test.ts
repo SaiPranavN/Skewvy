@@ -92,6 +92,56 @@ describe('picking a position', () => {
   });
 });
 
+describe('switching sides', () => {
+  it('sends taps still buffered for the old side before asking to switch', async () => {
+    const calls: string[] = [];
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      calls.push(url === '/api/opinions' ? `switch:${body.stance}` : `batch:${body.reactionType}:${body.quantity}`);
+      return {
+        ok: true,
+        status: 200,
+        json: async () =>
+          url === '/api/opinions'
+            ? {
+                totals: { ...emptyTotals(ARTIFACT.type, ARTIFACT.id), medalTotal: 43, negativeOpinionTotal: 1 },
+                contribution: { rottenEggCount: 0, medalCount: 3, stance: 'negative' },
+              }
+            : {
+                totals: { ...emptyTotals(ARTIFACT.type, ARTIFACT.id), medalTotal: 43, positiveOpinionTotal: 1 },
+                contribution: { rottenEggCount: 0, medalCount: 3, stance: 'positive' },
+              },
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+    reactionStore.setAuthenticated(true);
+
+    // Three Medals, still inside the 400ms batch window when the switch is asked for.
+    for (let index = 0; index < 3; index += 1) reactionStore.react(ARTIFACT.type, ARTIFACT.id, 'medal', 1);
+    const result = await reactionStore.switchStance(ARTIFACT.type, ARTIFACT.id, 'negative');
+
+    expect(result.ok).toBe(true);
+    // Sent first, as positive, so the server accepts them rather than refusing
+    // them as the wrong side after the switch lands.
+    expect(calls).toEqual(['batch:medal:3', 'switch:negative']);
+
+    const state = reactionStore.get(ARTIFACT.type, ARTIFACT.id)!;
+    expect(state.contribution.stance).toBe('negative');
+    expect(state.selectedStance).toBe('negative');
+    expect(state.contribution.medalCount).toBe(3);
+  });
+
+  it('asks for sign-in rather than switching while signed out', async () => {
+    const onAuthRequired = vi.fn();
+    reactionStore.setAuthRequiredHandler(onAuthRequired);
+
+    const result = await reactionStore.switchStance(ARTIFACT.type, ARTIFACT.id, 'negative');
+
+    expect(result).toEqual({ ok: false, reason: 'unauthenticated' });
+    expect(onAuthRequired).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('signed out', () => {
   it('records nothing and asks for sign-in instead', () => {
     const onAuthRequired = vi.fn();

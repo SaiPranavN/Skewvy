@@ -278,3 +278,87 @@ describe('opinion timeline', () => {
     expect(await backfillOpinionTimeline()).toBe(0);
   });
 });
+
+/**
+ * Historical ranges. The same two histories, read over windows from a day to
+ * five years, each at a bucket size that keeps the chart legible.
+ */
+describe('trend ranges', () => {
+  async function seedHistory(artifactId: string, daysAgo: number[], eggsEach = 10) {
+    for (const ago of daysAgo) {
+      await execute(
+        `INSERT INTO reaction_timeline (artifact_type, artifact_id, bucket_start, rotten_egg_count, medal_count)
+         VALUES ('flash_news', $1, $2, $3, 0)`,
+        [artifactId, hourBucket(Date.now() - ago * 86_400_000), eggsEach],
+      );
+    }
+    const total = daysAgo.length * eggsEach;
+    await execute(
+      `INSERT INTO artifact_totals (artifact_type, artifact_id, rotten_egg_total, medal_total,
+        positive_opinion_total, negative_opinion_total, unique_participant_total, updated_at)
+       VALUES ('flash_news', $1, $2, 0, 0, 0, 0, $3)`,
+      [artifactId, total, new Date().toISOString()],
+    );
+    return total;
+  }
+
+  it('reads a month day by day, ending on the lifetime total', async () => {
+    const artifactId = await createTestFlashNews();
+    const total = await seedHistory(artifactId, [20, 12, 3, 1]);
+
+    const trend = await reactionTrend('flash_news', artifactId, { range: '1m' });
+
+    expect(trend.range).toBe('1m');
+    expect(trend.resolution).toBe('day');
+    expect(trend.points[trend.points.length - 1].cumulativeNegative).toBe(total);
+  });
+
+  it('folds activity older than the window into its opening figure', async () => {
+    const artifactId = await createTestFlashNews();
+    await seedHistory(artifactId, [200, 100, 3, 2]);
+
+    const week = await reactionTrend('flash_news', artifactId, { range: '1w' });
+
+    // Two buckets fall inside the week; the rest is where the line starts.
+    expect(week.windowNegative).toBe(20);
+    expect(week.openingNegative).toBe(20);
+    expect(week.points[0].cumulativeNegative).toBe(20);
+    expect(week.points[week.points.length - 1].cumulativeNegative).toBe(40);
+  });
+
+  it('starts a long range where the history does, not years before it', async () => {
+    const artifactId = await createTestFlashNews();
+    await seedHistory(artifactId, [4]);
+
+    const fiveYears = await reactionTrend('flash_news', artifactId, { range: '5y' });
+
+    expect(fiveYears.resolution).toBe('month');
+    // One bucket in front of the first activity gives the line somewhere to
+    // rise from, so even a single month of history is drawable.
+    expect(fiveYears.points.length).toBeGreaterThanOrEqual(2);
+    expect(fiveYears.points.length).toBeLessThanOrEqual(3);
+    expect(fiveYears.points[0].cumulativeNegative).toBe(0);
+  });
+
+  it('opens on the smallest range that holds the whole history', async () => {
+    const young = await createTestFlashNews('young');
+    await seedHistory(young, [0.2]);
+    const old = await createTestFlashNews('old');
+    await seedHistory(old, [100]);
+
+    expect((await artifactTrends('flash_news', young)).range).toBe('24h');
+    expect((await artifactTrends('flash_news', old)).range).toBe('6m');
+  });
+
+  it('keeps both charts on the same range', async () => {
+    const artifactId = await createTestFlashNews();
+    await seedHistory(artifactId, [40]);
+
+    const trends = await artifactTrends('flash_news', artifactId, { range: '1y' });
+
+    expect(trends.range).toBe('1y');
+    expect(trends.reactions.range).toBe('1y');
+    expect(trends.opinions.range).toBe('1y');
+    expect(trends.reactions.resolution).toBe('week');
+  });
+});

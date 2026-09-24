@@ -89,6 +89,14 @@ export const resendVerificationSchema = z.object({
 
 export const artifactTypeSchema = z.enum(['entity', 'flash_news']);
 export const reactionTypeSchema = z.enum(['rotten_egg', 'medal']);
+export const stanceSchema = z.enum(['positive', 'negative']);
+
+/** Changing sides on an Entity. Whether the type allows it is the service's call. */
+export const opinionSwitchSchema = z.object({
+  artifactType: artifactTypeSchema,
+  artifactId: z.string().min(1).max(64),
+  stance: stanceSchema,
+});
 
 /** A single reaction batch. Quantity is capped server-side; the client batches ~400ms of taps. */
 export const MAX_BATCH_QUANTITY = 250;

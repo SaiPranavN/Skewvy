@@ -169,6 +169,79 @@ class ReactionStore {
     return true;
   }
 
+  /**
+   * Changes a recorded side — Entities only; the server refuses anything else.
+   *
+   * Not optimistic, unlike a tap. A switch moves two public head counts and
+   * cannot be batched or retried silently, so the interface waits for the
+   * server's answer and shows it rather than guessing.
+   *
+   * Anything still buffered from the old side is sent first. Taps are batched
+   * for 400ms, so a person who sends Medals and switches straight away would
+   * otherwise have those Medals arrive *after* the switch — and be refused as
+   * the wrong side, silently losing reactions they genuinely sent.
+   */
+  async switchStance(
+    artifactType: ArtifactType,
+    artifactId: string,
+    stance: Stance,
+  ): Promise<{ ok: true } | { ok: false; reason: 'unauthenticated' | 'rate_limited' | 'refused' | 'network' }> {
+    const key = artifactKey(artifactType, artifactId);
+    if (!this.state[key]) return { ok: false, reason: 'refused' };
+
+    if (!this.authenticated) {
+      this.onAuthRequired?.();
+      return { ok: false, reason: 'unauthenticated' };
+    }
+
+    await this.settle();
+
+    try {
+      const response = await fetch('/api/opinions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ artifactType, artifactId, stance }),
+      });
+
+      if (response.status === 401) {
+        this.authenticated = false;
+        this.onAuthRequired?.();
+        return { ok: false, reason: 'unauthenticated' };
+      }
+      if (response.status === 429) return { ok: false, reason: 'rate_limited' };
+      if (!response.ok) return { ok: false, reason: 'refused' };
+
+      const data = (await response.json()) as { totals: ArtifactTotals; contribution: UserContribution };
+      const state = this.state[key];
+      if (state) {
+        this.patch(key, {
+          totals: this.reconcile(data.totals, state, 0, 0),
+          contribution: data.contribution,
+          selectedStance: data.contribution.stance ?? stance,
+        });
+      }
+      return { ok: true };
+    } catch {
+      return { ok: false, reason: 'network' };
+    }
+  }
+
+  /** Sends whatever is buffered now, and waits until the queue is empty. */
+  private async settle(): Promise<void> {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    this.enqueueBuffered();
+    void this.drainQueue();
+
+    // A drain already in flight owns the queue; wait for it rather than racing.
+    const deadline = Date.now() + 15_000;
+    while ((this.sending || this.queue.length > 0) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+
   /* --------------------------------- tapping -------------------------------- */
 
   /**

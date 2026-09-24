@@ -56,8 +56,19 @@
    * a bright green would not clear. Colour is still never the only cue — the
    * two lines differ in weight and in the shape of their readout markers.
    */
-  --color-series-negative: #d3341c;
-  --color-series-positive: #1f8a4c;
+  --color-series-negative: var(--color-negative-deep);
+  --color-series-positive: var(--color-positive-deep);
+
+  /*
+   * Positive and negative, as a market ticker would show them: a vivid green
+   * and a clear red. The bright pair fills the reaction flow and carries ink
+   * text; the deep pair is for strokes and numerals set on cream, where the
+   * bright ones fall short of legible contrast.
+   */
+  --color-positive: #22c55e;
+  --color-positive-deep: #15803d;
+  --color-negative: #ef4444;
+  --color-negative-deep: #c62a1f;
 
   --color-success: #7fb98a;
   --color-warning: #ffcb2f;
@@ -353,6 +364,71 @@ body {
   .tone-split {
     --tone: var(--color-indigo);
     --tone-ink: var(--color-paper);
+  }
+
+  /*
+   * A card in a grid: ink-edged, with a hard offset shadow in its own tone.
+   *
+   * The shadow cannot be ink as it is elsewhere — ink on the near-black ground
+   * would vanish — so it takes the card's tone instead, which also means the
+   * grid shows the crowd's verdict in the shadows before a word is read.
+   *
+   * The whole card is one link (the title's, stretched over it), so it moves
+   * like a button: it lifts toward the pointer on hover and presses flat into
+   * its shadow on click.
+   */
+  .card-brutal {
+    position: relative;
+    border: 2px solid var(--color-ink);
+    box-shadow: 6px 6px 0 var(--tone, var(--color-brand));
+    transition:
+      transform var(--duration-micro) var(--ease-standard),
+      box-shadow var(--duration-micro) var(--ease-standard);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .card-brutal:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 8px 8px 0 var(--tone, var(--color-brand));
+    }
+  }
+
+  .card-brutal:active {
+    transform: translate(4px, 4px);
+    box-shadow: 2px 2px 0 var(--tone, var(--color-brand));
+  }
+
+  /* The link that covers the card carries the focus; show it on the card. */
+  .card-brutal:has(.card-link:focus-visible) {
+    outline: 3px solid var(--color-indigo-bright);
+    outline-offset: 4px;
+  }
+
+  .card-link:focus-visible {
+    outline: none;
+  }
+
+  /* Hovering anywhere on the card says which link it is about to follow. */
+  @media (hover: hover) and (pointer: fine) {
+    .card-brutal:hover .card-link {
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 4px;
+    }
+  }
+
+  /* Stretched over the whole card, so anywhere on it opens the item. */
+  .card-link::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  /* Anything else clickable inside a card sits above the stretched link. */
+  .card-brutal .card-action {
+    position: relative;
+    z-index: 2;
   }
 
   /* The image well. Carries the tone when there is no picture to show. */
@@ -750,6 +826,36 @@ body {
     box-shadow: 5px 5px 0 var(--color-ink);
   }
 
+  /*
+   * A real emoji, on a tile of its own colour.
+   *
+   * 🥚 is drawn near-white on every platform and vanishes on cream — the
+   * reason the site draws its own marks elsewhere. Inside the flow the real
+   * glyphs are wanted, so each sits on a filled, ink-edged square: the egg on
+   * red, the medal on green, legible whether the card around it is cream,
+   * coloured, or muted.
+   */
+  .emoji-chip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--chip, 34px);
+    height: var(--chip, 34px);
+    border: 2px solid var(--color-ink);
+    font-family: var(--font-emoji);
+    font-size: calc(var(--chip, 34px) * 0.56);
+    line-height: 1;
+  }
+
+  .emoji-chip[data-kind='medal'] {
+    background-color: var(--color-positive);
+  }
+
+  .emoji-chip[data-kind='egg'] {
+    background-color: var(--color-negative);
+  }
+
   /* --------------------------------- buttons -------------------------------- */
 
   /*
@@ -864,6 +970,46 @@ body {
   }
 
   .btn-medal:active:not(:disabled) {
+    transform: translateY(3px);
+  }
+
+  /*
+   * The reaction flow's own pair. Same shape and press as the egg and medal
+   * buttons, in the flow's green and red.
+   */
+  .btn-positive,
+  .btn-negative {
+    color: var(--color-ink);
+    border: 2px solid var(--color-ink);
+    padding: 18px 16px;
+    font-weight: 800;
+    font-size: clamp(1rem, 1.4vw, 1.25rem);
+    min-height: 54px;
+    width: 100%;
+    justify-content: flex-start;
+    touch-action: manipulation;
+    user-select: none;
+  }
+
+  .btn-positive {
+    background-color: var(--color-positive);
+  }
+
+  .btn-negative {
+    background-color: var(--color-negative);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-positive:hover {
+      background-color: #4ade80;
+    }
+    .btn-negative:hover {
+      background-color: #f87171;
+    }
+  }
+
+  .btn-positive:active:not(:disabled),
+  .btn-negative:active:not(:disabled) {
     transform: translateY(3px);
   }
 
@@ -1222,7 +1368,9 @@ body {
 
   /* The press still registers; it just does not travel. */
   .btn:active:not(:disabled),
-  .reaction-control[data-pressed='true'] {
+  .reaction-control[data-pressed='true'],
+  .card-brutal:hover,
+  .card-brutal:active {
     transform: none;
   }
 }

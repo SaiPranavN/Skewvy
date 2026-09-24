@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { Media, initialsFor } from '@/components/ui/Media';
 import { RelativeTime } from '@/components/ui/TimeAgo';
 import { useArtifact } from '@/components/reactions/useArtifact';
-import { cardTone, contributorPhrase, opinionPhrase } from '@/lib/domain/copy';
+import { cardTone, contributorPhrase } from '@/lib/domain/copy';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
 import { EggIcon, MedalIcon } from '@/components/ui/icons';
+import { OpinionSplit } from './OpinionSplit';
 
 /**
  * The story card.
@@ -21,8 +22,10 @@ import { EggIcon, MedalIcon } from '@/components/ui/icons';
  * are interesting, but each one carries its head count directly underneath so
  * it can never be mistaken for a crowd.
  *
- * The totals are live but the card does not react: tapping goes to the item,
- * where the workflow and the rule about taking a side both live.
+ * The totals are live but the card does not react: clicking anywhere on it
+ * goes to the item, where the workflow and the rule about taking a side both
+ * live. That is one link — the title's, stretched over the card — so keyboard
+ * and screen-reader users meet it once rather than three times.
  */
 export function ArtifactCard({ card, priority = false }: { card: ArtifactCardModel; priority?: boolean }) {
   const state = useArtifact(card.type, card.id, { totals: card.totals, contribution: card.contribution });
@@ -31,24 +34,22 @@ export function ArtifactCard({ card, priority = false }: { card: ArtifactCardMod
   const badge = cardTone(state.totals);
 
   return (
-    <article className={`paper tone-${badge.tone} media-hover flex flex-col`}>
-      <Link href={href} className="block" tabIndex={-1} aria-hidden="true">
-        <div className="relative">
-          <Media
-            src={card.imageUrl}
-            alt=""
-            fallbackLabel={initialsFor(card.title)}
-            fallbackKind="initials"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 340px"
-            priority={priority}
-            scrim={card.imageUrl ? 'card' : 'none'}
-            className="aspect-[16/10] w-full"
-          />
+    <article className={`paper card-brutal tone-${badge.tone} media-hover flex flex-col`}>
+      <div className="relative">
+        <Media
+          src={card.imageUrl}
+          alt=""
+          fallbackLabel={initialsFor(card.title)}
+          fallbackKind="initials"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 340px"
+          priority={priority}
+          scrim={card.imageUrl ? 'card' : 'none'}
+          className="aspect-[16/10] w-full"
+        />
 
-          <span className="chip absolute left-3 top-3">{card.category}</span>
-          <span className="tone-badge absolute bottom-3 right-3">{badge.flashLabel}</span>
-        </div>
-      </Link>
+        <span className="chip absolute left-3 top-3">{card.category}</span>
+        <span className="tone-badge absolute bottom-3 right-3">{badge.flashLabel}</span>
+      </div>
 
       <div className="flex flex-1 flex-col gap-2.5 p-4">
         <p className="text-[11px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
@@ -56,7 +57,7 @@ export function ArtifactCard({ card, priority = false }: { card: ArtifactCardMod
         </p>
 
         <h3 className="display-sm text-pretty text-[19px]">
-          <Link href={href} className="hover:text-[color:var(--color-egg-deep)]">
+          <Link href={href} className="card-link">
             {card.title}
           </Link>
         </h3>
@@ -66,12 +67,10 @@ export function ArtifactCard({ card, priority = false }: { card: ArtifactCardMod
         )}
 
         <div className="mt-auto pt-2">
-          {/* People first: this line is the verdict the badge above is read from. */}
-          <p className="border-t border-[var(--rule-subtle)] pt-3 text-xs font-bold leading-[1.4]">
-            {opinionPhrase(state.totals)}
-          </p>
+          {/* People first: this is the verdict the badge above is read from. */}
+          <OpinionSplit totals={state.totals} />
 
-          <div className="mt-3 flex flex-wrap items-start gap-x-5 gap-y-3">
+          <div className="mt-3.5 flex flex-wrap items-start gap-x-5 gap-y-3">
             <Total
               value={state.totals.medalTotal}
               label="Medals"
@@ -87,12 +86,13 @@ export function ArtifactCard({ card, priority = false }: { card: ArtifactCardMod
               contributors={state.totals.rottenEggContributorTotal}
             />
 
-            <Link
-              href={href}
+            {/* A cue, not a second link: the whole card already goes there. */}
+            <span
+              aria-hidden="true"
               className="ml-auto self-end border-b-2 border-[color:var(--color-egg)] pb-0.5 text-[13px] font-bold leading-none"
             >
               React →
-            </Link>
+            </span>
           </div>
         </div>
       </div>

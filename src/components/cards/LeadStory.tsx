@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { Media, initialsFor } from '@/components/ui/Media';
 import { RelativeTime } from '@/components/ui/TimeAgo';
 import { useArtifact } from '@/components/reactions/useArtifact';
-import { cardTone, contributorPhrase, opinionPhrase } from '@/lib/domain/copy';
+import { cardTone, contributorPhrase } from '@/lib/domain/copy';
+import { OpinionSplit } from './OpinionSplit';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
 import { EggIcon, MedalIcon } from '@/components/ui/icons';
@@ -37,20 +38,17 @@ export function LeadStory({
       </span>
 
       <article
-        className={`paper tone-${badge.tone} media-hover grid gap-0 md:grid-cols-2`}
-        style={{ boxShadow: 'var(--shadow-slab)' }}
+        className={`paper card-brutal tone-${badge.tone} media-hover grid gap-0 md:grid-cols-2`}
       >
-        <Link href={href} className="block" tabIndex={-1} aria-hidden="true">
-          <Media
-            src={card.imageUrl}
-            alt=""
-            fallbackLabel={initialsFor(card.title)}
-            fallbackKind="initials"
-            sizes="(max-width: 768px) 100vw, 50vw"
-            priority
-            className="aspect-[16/10] w-full md:h-full"
-          />
-        </Link>
+        <Media
+          src={card.imageUrl}
+          alt=""
+          fallbackLabel={initialsFor(card.title)}
+          fallbackKind="initials"
+          sizes="(max-width: 768px) 100vw, 50vw"
+          priority
+          className="aspect-[16/10] w-full md:h-full"
+        />
 
         <div className="flex flex-col p-[clamp(20px,2.4vw,40px)]">
           <div className="flex flex-wrap items-center gap-2.5">
@@ -62,7 +60,7 @@ export function LeadStory({
           </div>
 
           <h2 className="display mt-4 text-pretty text-[clamp(28px,3.4vw,52px)]">
-            <Link href={href} className="hover:text-[color:var(--color-egg-deep)]">
+            <Link href={href} className="card-link">
               {card.title}
             </Link>
           </h2>
@@ -75,7 +73,7 @@ export function LeadStory({
 
           <div className="mt-auto border-t-2 border-ink pt-5">
             {/* The verdict, ahead of the volume. */}
-            <p className="m-0 text-[13px] font-bold leading-[1.4]">{opinionPhrase(state.totals)}</p>
+            <OpinionSplit totals={state.totals} size="lg" />
 
             <div className="mt-3.5 flex flex-wrap items-start gap-x-7 gap-y-4">
               <Total
@@ -93,12 +91,13 @@ export function LeadStory({
                 contributors={state.totals.rottenEggContributorTotal}
               />
 
-              <Link
-                href={href}
+              {/* A cue, not a second link: the whole card already opens the story. */}
+              <span
+                aria-hidden="true"
                 className="btn ml-auto flex-none self-end bg-ink px-5 py-3.5 text-[13px] font-extrabold text-paper"
               >
                 Open story →
-              </Link>
+              </span>
             </div>
           </div>
         </div>

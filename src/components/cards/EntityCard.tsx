@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { Media, initialsFor } from '@/components/ui/Media';
 import { RelativeTime } from '@/components/ui/TimeAgo';
 import { useArtifact } from '@/components/reactions/useArtifact';
-import { cardTone, contributorPhrase, opinionPhrase } from '@/lib/domain/copy';
-import { formatCount, sharePercent } from '@/lib/domain/format';
+import { cardTone, contributorPhrase } from '@/lib/domain/copy';
+import { formatCount } from '@/lib/domain/format';
+import { OpinionSplit } from './OpinionSplit';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
 import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
@@ -16,10 +17,14 @@ import { EggIcon, MedalIcon } from '@/components/ui/icons';
  * identity — the mark, the name, what the thing is — and then shows where
  * people stand before what they sent.
  *
- * The bar is a split of **people**, not of taps. Drawn from the reaction
- * totals it would be a picture of who tapped hardest, which is not what a
- * standing record means, and it sits directly under a badge that is computed
- * from the head count — the two disagreeing would be worse than either alone.
+ * The people split leads, at size, because it is the verdict the badge is
+ * computed from. The reaction totals follow, smaller, as intensity. Drawn from
+ * the taps instead, the split would be a picture of who tapped hardest, which
+ * is not what a standing record means.
+ *
+ * The whole card opens the entity: the title's link is stretched over it, so
+ * there is one link to reach by keyboard and one thing a screen reader
+ * announces, rather than three links to the same page.
  */
 export function EntityCard({ card, priority = false }: { card: ArtifactCardModel; priority?: boolean }) {
   const state = useArtifact(card.type, card.id, { totals: card.totals, contribution: card.contribution });
@@ -28,32 +33,25 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
   const eggs = state.totals.rottenEggTotal;
   const medals = state.totals.medalTotal;
 
-  const critical = state.totals.negativeOpinionTotal;
-  const appreciative = state.totals.positiveOpinionTotal;
-  const people = critical + appreciative;
-  const criticalShare = sharePercent(critical, people);
-
   const itemCount = card.relatedFlashNewsCount ?? 0;
 
   return (
-    <article className={`paper tone-${badge.tone} media-hover flex flex-col`}>
+    <article className={`paper card-brutal tone-${badge.tone} media-hover flex flex-col`}>
       {/*
         * The mark sits beside the name in the wide Entities grid and drops
         * above it in the narrower mixed grid on the home page — `min-w` on the
         * text block is what decides which, so one card serves both.
         */}
       <div className="flex flex-wrap items-start gap-3.5 p-4">
-        <Link href={`/entities/${card.slug}`} className="flex-none" tabIndex={-1} aria-hidden="true">
-          <Media
-            src={card.imageUrl}
-            alt=""
-            fallbackLabel={initialsFor(card.title)}
-            fallbackKind="initials"
-            sizes="72px"
-            priority={priority}
-            className="h-[72px] w-[72px] border-2 border-ink"
-          />
-        </Link>
+        <Media
+          src={card.imageUrl}
+          alt=""
+          fallbackLabel={initialsFor(card.title)}
+          fallbackKind="initials"
+          sizes="72px"
+          priority={priority}
+          className="h-[72px] w-[72px] flex-none border-2 border-ink"
+        />
 
         <div className="min-w-[170px] flex-1">
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
@@ -62,7 +60,7 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
           </div>
 
           <h3 className="display-sm text-pretty text-[22px]">
-            <Link href={`/entities/${card.slug}`} className="hover:text-[color:var(--color-egg-deep)]">
+            <Link href={`/entities/${card.slug}`} className="card-link">
               {card.title}
             </Link>
           </h3>
@@ -73,17 +71,11 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
         </div>
       </div>
 
-      <div
-        className="split-bar mx-4"
-        role="img"
-        aria-label={`Where people stand: ${formatCount(critical)} critical, ${formatCount(appreciative)} appreciative.`}
-      >
-        <span style={{ width: `${people > 0 ? criticalShare : 50}%` }} />
+      <div className="px-4">
+        <OpinionSplit totals={state.totals} />
       </div>
 
-      <p className="px-4 pt-3 text-xs font-bold leading-[1.4]">{opinionPhrase(state.totals)}</p>
-
-      <div className="flex flex-wrap items-start gap-x-6 gap-y-3 px-4 pb-4 pt-3">
+      <div className="flex flex-wrap items-start gap-x-6 gap-y-3 px-4 pb-4 pt-3.5">
         <Lifetime
           value={medals}
           label="Medals"
@@ -101,8 +93,8 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
 
         {itemCount > 0 && (
           <Link
-            href={`/entities/${card.slug}`}
-            className="ml-auto self-end border-b-2 border-[color:var(--color-indigo)] pb-0.5 text-[13px] font-bold leading-none"
+            href={`/entities/${card.slug}#stories`}
+            className="card-action ml-auto self-end border-b-2 border-[color:var(--color-indigo)] pb-0.5 text-[13px] font-bold leading-none"
           >
             {formatCount(itemCount)} Flash News {itemCount === 1 ? 'item' : 'items'} →
           </Link>
@@ -135,7 +127,7 @@ function Lifetime({
   return (
     <div className="min-w-0">
       <div
-        className="numeric-lg text-[28px]"
+        className="numeric-lg text-[22px]"
         style={{ color: tone === 'egg' ? 'var(--color-egg-deep)' : 'var(--color-medal-deep)' }}
       >
         {formatCount(value)}

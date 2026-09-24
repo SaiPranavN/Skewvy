@@ -62,4 +62,9 @@ export const RATE_RULES = {
   /** Writing takes time; a person posting faster than this is not writing. */
   commentPost: { limit: 8, windowSeconds: 120 },
   commentVote: { limit: 90, windowSeconds: 60 },
+  /**
+   * A change of mind is allowed; a flip every few seconds is somebody playing
+   * with the head count, and each flip moves a public number.
+   */
+  opinionSwitch: { limit: 6, windowSeconds: 600 },
 } satisfies Record<string, RateLimitRule>;
