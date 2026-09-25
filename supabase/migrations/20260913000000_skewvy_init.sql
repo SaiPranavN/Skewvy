@@ -296,6 +296,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS suspended_at TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS suspended_reason TEXT;
 ALTER TABLE artifact_totals ADD COLUMN IF NOT EXISTS rotten_egg_contributor_total INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE artifact_totals ADD COLUMN IF NOT EXISTS medal_contributor_total INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE entities ADD COLUMN IF NOT EXISTS details TEXT;
+ALTER TABLE flash_news ADD COLUMN IF NOT EXISTS details TEXT;
 
 -- ---------------------------------------------------------------------------
 -- Keep these tables out of the public API. See postgresHardeningSql().

@@ -12,6 +12,7 @@ import {
   entityIdsForFlashNews,
   toCards,
   slugify,
+  deleteArtifactPermanently,
 } from '@/lib/services/content';
 import { applyReactionBatch } from '@/lib/services/reactions';
 import { searchArtifacts } from '@/lib/services/search';
@@ -207,5 +208,68 @@ describe('slugs', () => {
   it('produces URL-safe slugs from headlines', () => {
     expect(slugify('Nimbus Fare adds a “seat selection” fee!')).toBe('nimbus-fare-adds-a-seat-selection-fee');
     expect(slugify('  Multiple   spaces  ')).toBe('multiple-spaces');
+  });
+});
+
+describe('details about a subject', () => {
+  it('stores them in order and hands them to the card', async () => {
+    const entity = await createEntity({
+      ...entityInput('Smriti Mandhana', 'smriti-mandhana'),
+      details: [
+        { label: 'Profession', value: 'Cricketer' },
+        { label: 'Country', value: 'India' },
+        { label: 'Reference', value: 'https://example.test/profile' },
+      ],
+    });
+
+    expect(entity.details.map((detail) => detail.label)).toEqual(['Profession', 'Country', 'Reference']);
+
+    const [card] = await toCards({ entities: [entity] });
+    expect(card.details).toHaveLength(3);
+  });
+
+  it('treats a profile saved before details existed as having none', async () => {
+    const entity = await createEntity(entityInput('Older Co', 'older-co'));
+    expect(entity.details).toEqual([]);
+  });
+});
+
+describe('deleting an artifact permanently', () => {
+  it('removes the item and everything recorded against it, and nothing else', async () => {
+    const userId = await createVerifiedUser();
+    const doomed = await createEntity(entityInput('Doomed Co', 'doomed-co'));
+    const kept = await createEntity(entityInput('Kept Co', 'kept-co'));
+    const story = await createFlashNews(flashNewsInput('About both', 'about-both', [doomed.id, kept.id]));
+
+    for (const [id, batch] of [[doomed.id, 'doomed-batch'], [kept.id, 'kept-batch']] as const) {
+      await applyReactionBatch({
+        userId, artifactType: 'entity', artifactId: id,
+        reactionType: 'medal', quantity: 5, clientBatchId: batch,
+      });
+    }
+    const { createComment, reportComment } = await import('@/lib/services/comments');
+    const other = await createVerifiedUser('other@example.test');
+    const comment = await createComment({ userId, artifactType: 'entity', artifactId: doomed.id, body: 'Going away.' });
+    await reportComment({ userId: other, commentId: comment.id, reason: 'spam' });
+
+    const outcome = await deleteArtifactPermanently('entity', doomed.id);
+    expect(outcome).toEqual({ deleted: true, slug: 'doomed-co' });
+
+    const { query } = await import('@/lib/db');
+    for (const table of ['opinions', 'reaction_aggregates', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'artifact_totals', 'comments']) {
+      const rows = await query(`SELECT 1 FROM ${table} WHERE artifact_id = $1`, [doomed.id]);
+      expect(rows, table).toHaveLength(0);
+    }
+    expect(await query('SELECT 1 FROM comment_reports')).toHaveLength(0);
+    expect(await query('SELECT 1 FROM entities WHERE id = $1', [doomed.id])).toHaveLength(0);
+
+    // The story survives, now linked only to the profile that is still here.
+    expect(await entityIdsForFlashNews(story.id)).toEqual([kept.id]);
+    const { getTotals } = await import('@/lib/services/totals');
+    expect((await getTotals('entity', kept.id)).medalTotal).toBe(5);
+  });
+
+  it('reports a missing item rather than pretending', async () => {
+    expect(await deleteArtifactPermanently('flash_news', 'no-such-id')).toEqual({ deleted: false, slug: null });
   });
 });

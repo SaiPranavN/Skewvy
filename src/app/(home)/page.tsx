@@ -96,7 +96,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               action={{ href: '/', label: 'Show everything' }}
             />
           ) : (
-            <CardGrid cards={crowd} columns={5} priorityCount={5} />
+            <CardGrid cards={crowd} columns={4} priorityCount={4} />
           )}
         </div>
       </section>

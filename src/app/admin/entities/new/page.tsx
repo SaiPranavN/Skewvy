@@ -28,6 +28,7 @@ export default function NewEntityPage() {
           description: '',
           category: ENTITY_CATEGORIES[0],
           imageUrl: null,
+          details: [],
           status: 'draft',
         }}
         action={action}

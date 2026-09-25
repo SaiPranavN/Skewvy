@@ -14,6 +14,9 @@ import {
   setFlashNewsStatus,
   slugExists,
   slugify,
+  deleteArtifactPermanently,
+  getEntityById,
+  getFlashNewsById,
 } from '@/lib/services/content';
 import { consumeRateLimit, RATE_RULES } from '@/lib/services/rate-limit';
 import { newId } from '@/lib/services/crypto';
@@ -49,6 +52,28 @@ async function guard(): Promise<ActionResult | null> {
   return null;
 }
 
+/** Every problem inside the details list is reported against the list as a whole. */
+function fieldKey(path: PropertyKey[]): string {
+  if (path[0] === 'details') return 'details';
+  return path.map(String).join('.') || 'form';
+}
+
+/** The details editor posts its rows as JSON; blank rows are an editor skipping a field. */
+function readDetails(formData: FormData): Array<{ label: string; value: string }> {
+  try {
+    const parsed: unknown = JSON.parse(String(formData.get('details') ?? '[]'));
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((row) => ({
+        label: String((row as { label?: unknown })?.label ?? '').trim(),
+        value: String((row as { value?: unknown })?.value ?? '').trim(),
+      }))
+      .filter((row) => row.label && row.value);
+  } catch {
+    return [];
+  }
+}
+
 function readEntityForm(formData: FormData) {
   const name = String(formData.get('name') ?? '').trim();
   return {
@@ -58,6 +83,7 @@ function readEntityForm(formData: FormData) {
     category: String(formData.get('category') ?? '').trim(),
     imageUrl: String(formData.get('imageUrl') ?? '').trim() || null,
     accent: String(formData.get('accent') ?? '').trim() || null,
+    details: readDetails(formData),
     status: String(formData.get('status') ?? 'draft'),
   };
 }
@@ -69,7 +95,7 @@ export async function saveEntityAction(id: string | null, _previous: ActionResul
   const parsed = entityInputSchema.safeParse(readEntityForm(formData));
   if (!parsed.success) {
     const fields: Record<string, string> = {};
-    for (const issue of parsed.error.issues) fields[issue.path.join('.') || 'form'] = issue.message;
+    for (const issue of parsed.error.issues) fields[fieldKey(issue.path)] = issue.message;
     return { ok: false, message: 'Some fields need another look.', fields };
   }
 
@@ -99,6 +125,7 @@ function readFlashNewsForm(formData: FormData) {
     accent: String(formData.get('accent') ?? '').trim() || null,
     sourceLabel: String(formData.get('sourceLabel') ?? '').trim() || null,
     sourceUrl: String(formData.get('sourceUrl') ?? '').trim() || null,
+    details: readDetails(formData),
     status: String(formData.get('status') ?? 'draft'),
     entityIds: formData.getAll('entityIds').map(String).filter(Boolean),
   };
@@ -115,7 +142,7 @@ export async function saveFlashNewsAction(
   const parsed = flashNewsInputSchema.safeParse(readFlashNewsForm(formData));
   if (!parsed.success) {
     const fields: Record<string, string> = {};
-    for (const issue of parsed.error.issues) fields[issue.path.join('.') || 'form'] = issue.message;
+    for (const issue of parsed.error.issues) fields[fieldKey(issue.path)] = issue.message;
     return { ok: false, message: 'Some fields need another look.', fields };
   }
 
@@ -159,6 +186,43 @@ export async function setStatusAction(
   revalidatePath('/');
 
   return { ok: true, message: `Marked as ${parsed.data}.` };
+}
+
+/**
+ * Permanent deletion. The caller must send the item's slug back, typed out,
+ * and it is checked here against the stored one — the confirmation is a
+ * server rule, not only a disabled button.
+ */
+export async function deleteArtifactAction(
+  type: 'entity' | 'flash_news',
+  id: string,
+  typedSlug: string,
+): Promise<ActionResult> {
+  const blocked = await guard();
+  if (blocked) return blocked;
+
+  const table = type === 'entity' ? 'entities' : 'flash_news';
+  const existing = type === 'entity' ? await getEntityById(id) : await getFlashNewsById(id);
+  if (!existing) return { ok: false, message: 'That item no longer exists.' };
+  if (typedSlug.trim() !== existing.slug) {
+    return { ok: false, message: `Type ${existing.slug} exactly to confirm.` };
+  }
+
+  const outcome = await deleteArtifactPermanently(type, id);
+  if (!outcome.deleted) return { ok: false, message: 'That item no longer exists.' };
+
+  const publicBase = table === 'entities' ? '/entities' : '/flash-news';
+  revalidatePath('/');
+  revalidatePath('/admin');
+  revalidatePath(`/admin${publicBase}`);
+  revalidatePath(publicBase);
+  revalidatePath(`${publicBase}/${existing.slug}`);
+
+  return {
+    ok: true,
+    message: `${type === 'entity' ? 'Profile' : 'Story'} deleted permanently.`,
+    redirectTo: `/admin${publicBase}`,
+  };
 }
 
 /**

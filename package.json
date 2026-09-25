@@ -21,7 +21,8 @@
     "db:wipe": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/wipe.ts",
     "smoke": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/smoke.ts",
     "admin": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/grant-admin.ts",
-    "pin": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/set-pin.ts"
+    "pin": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/set-pin.ts",
+    "content:import": "node --experimental-sqlite --experimental-strip-types --import ./scripts/register-hook.mjs --disable-warning=ExperimentalWarning scripts/import-editorial.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",

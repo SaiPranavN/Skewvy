@@ -32,6 +32,7 @@ export default async function NewFlashNewsPage() {
           body: '',
           category: FLASH_NEWS_CATEGORIES[0],
           imageUrl: null,
+          details: [],
           sourceLabel: null,
           sourceUrl: null,
           status: 'draft',

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { REPORT_REASONS, REPORT_DETAILS_MAX_LENGTH } from '@/lib/domain/reports';
+import { DETAILS_MAX, DETAIL_LABEL_MAX, DETAIL_VALUE_MAX } from '@/lib/domain/details';
 
 /** Shared by the client forms and the route handlers so rules can never drift. */
 
@@ -141,6 +142,17 @@ export const commentReportSchema = z
 
 export const contentStatusSchema = z.enum(['draft', 'published', 'archived']);
 
+/** Editor-entered facts. Blank rows are dropped before this sees them. */
+export const detailsSchema = z
+  .array(
+    z.object({
+      label: z.string().trim().min(1).max(DETAIL_LABEL_MAX),
+      value: z.string().trim().min(1).max(DETAIL_VALUE_MAX),
+    }),
+  )
+  .max(DETAILS_MAX, `Up to ${DETAILS_MAX} details.`)
+  .default([]);
+
 export const entityInputSchema = z.object({
   name: z.string().trim().min(2).max(120),
   slug: z
@@ -153,6 +165,7 @@ export const entityInputSchema = z.object({
   category: z.string().trim().min(2).max(40),
   imageUrl: z.string().trim().max(600).optional().nullable(),
   accent: z.string().trim().max(20).optional().nullable(),
+  details: detailsSchema,
   status: contentStatusSchema.default('draft'),
 });
 
@@ -171,6 +184,7 @@ export const flashNewsInputSchema = z.object({
   accent: z.string().trim().max(20).optional().nullable(),
   sourceLabel: z.string().trim().max(120).optional().nullable(),
   sourceUrl: z.string().trim().max(600).optional().nullable(),
+  details: detailsSchema,
   status: contentStatusSchema.default('draft'),
   entityIds: z.array(z.string().min(1)).max(12).default([]),
 });
@@ -179,5 +193,5 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type CompleteRegistrationInput = z.infer<typeof completeRegistrationSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ReactionBatchInput = z.infer<typeof reactionBatchSchema>;
-export type EntityInput = z.infer<typeof entityInputSchema>;
-export type FlashNewsInput = z.infer<typeof flashNewsInputSchema>;
+export type EntityInput = z.input<typeof entityInputSchema>;
+export type FlashNewsInput = z.input<typeof flashNewsInputSchema>;

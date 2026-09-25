@@ -10,6 +10,7 @@ import { HydrateArtifacts } from '@/components/reactions/HydrateArtifacts';
 import { CardGrid } from '@/components/cards/CardGrid';
 import { ShareReceipt } from '@/components/share/ShareReceipt';
 import { LocalDateTime } from '@/components/ui/TimeAgo';
+import { DetailsList } from '@/components/artifact/DetailsList';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { getFlashNewsBySlug, entitiesForFlashNews, listFlashNews, toCards } from '@/lib/services/content';
 
@@ -145,6 +146,10 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
             <p className="m-0 max-w-[62ch] whitespace-pre-line text-pretty text-[clamp(15px,1.15vw,17.5px)] leading-[1.65] text-[rgb(23_20_15_/_0.7)]">
               {item.body}
             </p>
+          )}
+
+          {item.details.length > 0 && (
+            <DetailsList details={item.details} className="mt-6 border-t border-[var(--rule-subtle)] pt-5" />
           )}
 
           {item.sourceLabel && (

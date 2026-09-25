@@ -298,6 +298,9 @@ export const ADDED_COLUMNS: Array<{ table: string; column: string; definition: s
   { table: 'users', column: 'suspended_reason', definition: 'TEXT' },
   { table: 'artifact_totals', column: 'rotten_egg_contributor_total', definition: 'INTEGER NOT NULL DEFAULT 0' },
   { table: 'artifact_totals', column: 'medal_contributor_total', definition: 'INTEGER NOT NULL DEFAULT 0' },
+  // Editor-entered facts about the subject, as a JSON array of { label, value }.
+  { table: 'entities', column: 'details', definition: 'TEXT' },
+  { table: 'flash_news', column: 'details', definition: 'TEXT' },
 ];
 
 /**

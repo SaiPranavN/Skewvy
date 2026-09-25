@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState } from 'react';
 import { ImageField } from './ImageField';
+import { DetailsEditor } from './DetailsEditor';
+import { SUGGESTED_DETAILS, SUGGESTED_STORY_DETAILS, type ArtifactDetail } from '@/lib/domain/details';
 import { ENTITY_CATEGORIES, FLASH_NEWS_CATEGORIES } from '@/lib/domain/types';
 import type { ActionResult } from '@/app/admin/actions';
 import type { ContentStatus } from '@/lib/domain/types';
@@ -48,6 +50,7 @@ export interface EntityFormValues {
   description: string;
   category: string;
   imageUrl: string | null;
+  details: ArtifactDetail[];
   status: ContentStatus;
 }
 
@@ -61,6 +64,7 @@ export interface FlashNewsFormValues {
   imageUrl: string | null;
   sourceLabel: string | null;
   sourceUrl: string | null;
+  details: ArtifactDetail[];
   status: ContentStatus;
   entityIds: string[];
 }
@@ -146,6 +150,7 @@ export function EntityForm({
   const [name, setName] = useState(values.name);
   const [slug, setSlug] = useState(values.slug);
   const [slugTouched, setSlugTouched] = useState(Boolean(values.slug));
+  const [category, setCategory] = useState(values.category || ENTITY_CATEGORIES[0]);
 
   useEffect(() => {
     if (state.ok && state.redirectTo && !values.id) router.push(state.redirectTo);
@@ -195,7 +200,13 @@ export function EntityForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <FormField id="category" label="Category" error={state.fields?.category}>
-          <select id="category" name="category" defaultValue={values.category || ENTITY_CATEGORIES[0]} className={inputClass}>
+          <select
+            id="category"
+            name="category"
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+            className={inputClass}
+          >
             {ENTITY_CATEGORIES.map((category) => (
               <option key={category} value={category}>
                 {category}
@@ -205,6 +216,12 @@ export function EntityForm({
         </FormField>
 
       </div>
+
+      <DetailsEditor
+        defaultValue={values.details}
+        suggestions={SUGGESTED_DETAILS[category] ?? []}
+        error={state.fields?.details}
+      />
 
       <ImageField name="imageUrl" defaultValue={values.imageUrl} />
 
@@ -317,6 +334,12 @@ export function FlashNewsForm({
           />
         </FormField>
       </div>
+
+      <DetailsEditor
+        defaultValue={values.details}
+        suggestions={SUGGESTED_STORY_DETAILS}
+        error={state.fields?.details}
+      />
 
       <ImageField name="imageUrl" defaultValue={values.imageUrl} />
 

@@ -560,6 +560,16 @@ body {
     pointer-events: none;
   }
 
+  /* The no-image placeholder always takes ink dots: its colour is always light. */
+  .placeholder-tile::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgb(23 20 15 / 0.14) 1.2px, transparent 1.3px);
+    background-size: 10px 10px;
+    pointer-events: none;
+  }
+
   .tone-split .tile-dots::before {
     background-image: radial-gradient(circle, rgb(247 242 231 / 0.18) 1.2px, transparent 1.3px);
   }

@@ -5,6 +5,8 @@ import { stanceForReaction, emptyTotals } from '@/lib/domain/types';
 import { toSqlitePlaceholders } from '@/lib/db/sqlite';
 import { bucketStart, nextBucket, previousBucket, defaultRange } from '@/lib/domain/trend-ranges';
 import { receiptVariant } from '@/lib/client/receipt';
+import { detailsFromObject, cardDetailLine, parseDetails, serializeDetails } from '@/lib/domain/details';
+import { initialsFor, placeholderColour } from '@/components/ui/Media';
 
 describe('number presentation', () => {
   it('shows reaction totals in full, never abbreviated', () => {
@@ -209,5 +211,57 @@ describe('the share receipt', () => {
     expect(receiptVariant({ medalCount: 300, rottenEggCount: 4, stance: 'negative' })).toBe('egg');
     expect(receiptVariant({ medalCount: 2, rottenEggCount: 90, stance: 'positive' })).toBe('medal');
     expect(receiptVariant({ medalCount: 0, rottenEggCount: 0, stance: null })).toBe('public');
+  });
+});
+
+describe('details', () => {
+  it('turns an imported metadata object into labelled rows', () => {
+    const details = detailsFromObject({
+      profession: 'Cricketer',
+      official_url: 'https://www.bcci.tv/',
+      platforms: ['PC', 'PlayStation 5'],
+      founded: 2020,
+      empty: '',
+    });
+    expect(details).toEqual([
+      { label: 'Profession', value: 'Cricketer' },
+      { label: 'Website', value: 'https://www.bcci.tv/' },
+      { label: 'Platforms', value: 'PC, PlayStation 5' },
+      { label: 'Founded', value: '2020' },
+    ]);
+  });
+
+  it('puts plain facts on the card and keeps links and bookkeeping for the page', () => {
+    const details = detailsFromObject({
+      reference_url: 'https://example.test',
+      verified_as_of: '2026-09-25',
+      profession: 'Cricketer',
+      country: 'India',
+      known_for: 'Opening batter',
+    });
+    expect(cardDetailLine(details)).toBe('Cricketer · India');
+    expect(cardDetailLine([])).toBeNull();
+  });
+
+  it('survives malformed stored JSON', () => {
+    expect(parseDetails('not json')).toEqual([]);
+    expect(parseDetails('[{"label":"A","value":"B"},{"label":7}]')).toEqual([{ label: 'A', value: 'B' }]);
+    expect(serializeDetails([{ label: ' ', value: 'x' }])).toBeNull();
+  });
+});
+
+describe('placeholder initials', () => {
+  it('skips filler words and keeps short acronyms whole', () => {
+    expect(initialsFor('Smriti Mandhana')).toBe('SM');
+    expect(initialsFor('Food Safety and Standards Authority of India')).toBe('FS');
+    expect(initialsFor('Reserve Bank of India')).toBe('RB');
+    expect(initialsFor('The Earthshot Prize')).toBe('EP');
+    expect(initialsFor('MTV')).toBe('MTV');
+    expect(initialsFor('Disney+')).toBe('DI');
+    expect(initialsFor("India Women's National Cricket Team")).toBe('IW');
+  });
+
+  it('gives the same name the same colour every time', () => {
+    expect(placeholderColour('Google')).toBe(placeholderColour('Google'));
   });
 });

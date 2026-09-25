@@ -6,14 +6,14 @@ import { RelativeTime } from '@/components/ui/TimeAgo';
 import { useArtifact } from '@/components/reactions/useArtifact';
 import { cardTone } from '@/lib/domain/copy';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
-import { OpinionSplit } from './OpinionSplit';
-import { ReactionSplit } from './ReactionSplit';
+import { CardStats } from './CardStats';
 
 /**
  * The story card.
  *
- * A tone-coloured image well on top carrying the category and the state of the
- * crowd, then the headline and summary on paper, then the two totals.
+ * A short image well on top carrying the category and the state of the crowd,
+ * then the headline and summary on paper, then one compact frame of numbers —
+ * kept close to square so a grid of them scans.
  *
  * The badge and the colour come from the **opinion** counts, never the reaction
  * totals — one furious person tapping two hundred times must not make a card
@@ -32,55 +32,44 @@ export function ArtifactCard({ card, priority = false }: { card: ArtifactCardMod
 
   const badge = cardTone(state.totals);
 
+  const byline = [card.relatedEntities?.[0]?.name, card.sourceLabel?.split('·')[0]?.trim()].filter(Boolean)[0];
+
   return (
     <article className={`paper card-brutal tone-${badge.tone} media-hover flex flex-col`}>
       <div className="relative">
         <Media
           src={card.imageUrl}
           alt=""
-          fallbackLabel={initialsFor(card.title)}
+          fallbackLabel={initialsFor(card.relatedEntities?.[0]?.name ?? card.title)}
           fallbackKind="initials"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 340px"
           priority={priority}
           scrim={card.imageUrl ? 'card' : 'none'}
-          className="aspect-[16/10] w-full"
+          className="aspect-[5/2] w-full border-b-2 border-ink"
         />
 
-        <span className="chip absolute left-3 top-3">{card.category}</span>
-        <span className="tone-badge absolute bottom-3 right-3">{badge.flashLabel}</span>
+        <span className="chip absolute left-2.5 top-2.5">{card.category}</span>
+        <span className="tone-badge absolute bottom-2.5 right-2.5">{badge.flashLabel}</span>
       </div>
 
-      <div className="flex flex-1 flex-col gap-2.5 p-4">
-        <p className="text-[11px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
-          {card.type === 'entity' ? 'Profile' : 'Story'} · <RelativeTime iso={card.publishedAt} />
+      <div className="flex flex-1 flex-col gap-2 p-3.5">
+        <p className="truncate text-[10.5px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
+          Story · <RelativeTime iso={card.publishedAt} />
+          {byline ? ` · ${byline}` : ''}
         </p>
 
-        <h3 className="display-sm text-pretty text-[19px]">
+        <h3 className="display-sm line-clamp-3 text-pretty text-[17.5px] leading-[1.15]">
           <Link href={href} className="card-link">
             {card.title}
           </Link>
         </h3>
 
         {card.subtitle && (
-          <p className="line-clamp-3 text-[14.5px] leading-[1.45] text-secondary">{card.subtitle}</p>
+          <p className="line-clamp-2 text-[13.5px] leading-[1.4] text-secondary">{card.subtitle}</p>
         )}
 
-        <div className="mt-auto pt-2">
-          <OpinionSplit totals={state.totals} />
-
-          <div className="mt-2.5">
-            <ReactionSplit totals={state.totals} />
-          </div>
-
-          {/* A cue, not a second link: the whole card already goes there. */}
-          <div className="mt-3.5 flex justify-end">
-            <span
-              aria-hidden="true"
-              className="border-b-2 border-[color:var(--color-egg)] pb-0.5 text-[13px] font-bold leading-none"
-            >
-              React →
-            </span>
-          </div>
+        <div className="mt-auto pt-1">
+          <CardStats totals={state.totals} />
         </div>
       </div>
     </article>

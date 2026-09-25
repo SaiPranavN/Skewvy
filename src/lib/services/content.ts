@@ -9,6 +9,7 @@ import type {
   FlashNews,
 } from '@/lib/domain/types';
 import type { EntityInput, FlashNewsInput } from '@/lib/validation/schemas';
+import { parseDetails, serializeDetails } from '@/lib/domain/details';
 
 interface EntityRow {
   id: string;
@@ -18,6 +19,7 @@ interface EntityRow {
   category: string;
   image_url: string | null;
   accent: string | null;
+  details: string | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -34,6 +36,7 @@ interface FlashNewsRow {
   accent: string | null;
   source_label: string | null;
   source_url: string | null;
+  details: string | null;
   published_at: string | null;
   status: string;
   created_at: string;
@@ -49,6 +52,7 @@ function mapEntity(row: EntityRow): Entity {
     category: row.category,
     imageUrl: row.image_url,
     accent: row.accent,
+    details: parseDetails(row.details),
     status: row.status as ContentStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -67,6 +71,7 @@ function mapFlashNews(row: FlashNewsRow): FlashNews {
     accent: row.accent,
     sourceLabel: row.source_label,
     sourceUrl: row.source_url,
+    details: parseDetails(row.details),
     publishedAt: row.published_at,
     status: row.status as ContentStatus,
     createdAt: row.created_at,
@@ -270,6 +275,7 @@ export async function toCards(
       category: entity.category,
       imageUrl: entity.imageUrl,
       publishedAt: entity.updatedAt,
+      details: entity.details,
       totals: totals.get(key)!,
       contribution: contributions?.get(key) ?? null,
       relatedFlashNewsCount: relatedCounts.get(entity.id) ?? 0,
@@ -288,6 +294,8 @@ export async function toCards(
       subtitle: item.summary,
       category: item.category,
       imageUrl: item.imageUrl,
+      details: item.details,
+      sourceLabel: item.sourceLabel,
       publishedAt: item.publishedAt,
       totals: totals.get(key)!,
       contribution: contributions?.get(key) ?? null,
@@ -321,9 +329,20 @@ export async function createEntity(input: EntityInput): Promise<Entity> {
   const now = new Date().toISOString();
   const id = newId();
   await execute(
-    `INSERT INTO entities (id, slug, name, description, category, image_url, accent, status, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)`,
-    [id, input.slug, input.name, input.description ?? '', input.category, input.imageUrl || null, input.accent || null, input.status, now],
+    `INSERT INTO entities (id, slug, name, description, category, image_url, accent, details, status, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)`,
+    [
+      id,
+      input.slug,
+      input.name,
+      input.description ?? '',
+      input.category,
+      input.imageUrl || null,
+      input.accent || null,
+      serializeDetails(input.details ?? []),
+      input.status ?? 'draft',
+      now,
+    ],
   );
   return (await getEntityById(id))!;
 }
@@ -332,8 +351,19 @@ export async function updateEntity(id: string, input: EntityInput): Promise<Enti
   const now = new Date().toISOString();
   await execute(
     `UPDATE entities SET slug = $1, name = $2, description = $3, category = $4,
-            image_url = $5, accent = $6, status = $7, updated_at = $8 WHERE id = $9`,
-    [input.slug, input.name, input.description ?? '', input.category, input.imageUrl || null, input.accent || null, input.status, now, id],
+            image_url = $5, accent = $6, status = $7, updated_at = $8, details = $10 WHERE id = $9`,
+    [
+      input.slug,
+      input.name,
+      input.description ?? '',
+      input.category,
+      input.imageUrl || null,
+      input.accent || null,
+      input.status ?? 'draft',
+      now,
+      id,
+      serializeDetails(input.details ?? []),
+    ],
   );
   return getEntityById(id);
 }
@@ -349,8 +379,8 @@ export async function createFlashNews(input: FlashNewsInput): Promise<FlashNews>
   await transaction(async (tx) => {
     await tx.execute(
       `INSERT INTO flash_news (id, slug, headline, summary, body, category, image_url, accent,
-              source_label, source_url, published_at, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)`,
+              source_label, source_url, published_at, status, created_at, updated_at, details)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14)`,
       [
         id,
         input.slug,
@@ -363,8 +393,9 @@ export async function createFlashNews(input: FlashNewsInput): Promise<FlashNews>
         input.sourceLabel || null,
         input.sourceUrl || null,
         input.status === 'published' ? now : null,
-        input.status,
+        input.status ?? 'draft',
         now,
+        serializeDetails(input.details ?? []),
       ],
     );
     for (const entityId of input.entityIds ?? []) {
@@ -387,7 +418,7 @@ export async function updateFlashNews(id: string, input: FlashNewsInput): Promis
     await tx.execute(
       `UPDATE flash_news SET slug = $1, headline = $2, summary = $3, body = $4, category = $5,
               image_url = $6, accent = $7, source_label = $8, source_url = $9,
-              published_at = $10, status = $11, updated_at = $12 WHERE id = $13`,
+              published_at = $10, status = $11, updated_at = $12, details = $14 WHERE id = $13`,
       [
         input.slug,
         input.headline,
@@ -399,9 +430,10 @@ export async function updateFlashNews(id: string, input: FlashNewsInput): Promis
         input.sourceLabel || null,
         input.sourceUrl || null,
         publishedAt,
-        input.status,
+        input.status ?? 'draft',
         now,
         id,
+        serializeDetails(input.details ?? []),
       ],
     );
     await tx.execute('DELETE FROM flash_news_entities WHERE flash_news_id = $1', [id]);
@@ -435,4 +467,53 @@ export async function entityIdsForFlashNews(flashNewsId: string): Promise<string
 export async function slugExists(table: 'entities' | 'flash_news', slug: string, excludeId?: string): Promise<boolean> {
   const row = await queryOne<{ id: string }>(`SELECT id FROM ${table} WHERE slug = $1`, [slug]);
   return Boolean(row && row.id !== excludeId);
+}
+
+/**
+ * Removes a Profile or Story and everything recorded against it, for good.
+ *
+ * Nothing that points at an artifact does so through a foreign key — reactions,
+ * opinions, history and comments all name it by type and id — so each table is
+ * cleared here, inside one transaction, before the row itself goes. Either all
+ * of it disappears or none of it does. Comment votes and reports go with their
+ * comments by cascade, and a Story's links to its Profiles by cascade too.
+ *
+ * People keep their accounts; they simply lose this item from their history.
+ */
+export async function deleteArtifactPermanently(
+  artifactType: ArtifactType,
+  artifactId: string,
+): Promise<{ deleted: boolean; slug: string | null }> {
+  const table = artifactType === 'entity' ? 'entities' : 'flash_news';
+
+  return transaction(async (tx) => {
+    const found = await tx.query<{ slug: string }>(`SELECT slug FROM ${table} WHERE id = $1`, [artifactId]);
+    if (found.length === 0) return { deleted: false, slug: null };
+
+    for (const dependent of [
+      'comments',
+      'opinion_changes',
+      'opinions',
+      'reaction_aggregates',
+      'reaction_batches',
+      'reaction_timeline',
+      'opinion_timeline',
+      'artifact_totals',
+    ]) {
+      await tx.execute(`DELETE FROM ${dependent} WHERE artifact_type = $1 AND artifact_id = $2`, [
+        artifactType,
+        artifactId,
+      ]);
+    }
+
+    await tx.execute(
+      artifactType === 'entity'
+        ? 'DELETE FROM flash_news_entities WHERE entity_id = $1'
+        : 'DELETE FROM flash_news_entities WHERE flash_news_id = $1',
+      [artifactId],
+    );
+    await tx.execute(`DELETE FROM ${table} WHERE id = $1`, [artifactId]);
+
+    return { deleted: true, slug: found[0].slug };
+  });
 }

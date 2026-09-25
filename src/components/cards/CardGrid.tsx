@@ -24,7 +24,7 @@ export function CardGrid({
   }[columns];
 
   return (
-    <div className={`grid gap-4 ${wide}`}>
+    <div className={`grid grid-cols-1 gap-4 ${wide}`}>
       {cards.map((card, index) =>
         card.type === 'entity' ? (
           <EntityCard key={`${card.type}:${card.id}`} card={card} priority={index < priorityCount} />

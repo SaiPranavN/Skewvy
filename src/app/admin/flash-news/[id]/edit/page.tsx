@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { FlashNewsForm } from '@/components/admin/ContentForm';
 import { StatusControls } from '@/components/admin/StatusControls';
+import { DeleteArtifact } from '@/components/admin/DeleteArtifact';
+import { countComments } from '@/lib/services/comments';
 import { saveFlashNewsAction, type ActionResult } from '@/app/admin/actions';
 import { getFlashNewsById, listEntities, entityIdsForFlashNews } from '@/lib/services/content';
 import { getTotals } from '@/lib/services/totals';
@@ -21,6 +23,7 @@ export default async function EditFlashNewsPage({ params }: { params: Promise<{ 
     entityIdsForFlashNews(item.id),
     getTotals('flash_news', item.id),
   ]);
+  const comments = await countComments('flash_news', item.id);
 
   async function action(previous: ActionResult, formData: FormData) {
     'use server';
@@ -51,11 +54,21 @@ export default async function EditFlashNewsPage({ params }: { params: Promise<{ 
           imageUrl: item.imageUrl,
           sourceLabel: item.sourceLabel,
           sourceUrl: item.sourceUrl,
+          details: item.details,
           status: item.status,
           entityIds,
         }}
         entities={entities.map((entity) => ({ id: entity.id, name: entity.name, category: entity.category }))}
         action={action}
+      />
+
+      <DeleteArtifact
+        type="flash_news"
+        id={item.id}
+        slug={item.slug}
+        title={item.headline}
+        totals={totals}
+        comments={comments}
       />
     </div>
   );

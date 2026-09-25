@@ -1,3 +1,4 @@
+import type { ArtifactDetail } from './details';
 /** The two things a person can react to. Never called a "Moment". */
 export type ArtifactType = 'entity' | 'flash_news';
 
@@ -93,6 +94,7 @@ export interface Entity {
   category: string;
   imageUrl: string | null;
   accent: string | null;
+  details: ArtifactDetail[];
   status: ContentStatus;
   createdAt: string;
   updatedAt: string;
@@ -109,6 +111,7 @@ export interface FlashNews {
   accent: string | null;
   sourceLabel: string | null;
   sourceUrl: string | null;
+  details: ArtifactDetail[];
   publishedAt: string | null;
   status: ContentStatus;
   createdAt: string;
@@ -129,6 +132,10 @@ export interface ArtifactCard {
   contribution?: UserContribution | null;
   relatedEntities?: Array<Pick<Entity, 'id' | 'slug' | 'name'>>;
   relatedFlashNewsCount?: number;
+  /** Editor-entered facts; the card shows a line of them. */
+  details?: ArtifactDetail[];
+  /** Where a Story comes from, e.g. "Reuters · September 22". */
+  sourceLabel?: string | null;
   /** Reactions received in the trailing velocity window; drives trending ranking. */
   recentRottenEggs?: number;
   recentMedals?: number;

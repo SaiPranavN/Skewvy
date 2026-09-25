@@ -67,18 +67,47 @@ export function Media({
 }
 
 /**
- * The no-image state. The card's own tone fills the well and the initials are
- * set at display scale over a halftone dot field — a deliberate printed mark
- * rather than invented artwork standing in for a photograph that does not
- * exist. The tone comes from the `.tone-*` class on an ancestor, so the tile
- * always agrees with the badge and the split bar beside it.
+ * Bright enough that ink letters read on every one of them, and different
+ * enough that a row of imageless cards does not look like one block.
+ */
+const PLACEHOLDER_COLOURS = ['#ffcb2f', '#ff8a65', '#4ade80', '#60a5fa', '#f472b6', '#a78bfa', '#2dd4bf', '#fb923c'];
+
+/** The same label always gets the same colour, on every page and every visit. */
+export function placeholderColour(label: string): string {
+  let hash = 0;
+  for (const char of label) hash = (hash * 31 + char.codePointAt(0)!) >>> 0;
+  return PLACEHOLDER_COLOURS[hash % PLACEHOLDER_COLOURS.length];
+}
+
+/**
+ * The no-image state.
+ *
+ * Initials in black on a flat colour, over a halftone dot field — a
+ * deliberate printed mark rather than invented artwork standing in for a
+ * photograph that does not exist. The colour comes from the name, not the
+ * verdict, so an item keeps its mark as opinion about it moves.
+ *
+ * The category variant keeps the tone well: it labels a kind of thing rather
+ * than naming one.
  */
 function MediaFallback({ label, kind }: { label: string; kind: 'initials' | 'category' }) {
+  if (kind === 'initials') {
+    return (
+      <div
+        className="placeholder-tile absolute inset-0 grid place-items-center px-2"
+        style={{ backgroundColor: placeholderColour(label) }}
+        aria-hidden="true"
+      >
+        <span className="display relative text-[clamp(1.25rem,30cqi,5rem)] leading-none text-[color:var(--color-ink)]">
+          {label}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="tile-dots absolute inset-0 grid place-items-center px-4" aria-hidden="true">
-      {kind === 'initials' ? (
-        <span className="display relative text-[clamp(1.5rem,26cqi,5rem)] leading-none">{label}</span>
-      ) : (
+      {(
         <span className="relative text-center text-[0.8125rem] font-bold uppercase leading-none tracking-[0.12em]">
           {label}
         </span>
@@ -87,14 +116,24 @@ function MediaFallback({ label, kind }: { label: string; kind: 'initials' | 'cat
   );
 }
 
-/** Two-letter fallback used when an Entity has no logo. */
+/** Words that carry no identity, skipped so "Bank of India" reads BI, not BO. */
+const FILLER = new Set(['a', 'an', 'and', 'the', 'of', 'for', 'to', 'in', 'on', 'at', 'by', 'with', 's']);
+
+/** Two-letter mark used when there is no image: "Smriti Mandhana" → SM. */
 export function initialsFor(name: string): string {
-  const words = name
+  const all = name
+    .replace(/[’']s\b/gi, '')
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .trim()
     .split(/\s+/)
     .filter(Boolean);
-  if (words.length === 0) return '—';
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
+  const words = all.filter((word) => !FILLER.has(word.toLowerCase()));
+  const pick = words.length > 0 ? words : all;
+  if (pick.length === 0) return '—';
+  if (pick.length === 1) {
+    const word = pick[0];
+    // A short acronym is already its own mark: MTV, not MT.
+    return word.length <= 3 && word === word.toUpperCase() ? word : word.slice(0, 2).toUpperCase();
+  }
+  return (pick[0][0] + pick[1][0]).toUpperCase();
 }

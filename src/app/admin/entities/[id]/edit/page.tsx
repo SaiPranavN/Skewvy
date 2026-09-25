@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { EntityForm } from '@/components/admin/ContentForm';
 import { StatusControls } from '@/components/admin/StatusControls';
+import { DeleteArtifact } from '@/components/admin/DeleteArtifact';
+import { countComments } from '@/lib/services/comments';
 import { saveEntityAction, type ActionResult } from '@/app/admin/actions';
 import { getEntityById } from '@/lib/services/content';
 import { getTotals } from '@/lib/services/totals';
@@ -16,7 +18,7 @@ export default async function EditEntityPage({ params }: { params: Promise<{ id:
   const entity = await getEntityById(id);
   if (!entity) notFound();
 
-  const totals = await getTotals('entity', entity.id);
+  const [totals, comments] = await Promise.all([getTotals('entity', entity.id), countComments('entity', entity.id)]);
 
   async function action(previous: ActionResult, formData: FormData) {
     'use server';
@@ -44,9 +46,19 @@ export default async function EditEntityPage({ params }: { params: Promise<{ id:
           description: entity.description,
           category: entity.category,
           imageUrl: entity.imageUrl,
+          details: entity.details,
           status: entity.status,
         }}
         action={action}
+      />
+
+      <DeleteArtifact
+        type="entity"
+        id={entity.id}
+        slug={entity.slug}
+        title={entity.name}
+        totals={totals}
+        comments={comments}
       />
     </div>
   );

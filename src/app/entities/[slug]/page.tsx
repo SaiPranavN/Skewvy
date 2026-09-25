@@ -10,6 +10,7 @@ import { CardGrid } from '@/components/cards/CardGrid';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ShareReceipt } from '@/components/share/ShareReceipt';
 import { Media, initialsFor } from '@/components/ui/Media';
+import { DetailsList } from '@/components/artifact/DetailsList';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { getEntityBySlug, listFlashNews, toCards } from '@/lib/services/content';
 import { recentVelocityFor } from '@/lib/services/totals';
@@ -154,6 +155,13 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
               on those pages.
             </p>
           </div>
+
+          {entity.details.length > 0 && (
+            <div className="mt-3 border border-[var(--border-default)] p-[clamp(16px,1.8vw,24px)]">
+              <p className="eyebrow mb-3.5">About {entity.name}</p>
+              <DetailsList details={entity.details} />
+            </div>
+          )}
         </div>
       </section>
 
