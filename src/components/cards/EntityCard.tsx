@@ -4,11 +4,11 @@ import Link from 'next/link';
 import { Media, initialsFor } from '@/components/ui/Media';
 import { RelativeTime } from '@/components/ui/TimeAgo';
 import { useArtifact } from '@/components/reactions/useArtifact';
-import { cardTone, contributorPhrase } from '@/lib/domain/copy';
+import { cardTone } from '@/lib/domain/copy';
 import { formatCount } from '@/lib/domain/format';
 import { OpinionSplit } from './OpinionSplit';
+import { ReactionSplit } from './ReactionSplit';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
-import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
 /**
  * The entity card.
@@ -17,10 +17,11 @@ import { EggIcon, MedalIcon } from '@/components/ui/icons';
  * identity — the mark, the name, what the thing is — and then shows where
  * people stand before what they sent.
  *
- * The people split leads, at size, because it is the verdict the badge is
- * computed from. The reaction totals follow, smaller, as intensity. Drawn from
- * the taps instead, the split would be a picture of who tapped hardest, which
- * is not what a standing record means.
+ * The people split comes first because it is the verdict the badge is
+ * computed from; the reaction totals follow in a box of the same weight,
+ * because how hard people feel is half the picture. Drawn from the taps, the
+ * verdict would be a picture of who tapped hardest, which is not what a
+ * standing record means.
  *
  * The whole card opens the entity: the title's link is stretched over it, so
  * there is one link to reach by keyboard and one thing a screen reader
@@ -30,9 +31,6 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
   const state = useArtifact(card.type, card.id, { totals: card.totals, contribution: card.contribution });
 
   const badge = cardTone(state.totals);
-  const eggs = state.totals.rottenEggTotal;
-  const medals = state.totals.medalTotal;
-
   const itemCount = card.relatedFlashNewsCount ?? 0;
 
   return (
@@ -75,26 +73,15 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
         <OpinionSplit totals={state.totals} />
       </div>
 
-      <div className="flex flex-wrap items-start gap-x-6 gap-y-3 px-4 pb-4 pt-3.5">
-        <Lifetime
-          value={medals}
-          label="Medals"
-          mark="medal"
-          tone="medal"
-          contributors={state.totals.medalContributorTotal}
-        />
-        <Lifetime
-          value={eggs}
-          label="Rotten Eggs"
-          mark="egg"
-          tone="egg"
-          contributors={state.totals.rottenEggContributorTotal}
-        />
+      <div className="px-4 pt-2.5">
+        <ReactionSplit totals={state.totals} />
+      </div>
 
+      <div className="flex min-h-4 justify-end px-4 pb-4 pt-3.5">
         {itemCount > 0 && (
           <Link
             href={`/entities/${card.slug}#stories`}
-            className="card-action ml-auto self-end border-b-2 border-[color:var(--color-indigo)] pb-0.5 text-[13px] font-bold leading-none"
+            className="card-action border-b-2 border-[color:var(--color-indigo)] pb-0.5 text-[13px] font-bold leading-none"
           >
             {formatCount(itemCount)} {itemCount === 1 ? 'Story' : 'Stories'} →
           </Link>
@@ -107,37 +94,5 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
         </div>
       )}
     </article>
-  );
-}
-
-/** A lifetime tap total, with the head count behind it attached. */
-function Lifetime({
-  value,
-  label,
-  mark,
-  tone,
-  contributors,
-}: {
-  value: number;
-  label: string;
-  mark: 'egg' | 'medal';
-  tone: 'egg' | 'medal';
-  contributors: number;
-}) {
-  return (
-    <div className="min-w-0">
-      <div
-        className="numeric-lg text-[22px]"
-        style={{ color: tone === 'egg' ? 'var(--color-egg-deep)' : 'var(--color-medal-deep)' }}
-      >
-        {formatCount(value)}
-      </div>
-      <div className="mt-1.5 text-[10.5px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
-        {label} {mark === 'egg' ? <EggIcon /> : <MedalIcon />}
-      </div>
-      <div className="mt-1 text-[10.5px] font-medium leading-[1.3] text-tertiary">
-        {contributorPhrase(mark === 'egg' ? 'rotten_egg' : 'medal', contributors).toLowerCase()}
-      </div>
-    </div>
   );
 }

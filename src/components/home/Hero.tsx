@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { FeaturedCard } from './FeaturedCard';
+import { CardCarousel } from '@/components/cards/CardCarousel';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard } from '@/lib/domain/types';
 import { EggIcon, MedalIcon } from '@/components/ui/icons';
@@ -11,19 +11,20 @@ export interface SiteTotals {
 }
 
 /**
- * The landing hero: the promise on the left, a live item on the right.
+ * The landing hero: the promise on the left, live items on the right.
  *
  * There is no photograph behind it. The headline is the image — set large
  * enough that the two coloured words carry the whole proposition — and the
- * space a stock photo would have taken is given to something the visitor can
- * actually press.
+ * space a stock photo would have taken is given to a row of real cards the
+ * visitor can page through. They are the catalogue cards at catalogue size, so
+ * no image is ever stretched past the resolution it was made for.
  */
 export function Hero({
   featured,
   totals,
   isAuthenticated,
 }: {
-  featured: ArtifactCard | null;
+  featured: ArtifactCard[];
   totals: SiteTotals;
   isAuthenticated: boolean;
 }) {
@@ -59,9 +60,9 @@ export function Hero({
           </div>
         </div>
 
-        {featured && (
-          <div className="min-w-[min(100%,300px)] max-w-[640px] flex-[1_1_420px]">
-            <FeaturedCard card={featured} />
+        {featured.length > 0 && (
+          <div className="min-w-0 max-w-[620px] flex-[1_1_380px]">
+            <CardCarousel cards={featured} label="Featured right now" priorityCount={2} />
           </div>
         )}
       </div>

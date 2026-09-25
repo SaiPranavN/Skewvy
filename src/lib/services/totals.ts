@@ -335,6 +335,29 @@ export async function recentVelocity(
   return map;
 }
 
+/** The same window for one artifact, without aggregating every other one. */
+export async function recentVelocityFor(
+  artifactType: ArtifactType,
+  artifactId: string,
+  windowMinutes = 180,
+): Promise<{ rottenEggs: number; medals: number }> {
+  const since = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
+  const rows = await query<{ reaction_type: string; total: number }>(
+    `SELECT reaction_type, SUM(quantity) AS total
+       FROM reaction_batches
+      WHERE artifact_type = $1 AND artifact_id = $2 AND created_at >= $3
+      GROUP BY reaction_type`,
+    [artifactType, artifactId, since],
+  );
+
+  const result = { rottenEggs: 0, medals: 0 };
+  for (const row of rows) {
+    if (row.reaction_type === 'rotten_egg') result.rottenEggs += Number(row.total);
+    else result.medals += Number(row.total);
+  }
+  return result;
+}
+
 /** Trims the batch ledger; it exists for idempotency and velocity, not history. */
 export async function pruneReactionBatches(olderThanHours = 48): Promise<void> {
   const cutoff = new Date(Date.now() - olderThanHours * 60 * 60 * 1000).toISOString();

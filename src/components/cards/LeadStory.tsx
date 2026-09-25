@@ -4,11 +4,10 @@ import Link from 'next/link';
 import { Media, initialsFor } from '@/components/ui/Media';
 import { RelativeTime } from '@/components/ui/TimeAgo';
 import { useArtifact } from '@/components/reactions/useArtifact';
-import { cardTone, contributorPhrase } from '@/lib/domain/copy';
+import { cardTone } from '@/lib/domain/copy';
 import { OpinionSplit } from './OpinionSplit';
-import { formatCount } from '@/lib/domain/format';
+import { ReactionSplit } from './ReactionSplit';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
-import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
 /**
  * The lead story: one item given the whole width, image beside the headline.
@@ -75,65 +74,19 @@ export function LeadStory({
             {/* The verdict, ahead of the volume. */}
             <OpinionSplit totals={state.totals} size="lg" />
 
-            <div className="mt-3.5 flex flex-wrap items-start gap-x-7 gap-y-4">
-              <Total
-                value={state.totals.medalTotal}
-                label="Medals"
-                mark="medal"
-                tone="medal"
-                contributors={state.totals.medalContributorTotal}
-              />
-              <Total
-                value={state.totals.rottenEggTotal}
-                label="Rotten eggs"
-                mark="egg"
-                tone="egg"
-                contributors={state.totals.rottenEggContributorTotal}
-              />
+            <div className="mt-3">
+              <ReactionSplit totals={state.totals} size="lg" />
+            </div>
 
-              {/* A cue, not a second link: the whole card already opens the story. */}
-              <span
-                aria-hidden="true"
-                className="btn ml-auto flex-none self-end bg-ink px-5 py-3.5 text-[13px] font-extrabold text-paper"
-              >
+            {/* A cue, not a second link: the whole card already opens the story. */}
+            <div className="mt-4 flex justify-end">
+              <span aria-hidden="true" className="btn flex-none bg-ink px-5 py-3.5 text-[13px] font-extrabold text-paper">
                 Open story →
               </span>
             </div>
           </div>
         </div>
       </article>
-    </div>
-  );
-}
-
-/** A tap total, never printed without the head count behind it. */
-function Total({
-  value,
-  label,
-  mark,
-  tone,
-  contributors,
-}: {
-  value: number;
-  label: string;
-  mark: 'egg' | 'medal';
-  tone: 'egg' | 'medal';
-  contributors: number;
-}) {
-  return (
-    <div className="min-w-0">
-      <div
-        className="numeric-lg text-[clamp(34px,4vw,56px)]"
-        style={{ color: tone === 'egg' ? 'var(--color-egg-deep)' : 'var(--color-medal-deep)' }}
-      >
-        {formatCount(value)}
-      </div>
-      <div className="mt-2 text-[10.5px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
-        {label} {mark === 'egg' ? <EggIcon /> : <MedalIcon />}
-      </div>
-      <div className="mt-1 text-[11px] font-medium leading-[1.3] text-tertiary">
-        {contributorPhrase(mark === 'egg' ? 'rotten_egg' : 'medal', contributors).toLowerCase()}
-      </div>
     </div>
   );
 }

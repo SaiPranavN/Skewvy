@@ -1,10 +1,10 @@
+import { cache, Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { OpinionFlow } from '@/components/artifact/OpinionFlow';
-import { AnalyticsSection } from '@/components/artifact/AnalyticsSection';
 import { StickyReactionTray } from '@/components/artifact/StickyReactionTray';
-import { CommentSection } from '@/components/artifact/CommentSection';
+import { DeferredAnalytics, DeferredComments, SectionSkeleton } from '@/components/artifact/DeferredSections';
 import { HydrateArtifacts } from '@/components/reactions/HydrateArtifacts';
 import { CardGrid } from '@/components/cards/CardGrid';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -12,18 +12,19 @@ import { ShareReceipt } from '@/components/share/ShareReceipt';
 import { Media, initialsFor } from '@/components/ui/Media';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { getEntityBySlug, listFlashNews, toCards } from '@/lib/services/content';
-import { recentVelocity } from '@/lib/services/totals';
-import { artifactTrends } from '@/lib/services/timeline';
-import { listComments } from '@/lib/services/comments';
+import { recentVelocityFor } from '@/lib/services/totals';
 import { cardTone, opinionPhrase } from '@/lib/domain/copy';
 import { EggIcon, MedalIcon } from '@/components/ui/icons';
 import { formatCount } from '@/lib/domain/format';
 
 export const dynamic = 'force-dynamic';
 
+/** Metadata and the page both need the entity; this fetches it once per request. */
+const loadEntity = cache((slug: string) => getEntityBySlug(slug));
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const entity = await getEntityBySlug(slug);
+  const entity = await loadEntity(slug);
   if (!entity) return { title: 'Not found' };
   return {
     title: entity.name,
@@ -38,24 +39,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function EntityDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const user = await getCurrentUser();
+  const [user, entity] = await Promise.all([getCurrentUser(), loadEntity(slug)]);
   const viewerId = user?.id ?? null;
-
-  const entity = await getEntityBySlug(slug);
   if (!entity) notFound();
 
-  const [cards, relatedFlashNews, velocity, trends, comments] = await Promise.all([
+  /*
+   * Only what the top of the page needs is awaited here. The charts and the
+   * discussion fetch their own data inside Suspense below, so they stream in
+   * after the header and the reaction flow rather than delaying them.
+   */
+  const [cards, relatedFlashNews, recent] = await Promise.all([
     toCards({ entities: [entity] }, { viewerId }),
     listFlashNews({ entityId: entity.id, limit: 12 }).then((items) =>
       toCards({ flashNews: items }, { viewerId, withVelocity: true }),
     ),
-    recentVelocity(24 * 60),
-    artifactTrends('entity', entity.id),
-    listComments('entity', entity.id, { viewerId, viewerIsAdmin: user?.isAdmin ?? false }),
+    recentVelocityFor('entity', entity.id, 24 * 60),
   ]);
 
   const card = cards[0];
-  const recent = velocity.get(`entity:${entity.id}`) ?? { rottenEggs: 0, medals: 0 };
   const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/entities/${entity.slug}`;
 
   const badge = cardTone(card.totals);
@@ -161,11 +162,20 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
       </section>
 
       <section className={`rail ${sectionPad}`}>
-        <AnalyticsSection card={card} trends={trends} />
+        <Suspense fallback={<SectionSkeleton label="Loading the history" height="520px" />}>
+          <DeferredAnalytics card={card} />
+        </Suspense>
       </section>
 
       <section className={`rail ${sectionPad}`}>
-        <CommentSection card={card} initial={comments} viewerName={user?.displayName ?? null} />
+        <Suspense fallback={<SectionSkeleton label="Loading the discussion" height="420px" />}>
+          <DeferredComments
+            card={card}
+            viewerId={viewerId}
+            viewerIsAdmin={user?.isAdmin ?? false}
+            viewerName={user?.displayName ?? null}
+          />
+        </Suspense>
       </section>
 
       <section id="stories" className={`rail scroll-mt-24 ${sectionPad}`}>
@@ -179,7 +189,7 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
         {relatedFlashNews.length === 0 ? (
           <EmptyState
             title="No Stories yet"
-            description="Nothing specific has been filed against this entity. Its lifetime counters above remain open."
+            description="Nothing specific has been filed against this profile. Its lifetime counters above remain open."
             action={{ href: '/flash-news', label: 'Browse Stories' }}
           />
         ) : (

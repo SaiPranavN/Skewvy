@@ -263,52 +263,38 @@ function initialsFor(name: string): string {
 
 /* --------------------------------- marks ---------------------------------- */
 
-/** The egg, drawn at `size` with its top-left at (x, y). */
-function drawEgg(context: CanvasRenderingContext2D, x: number, y: number, size: number, fill: string): void {
-  const s = size / 24;
+const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+
+/**
+ * A reaction emoji with its top-left at (x, y). The egg gets a hairline ink
+ * edge, because 🥚 is drawn near-white and would vanish on a pale panel.
+ */
+function drawEmoji(
+  context: CanvasRenderingContext2D,
+  glyph: string,
+  x: number,
+  y: number,
+  size: number,
+  edge: string | null,
+): void {
   context.save();
-  context.translate(x, y);
-  context.scale(s, s);
-  context.fillStyle = fill;
-  context.beginPath();
-  context.moveTo(12, 2.4);
-  context.bezierCurveTo(15.4, 2.4, 18.4, 7.4, 18.4, 12);
-  context.bezierCurveTo(18.4, 15.6, 15.5, 18.4, 12, 18.4);
-  context.bezierCurveTo(8.5, 18.4, 5.6, 15.6, 5.6, 12);
-  context.bezierCurveTo(5.6, 7.4, 8.6, 2.4, 12, 2.4);
-  context.closePath();
-  context.fill();
+  context.font = `${size}px ${EMOJI_FONT}`;
+  context.textBaseline = 'top';
+  context.textAlign = 'left';
+  if (edge) {
+    context.shadowColor = edge;
+    context.shadowBlur = Math.max(1, size / 24);
+  }
+  context.fillText(glyph, x, y);
   context.restore();
 }
 
-/** The medal: two solid ribbon bands and a disc. */
-function drawMedal(context: CanvasRenderingContext2D, x: number, y: number, size: number, fill: string): void {
-  const s = size / 24;
-  context.save();
-  context.translate(x, y);
-  context.scale(s, s);
-  context.fillStyle = fill;
+function drawEgg(context: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  drawEmoji(context, '🥚', x, y, size, 'rgba(23, 20, 15, 0.85)');
+}
 
-  context.beginPath();
-  context.moveTo(6.2, 1.8);
-  context.lineTo(10.1, 1.8);
-  context.lineTo(13.3, 8.9);
-  context.lineTo(9.4, 8.9);
-  context.closePath();
-  context.fill();
-
-  context.beginPath();
-  context.moveTo(17.8, 1.8);
-  context.lineTo(13.9, 1.8);
-  context.lineTo(10.7, 8.9);
-  context.lineTo(14.6, 8.9);
-  context.closePath();
-  context.fill();
-
-  context.beginPath();
-  context.arc(12, 15.6, 6.4, 0, Math.PI * 2);
-  context.fill();
-  context.restore();
+function drawMedal(context: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  drawEmoji(context, '🏅', x, y, size, null);
 }
 
 /* --------------------------------- copy ----------------------------------- */
@@ -611,8 +597,8 @@ export async function renderReceipt(input: ReceiptInput, format: ReceiptFormat):
     setTracking(context, '0em');
 
     const markY = panelY - size * 0.72;
-    if (column.mark === 'egg') drawEgg(context, x + width + 14, markY, markSize, column.colour);
-    else drawMedal(context, x + width + 14, markY, markSize, column.colour);
+    if (column.mark === 'egg') drawEgg(context, x + width + 14, markY, markSize);
+    else drawMedal(context, x + width + 14, markY, markSize);
 
     context.fillStyle = palette.onPanel;
     context.globalAlpha = 0.66;

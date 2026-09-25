@@ -45,10 +45,13 @@ export function CommentSection({
   card,
   initial,
   viewerName,
+  renderedAt,
 }: {
   card: ArtifactCard;
   initial: CommentPage;
   viewerName: string | null;
+  /** When the server rendered `initial`; an old one is refreshed on arrival. */
+  renderedAt?: number;
 }) {
   const { isAuthenticated, requestSignIn } = useReactionContext();
   const state = useArtifact(card.type, card.id, { totals: card.totals, contribution: card.contribution });
@@ -85,6 +88,17 @@ export function CommentSection({
     },
     [card.id, card.type],
   );
+
+  /*
+   * The browser reuses a visited page for a short while on back and forward.
+   * That is what makes those moves instant, but the thread it reuses may be
+   * missing a comment posted since — so a thread rendered more than a few
+   * seconds ago quietly fetches its first page again when it appears.
+   */
+  useEffect(() => {
+    if (renderedAt !== undefined && Date.now() - renderedAt > 5000) void load('new', 'all', 0);
+    // Once, on arrival. Later changes come from the person's own filters.
+  }, []);
 
   const changeSort = (nextSort: CommentSort) => {
     if (nextSort === sort) return;

@@ -1,17 +1,29 @@
+import { cache } from 'react';
 import { cookies, headers } from 'next/headers';
 import { SESSION_COOKIE, resolveSession } from '@/lib/services/sessions';
 import type { PublicUser } from '@/lib/domain/types';
 
+/**
+ * The session behind this request, looked up once.
+ *
+ * The root layout, the page and its metadata all ask who is signed in. Without
+ * `cache` each asks the database separately — the same row, fetched two or
+ * three times per navigation. React scopes the memo to one server render, so
+ * nothing leaks between requests; outside a render it is a plain call.
+ */
+const sessionForRequest = cache(async () => {
+  const store = await cookies();
+  return resolveSession(store.get(SESSION_COOKIE)?.value);
+});
+
 /** Reads the signed-in person for a server component or route handler. */
 export async function getCurrentUser(): Promise<PublicUser | null> {
-  const store = await cookies();
-  const session = await resolveSession(store.get(SESSION_COOKIE)?.value);
+  const session = await sessionForRequest();
   return session?.user ?? null;
 }
 
 export async function getCurrentSession() {
-  const store = await cookies();
-  return resolveSession(store.get(SESSION_COOKIE)?.value);
+  return sessionForRequest();
 }
 
 export async function requireAdmin(): Promise<PublicUser | null> {

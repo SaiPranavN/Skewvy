@@ -1,25 +1,26 @@
+import { cache, Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { OpinionFlow } from '@/components/artifact/OpinionFlow';
 import { RelatedEntityAside } from '@/components/artifact/RelatedEntityAside';
-import { AnalyticsSection } from '@/components/artifact/AnalyticsSection';
 import { StickyReactionTray } from '@/components/artifact/StickyReactionTray';
-import { CommentSection } from '@/components/artifact/CommentSection';
+import { DeferredAnalytics, DeferredComments, SectionSkeleton } from '@/components/artifact/DeferredSections';
 import { HydrateArtifacts } from '@/components/reactions/HydrateArtifacts';
 import { CardGrid } from '@/components/cards/CardGrid';
 import { ShareReceipt } from '@/components/share/ShareReceipt';
 import { LocalDateTime } from '@/components/ui/TimeAgo';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { getFlashNewsBySlug, entitiesForFlashNews, listFlashNews, toCards } from '@/lib/services/content';
-import { artifactTrends } from '@/lib/services/timeline';
-import { listComments } from '@/lib/services/comments';
 
 export const dynamic = 'force-dynamic';
 
+/** Metadata and the page both need the story; this fetches it once per request. */
+const loadStory = cache((slug: string) => getFlashNewsBySlug(slug));
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const item = await getFlashNewsBySlug(slug);
+  const item = await loadStory(slug);
   if (!item) return { title: 'Not found' };
   return {
     title: item.headline,
@@ -34,37 +35,28 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function FlashNewsDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const user = await getCurrentUser();
+  const [user, item] = await Promise.all([getCurrentUser(), loadStory(slug)]);
   const viewerId = user?.id ?? null;
-
-  const item = await getFlashNewsBySlug(slug);
   if (!item) notFound();
 
-  const [cards, relatedEntities, trends, comments] = await Promise.all([
+  const [cards, relatedEntities] = await Promise.all([
     toCards({ flashNews: [item] }, { viewerId }),
     entitiesForFlashNews(item.id),
-    artifactTrends('flash_news', item.id),
-    listComments('flash_news', item.id, {
-      viewerId,
-      viewerIsAdmin: user?.isAdmin ?? false,
-    }),
   ]);
 
   const card = cards[0];
   const primaryEntity = relatedEntities[0] ?? null;
 
-  const moreFromEntity = primaryEntity
-    ? await listFlashNews({ entityId: primaryEntity.id, limit: 4 }).then((items) =>
-        toCards(
-          {
-            flashNews: items.filter((other) => other.id !== item.id).slice(0, 3),
-          },
-          { viewerId },
+  // The two lookups that hang off the related profile run side by side.
+  const [moreFromEntity, entityCards] = primaryEntity
+    ? await Promise.all([
+        listFlashNews({ entityId: primaryEntity.id, limit: 4 }).then((items) =>
+          toCards({ flashNews: items.filter((other) => other.id !== item.id).slice(0, 3) }, { viewerId }),
         ),
-      )
-    : [];
+        toCards({ entities: [primaryEntity] }, { viewerId }),
+      ])
+    : [[], []];
 
-  const entityCards = primaryEntity ? await toCards({ entities: [primaryEntity] }, { viewerId }) : [];
   const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/flash-news/${item.slug}`;
 
   const sectionPad = 'pt-[clamp(30px,4vw,64px)]';
@@ -178,11 +170,20 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
       </section>
 
       <section className={`rail ${sectionPad}`}>
-        <AnalyticsSection card={card} trends={trends} />
+        <Suspense fallback={<SectionSkeleton label="Loading the history" height="520px" />}>
+          <DeferredAnalytics card={card} />
+        </Suspense>
       </section>
 
       <section className={`rail ${sectionPad}`}>
-        <CommentSection card={card} initial={comments} viewerName={user?.displayName ?? null} />
+        <Suspense fallback={<SectionSkeleton label="Loading the discussion" height="420px" />}>
+          <DeferredComments
+            card={card}
+            viewerId={viewerId}
+            viewerIsAdmin={user?.isAdmin ?? false}
+            viewerName={user?.displayName ?? null}
+          />
+        </Suspense>
       </section>
 
       {moreFromEntity.length > 0 && primaryEntity && (

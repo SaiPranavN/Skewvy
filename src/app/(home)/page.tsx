@@ -31,8 +31,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   /*
    * The deck mixes both artifact types on purpose: the first thing a visitor
-   * sees below the hero should show that Flash News and Entities are both
-   * reactable, not just one of them.
+   * sees should show that Stories and Profiles are both reactable, not just
+   * one of them.
    */
   const seen = new Set<string>();
   const showcase = [...mostActive, ...latestFlashNews, ...topEntities].filter((card) => {
@@ -42,13 +42,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     return true;
   });
 
-  // The featured slot wants a real event, not a standing record.
-  const featured = showcase.find((card) => card.type === 'flash_news') ?? showcase[0] ?? null;
+  // The busiest items first, whatever their kind; the grid below has the rest.
+  const featured = showcase.slice(0, 10);
 
-  const crowd = showcase
-    .filter((card) => card.id !== featured?.id)
-    .filter((card) => !category || card.category === category)
-    .slice(0, 10);
+  const crowd = showcase.filter((card) => !category || card.category === category).slice(0, 10);
 
   if (showcase.length === 0) {
     return (

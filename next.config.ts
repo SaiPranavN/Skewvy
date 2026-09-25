@@ -38,6 +38,17 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     optimizePackageImports: ['@tanstack/react-query'],
+    /*
+     * How long the browser keeps a visited page to reuse on back/forward and
+     * repeat clicks, instead of asking the server again. Thirty seconds is
+     * short enough that nothing reads stale — live totals arrive over the
+     * realtime stream regardless — and long enough that moving between a list
+     * and the items in it is instant.
+     */
+    staleTimes: {
+      dynamic: 30,
+      static: 300,
+    },
   },
 };
 

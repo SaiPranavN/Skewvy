@@ -4,11 +4,10 @@ import Link from 'next/link';
 import { Media, initialsFor } from '@/components/ui/Media';
 import { RelativeTime } from '@/components/ui/TimeAgo';
 import { useArtifact } from '@/components/reactions/useArtifact';
-import { cardTone, contributorPhrase } from '@/lib/domain/copy';
-import { formatCount } from '@/lib/domain/format';
+import { cardTone } from '@/lib/domain/copy';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
-import { EggIcon, MedalIcon } from '@/components/ui/icons';
 import { OpinionSplit } from './OpinionSplit';
+import { ReactionSplit } from './ReactionSplit';
 
 /**
  * The story card.
@@ -18,9 +17,9 @@ import { OpinionSplit } from './OpinionSplit';
  *
  * The badge and the colour come from the **opinion** counts, never the reaction
  * totals — one furious person tapping two hundred times must not make a card
- * read as a public condemnation. The reaction totals still appear, because they
- * are interesting, but each one carries its head count directly underneath so
- * it can never be mistaken for a crowd.
+ * read as a public condemnation. The reaction totals sit directly beneath, in a
+ * box of the same size: how hard people reacted matters as much as where they
+ * stand, and each total carries its head count so it is never read as a crowd.
  *
  * The totals are live but the card does not react: clicking anywhere on it
  * goes to the item, where the workflow and the rule about taking a side both
@@ -67,29 +66,17 @@ export function ArtifactCard({ card, priority = false }: { card: ArtifactCardMod
         )}
 
         <div className="mt-auto pt-2">
-          {/* People first: this is the verdict the badge above is read from. */}
           <OpinionSplit totals={state.totals} />
 
-          <div className="mt-3.5 flex flex-wrap items-start gap-x-5 gap-y-3">
-            <Total
-              value={state.totals.medalTotal}
-              label="Medals"
-              mark="medal"
-              tone="medal"
-              contributors={state.totals.medalContributorTotal}
-            />
-            <Total
-              value={state.totals.rottenEggTotal}
-              label="Rotten Eggs"
-              mark="egg"
-              tone="egg"
-              contributors={state.totals.rottenEggContributorTotal}
-            />
+          <div className="mt-2.5">
+            <ReactionSplit totals={state.totals} />
+          </div>
 
-            {/* A cue, not a second link: the whole card already goes there. */}
+          {/* A cue, not a second link: the whole card already goes there. */}
+          <div className="mt-3.5 flex justify-end">
             <span
               aria-hidden="true"
-              className="ml-auto self-end border-b-2 border-[color:var(--color-egg)] pb-0.5 text-[13px] font-bold leading-none"
+              className="border-b-2 border-[color:var(--color-egg)] pb-0.5 text-[13px] font-bold leading-none"
             >
               React →
             </span>
@@ -97,37 +84,5 @@ export function ArtifactCard({ card, priority = false }: { card: ArtifactCardMod
         </div>
       </div>
     </article>
-  );
-}
-
-/** A reaction total and, inseparably, how many people are behind it. */
-function Total({
-  value,
-  label,
-  mark,
-  tone,
-  contributors,
-}: {
-  value: number;
-  label: string;
-  mark: 'egg' | 'medal';
-  tone: 'egg' | 'medal';
-  contributors: number;
-}) {
-  return (
-    <div className="min-w-0">
-      <div
-        className="numeric-lg text-[24px]"
-        style={{ color: tone === 'egg' ? 'var(--color-egg-deep)' : 'var(--color-medal-deep)' }}
-      >
-        {formatCount(value)}
-      </div>
-      <div className="mt-1.5 text-[10.5px] font-semibold uppercase leading-none tracking-[0.1em] text-secondary">
-        {label} {mark === 'egg' ? <EggIcon /> : <MedalIcon />}
-      </div>
-      <div className="mt-1 text-[10.5px] font-medium leading-[1.3] text-tertiary">
-        {contributorPhrase(mark === 'egg' ? 'rotten_egg' : 'medal', contributors).toLowerCase()}
-      </div>
-    </div>
   );
 }

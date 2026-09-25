@@ -6,9 +6,9 @@ import type { ArtifactTotals } from '@/lib/domain/types';
  *
  * Two cells — positive and negative — each with its head count and share, and
  * a bar underneath whose split is the same two numbers. This is the verdict
- * the card's badge is computed from, so it is given the most room of anything
- * below the title: the reaction totals that follow are intensity, not the
- * verdict, and are sized down accordingly.
+ * the card's badge is computed from. `ReactionSplit` is built to the same
+ * frame directly beneath it, so intensity reads as equal to the head count
+ * rather than as its footnote.
  *
  * Colour is never the only cue: each cell is labelled and carries an arrow.
  */
@@ -93,7 +93,7 @@ function Cell({
 }) {
   return (
     <div className={`min-w-0 px-3 py-2.5 ${className}`} style={{ backgroundColor: tint }}>
-      <div className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase leading-none tracking-[0.1em]">
+      <div className="flex h-4 items-center gap-1.5 text-[10.5px] font-bold uppercase leading-none tracking-[0.1em]">
         <span style={{ color: colour }}>{arrow}</span>
         {label}
       </div>

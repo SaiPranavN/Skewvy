@@ -282,6 +282,14 @@ body {
     line-height: 1;
   }
 
+  /*
+   * The egg emoji is near-white everywhere. Two tight ink shadows give it an
+   * edge on cream; on the dark ground the same edge simply disappears.
+   */
+  .emoji-egg {
+    filter: drop-shadow(0 0 0.5px rgb(23 20 15 / 0.75)) drop-shadow(0 0 0.5px rgb(23 20 15 / 0.45));
+  }
+
   /* Reaction totals: the signature numeric element. */
   .numeric {
     font-variant-numeric: tabular-nums;
@@ -459,6 +467,38 @@ body {
 
   .modal-body {
     padding: clamp(18px, 2.4vw, 28px);
+  }
+
+  /* The carousel's arrows: square paper keys that press flat. */
+  .carousel-arrow {
+    display: inline-flex;
+    height: 44px;
+    width: 44px;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--color-paper);
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    box-shadow: 3px 3px 0 var(--color-indigo);
+    transition:
+      transform 120ms var(--ease-standard),
+      box-shadow 120ms var(--ease-standard);
+  }
+
+  .carousel-arrow:hover:not(:disabled) {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 var(--color-indigo);
+  }
+
+  .carousel-arrow:active:not(:disabled) {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 var(--color-indigo);
+  }
+
+  .carousel-arrow:disabled {
+    opacity: 0.3;
+    box-shadow: none;
+    cursor: default;
   }
 
   /* The three-dot menu on a comment, and the list it opens. */
