@@ -2,13 +2,11 @@ import { formatCount, sharePercent } from '@/lib/domain/format';
 import type { ArtifactTotals } from '@/lib/domain/types';
 
 /**
- * How hard people reacted, built to the same frame as `OpinionSplit`.
- *
- * The two boxes answer different questions — how many people are on each
- * side, and how intensely they reacted — and neither is a footnote to the
- * other, so they get the same frame, the same type sizes and the same bar.
- * Medals sit under Positive and Rotten Eggs under Negative, so each column
- * reads down as one side of the argument.
+ * How hard people reacted: the Medal and Rotten Egg totals, big, side by
+ * side, with the share of all taps as a bar underneath. On a card it is the
+ * main figure; the people split sits above it as a lighter `SentimentLine`.
+ * Medals are on the left under Positive and Rotten Eggs on the right under
+ * Negative, so each side of the card reads down as one half of the argument.
  *
  * Every tap total carries the number of people behind it, so a big count from
  * one person can never pass for a crowd.
@@ -20,7 +18,8 @@ export function ReactionSplit({ totals, size = 'md' }: { totals: ArtifactTotals;
   const medalShare = taps > 0 ? sharePercent(medals, taps) : 0;
   const eggShare = taps > 0 ? 100 - medalShare : 0;
 
-  const figure = size === 'lg' ? 'text-[clamp(26px,2.6vw,34px)]' : 'text-[24px]';
+  // The headline numbers of a card: as large as the cell allows.
+  const figure = size === 'lg' ? 'text-[clamp(34px,3.4vw,46px)]' : 'text-[34px]';
 
   return (
     <div
@@ -97,15 +96,15 @@ function Cell({
   className?: string;
 }) {
   return (
-    <div className={`min-w-0 px-3 py-2.5 ${className}`} style={{ backgroundColor: tint }}>
-      <div className="flex h-4 items-center gap-1.5 truncate text-[10.5px] font-bold uppercase leading-none tracking-[0.1em]">
-        <span className={`emoji emoji-${kind} text-[13px]`}>{glyph}</span>
+    <div className={`min-w-0 px-3 py-3 ${className}`} style={{ backgroundColor: tint }}>
+      <div className="flex h-5 items-center gap-1.5 truncate text-[11px] font-bold uppercase leading-none tracking-[0.1em]">
+        <span className={`emoji emoji-${kind} text-[18px]`}>{glyph}</span>
         {label}
       </div>
-      <div className={`numeric-lg mt-1.5 leading-none ${figure}`} style={{ color: colour }}>
+      <div className={`numeric-lg mt-2 truncate leading-none ${figure}`} style={{ color: colour }}>
         {formatCount(count)}
       </div>
-      <div className="mt-1 truncate text-[11px] font-semibold leading-[1.3] text-secondary">
+      <div className="mt-1.5 truncate text-[11.5px] font-semibold leading-[1.3] text-secondary">
         {contributors === 0 ? 'nobody yet' : `from ${people(contributors)}`}
       </div>
     </div>

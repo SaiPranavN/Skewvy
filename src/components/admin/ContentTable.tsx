@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { StatusControls } from './StatusControls';
+import { LeadStoryControl } from './LeadStoryControl';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactTotals, ArtifactType, ContentStatus } from '@/lib/domain/types';
 import { EggIcon, MedalIcon } from '@/components/ui/icons';
@@ -25,11 +26,14 @@ export function ContentTable({
   rows,
   editHrefPrefix,
   publicHrefPrefix,
+  leadId,
 }: {
   type: ArtifactType;
   rows: ContentRow[];
   editHrefPrefix: string;
   publicHrefPrefix: string;
+  /** Stories only: the Story an editor pinned as the lead, if any. */
+  leadId?: string | null;
 }) {
   if (rows.length === 0) {
     return (
@@ -56,8 +60,11 @@ export function ContentTable({
                 {row.category} · /{row.slug}
                 {row.meta ? ` · ${row.meta}` : ''}
               </p>
-              <div className="mt-2.5">
+              <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
                 <StatusControls type={type} id={row.id} status={row.status} />
+                {type === 'flash_news' && (
+                  <LeadStoryControl id={row.id} isLead={row.id === leadId} published={row.status === 'published'} />
+                )}
               </div>
             </div>
 

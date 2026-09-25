@@ -5,6 +5,7 @@ import { AdminSearch } from '@/components/admin/AdminSearch';
 import { listFlashNews, entitiesForFlashNewsBulk } from '@/lib/services/content';
 import { getTotalsFor } from '@/lib/services/totals';
 import { emptyTotals } from '@/lib/domain/types';
+import { getLeadStoryId } from '@/lib/services/settings';
 
 export const metadata: Metadata = { title: 'Admin · Stories' };
 export const dynamic = 'force-dynamic';
@@ -12,9 +13,23 @@ export const dynamic = 'force-dynamic';
 export default async function AdminFlashNewsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
 
-  const items = await listFlashNews({ status: 'any', search: q ?? null, limit: 200 });
-  const totals = await getTotalsFor(items.map((item) => ({ type: 'flash_news' as const, id: item.id })));
-  const related = await entitiesForFlashNewsBulk(items.map((item) => item.id));
+  const [items, leadId] = await Promise.all([
+    listFlashNews({ status: 'any', search: q ?? null, limit: 200 }),
+    getLeadStoryId(),
+  ]);
+  const ids = items.map((item) => item.id);
+  const [totals, related] = await Promise.all([
+    getTotalsFor(ids.map((id) => ({ type: 'flash_news' as const, id }))),
+    entitiesForFlashNewsBulk(ids),
+  ]);
+
+  // What the Stories page will actually lead with: the pin while it is
+  // published, otherwise the newest published Story.
+  const pinned = items.find((item) => item.id === leadId && item.status === 'published') ?? null;
+  const newest = items
+    .filter((item) => item.status === 'published')
+    .sort((a, b) => (b.publishedAt ?? '').localeCompare(a.publishedAt ?? ''))[0];
+  const effectiveLead = pinned ?? newest ?? null;
 
   const rows: ContentRow[] = items.map((item) => {
     const entities = related.get(item.id) ?? [];
@@ -26,7 +41,7 @@ export default async function AdminFlashNewsPage({ searchParams }: { searchParam
       imageUrl: item.imageUrl,
       status: item.status,
       totals: totals.get(`flash_news:${item.id}`) ?? emptyTotals('flash_news', item.id),
-      meta: entities.length ? entities.map((entity) => entity.name).join(', ') : 'No related Entity',
+      meta: entities.length ? entities.map((entity) => entity.name).join(', ') : 'No related Profile',
     };
   });
 
@@ -47,7 +62,30 @@ export default async function AdminFlashNewsPage({ searchParams }: { searchParam
         </div>
       </div>
 
-      <ContentTable type="flash_news" rows={rows} editHrefPrefix="/admin/flash-news" publicHrefPrefix="/flash-news" />
+      <div className="rounded-[var(--radius-control)] border border-[var(--border-subtle)] bg-surface px-4 py-3 text-sm leading-relaxed text-secondary">
+        <span className="font-semibold text-primary">Lead story: </span>
+        {effectiveLead ? (
+          <>
+            {effectiveLead.headline}{' '}
+            <span className="text-tertiary">
+              — {pinned ? 'pinned by an editor' : 'automatic: the newest published Story'}
+            </span>
+          </>
+        ) : (
+          'none yet — publish a Story first.'
+        )}
+        <span className="mt-1 block text-xs text-tertiary">
+          Use “Make lead story” on any published Story to pin it at the top of the Stories page.
+        </span>
+      </div>
+
+      <ContentTable
+        type="flash_news"
+        rows={rows}
+        editHrefPrefix="/admin/flash-news"
+        publicHrefPrefix="/flash-news"
+        leadId={pinned?.id ?? null}
+      />
     </div>
   );
 }

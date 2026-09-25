@@ -95,7 +95,11 @@ export async function createPostgresDatabase(connectionString: string): Promise<
     connectionString: withoutSslMode(connectionString),
     application_name: 'skewvy',
     max: positiveInt(process.env.DATABASE_POOL_MAX, isPooledConnection(connectionString) ? 6 : 10),
-    idleTimeoutMillis: positiveInt(process.env.DATABASE_IDLE_TIMEOUT_MS, 15_000),
+    // Opening a pooler connection costs a TLS handshake and an auth round;
+    // closing idle ones after 15 seconds meant an editor pausing to read paid
+    // that again on the next click. Two minutes keeps them for a working
+    // session while still letting an idle instance give them back.
+    idleTimeoutMillis: positiveInt(process.env.DATABASE_IDLE_TIMEOUT_MS, 120_000),
     connectionTimeoutMillis: positiveInt(process.env.DATABASE_CONNECT_TIMEOUT_MS, 10_000),
     // A query that has run this long is not going to finish usefully, and it is
     // holding a pooled connection while it fails to.

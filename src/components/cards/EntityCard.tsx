@@ -6,7 +6,8 @@ import { RelativeTime } from '@/components/ui/TimeAgo';
 import { useArtifact } from '@/components/reactions/useArtifact';
 import { cardTone } from '@/lib/domain/copy';
 import { formatCount } from '@/lib/domain/format';
-import { CardStats } from './CardStats';
+import { SentimentLine } from './SentimentLine';
+import { ReactionSplit } from './ReactionSplit';
 import { cardDetailLine } from '@/lib/domain/details';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
 
@@ -17,9 +18,9 @@ import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
  * identity — the mark, the name, what the thing is — and then shows where
  * people stand before what they sent.
  *
- * Mark, name and a line of facts ("Cricketer · India") up top, then one
- * compact frame holding where people stand and how hard they reacted, at equal
- * size. The badge reads from the people, never the taps: drawn from the taps,
+ * Mark, name and a line of facts ("Cricketer · India") up top, then where
+ * people stand as a single line, and how hard they reacted as the big box
+ * beneath it. The badge reads from the people, never the taps: drawn from the taps,
  * the verdict would be a picture of who tapped hardest, which is not what a
  * standing record means. Kept close to square so a grid of them scans.
  *
@@ -36,7 +37,7 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
   const detailLine = cardDetailLine(card.details);
 
   return (
-    <article className={`paper card-brutal tone-${badge.tone} media-hover flex flex-col gap-3 p-3.5`}>
+    <article className={`paper card-brutal tone-${badge.tone} media-hover flex flex-col gap-3.5 p-4`}>
       {/* Mark beside the name, always: stacking them is what made the card tall. */}
       <div className="flex items-start gap-3">
         <Media
@@ -44,9 +45,9 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
           alt=""
           fallbackLabel={initialsFor(card.title)}
           fallbackKind="initials"
-          sizes="60px"
+          sizes="72px"
           priority={priority}
-          className="h-[60px] w-[60px] flex-none border-2 border-ink"
+          className="h-[72px] w-[72px] flex-none border-2 border-ink"
         />
 
         <div className="min-w-0 flex-1">
@@ -55,7 +56,7 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
             <span className="tone-badge">{badge.entityLabel}</span>
           </div>
 
-          <h3 className="display-sm mt-1.5 line-clamp-2 text-pretty text-[19px] leading-[1.1]">
+          <h3 className="display-sm mt-2 line-clamp-2 text-pretty text-[22px] leading-[1.1]">
             <Link href={`/entities/${card.slug}`} className="card-link">
               {card.title}
             </Link>
@@ -71,13 +72,14 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
             </p>
           )}
           {card.subtitle && (
-            <p className="mt-1 line-clamp-2 text-[13.5px] leading-[1.4] text-secondary">{card.subtitle}</p>
+            <p className="mt-1.5 line-clamp-2 text-[14.5px] leading-[1.45] text-secondary">{card.subtitle}</p>
           )}
         </div>
       )}
 
-      <div className="mt-auto">
-        <CardStats totals={state.totals} />
+      <div className="mt-auto space-y-3">
+        <SentimentLine totals={state.totals} />
+        <ReactionSplit totals={state.totals} />
       </div>
 
       <div className="flex items-center justify-between gap-3 text-[11.5px] leading-none text-secondary">

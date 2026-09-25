@@ -28,6 +28,7 @@ import {
   type AccountActionOutcome,
 } from '@/lib/services/accounts';
 import { resolveCommentReports } from '@/lib/services/comments';
+import { setLeadStoryId } from '@/lib/services/settings';
 
 /**
  * Admin mutations. Every one of these re-checks the admin flag on the server —
@@ -186,6 +187,27 @@ export async function setStatusAction(
   revalidatePath('/');
 
   return { ok: true, message: `Marked as ${parsed.data}.` };
+}
+
+/**
+ * Picks the lead on the Stories page, or hands the choice back to "newest
+ * first" when given null. Only a published Story can lead.
+ */
+export async function setLeadStoryAction(id: string | null): Promise<ActionResult> {
+  const blocked = await guard();
+  if (blocked) return blocked;
+
+  if (id !== null) {
+    const item = await getFlashNewsById(id);
+    if (!item) return { ok: false, message: 'That Story no longer exists.' };
+    if (item.status !== 'published') return { ok: false, message: 'Publish the Story before making it the lead.' };
+  }
+
+  await setLeadStoryId(id);
+  revalidatePath('/flash-news');
+  revalidatePath('/admin/flash-news');
+
+  return { ok: true, message: id ? 'Lead story set.' : 'The newest Story leads again.' };
 }
 
 /**

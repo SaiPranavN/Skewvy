@@ -61,7 +61,7 @@ export function Hero({
         </div>
 
         {featured.length > 0 && (
-          <div className="min-w-0 max-w-[620px] flex-[1_1_380px]">
+          <div className="min-w-0 max-w-[720px] flex-[1_1_380px]">
             <CardCarousel cards={featured} label="Featured right now" priorityCount={2} />
           </div>
         )}

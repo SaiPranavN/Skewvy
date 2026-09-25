@@ -123,7 +123,7 @@ export function CardCarousel({
         {cards.map((card, index) => (
           <li
             key={`${card.type}:${card.id}`}
-            className="flex w-[min(290px,80vw)] flex-none snap-start pr-1.5"
+            className="flex w-[min(340px,84vw)] flex-none snap-start pr-1.5"
             aria-roledescription="slide"
             aria-label={`${index + 1} of ${cards.length}`}
           >

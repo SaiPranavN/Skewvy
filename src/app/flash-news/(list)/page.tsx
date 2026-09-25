@@ -6,7 +6,8 @@ import { PageIntro } from '@/components/ui/PageIntro';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { HydrateArtifacts } from '@/components/reactions/HydrateArtifacts';
 import { getCurrentUser } from '@/lib/auth/current-user';
-import { listFlashNews, toCards } from '@/lib/services/content';
+import { listFlashNews, toCards, getFlashNewsById } from '@/lib/services/content';
+import { getLeadStoryId } from '@/lib/services/settings';
 import { FLASH_NEWS_CATEGORIES } from '@/lib/domain/types';
 import { formatCount } from '@/lib/domain/format';
 import type { ArtifactCard } from '@/lib/domain/types';
@@ -41,24 +42,43 @@ export default async function FlashNewsPage({
   const user = await getCurrentUser();
   const viewerId = user?.id ?? null;
 
-  const items = await listFlashNews({ category: category ?? null, search: q ?? null, limit: 40 });
+  const isDefaultView = !category && !q && !sort;
+  const [items, leadId] = await Promise.all([
+    listFlashNews({ category: category ?? null, search: q ?? null, limit: 40 }),
+    isDefaultView ? getLeadStoryId() : Promise.resolve(null),
+  ]);
   const cards = sortCards(await toCards({ flashNews: items }, { viewerId, withVelocity: true }), sort);
 
   /*
    * The lead is only pulled out of the grid on the unfiltered, default view.
    * Once someone has filtered or re-sorted, promoting one item above the rest
    * would contradict the ordering they just asked for.
+   *
+   * An editor can pin the lead from the admin area. The pin only counts while
+   * that Story is published; otherwise the newest one leads, as before.
    */
-  const isDefaultView = !category && !q && !sort;
-  const lead = isDefaultView ? (cards[0] ?? null) : null;
-  const rest = lead ? cards.slice(1) : cards;
+  let lead: ArtifactCard | null = null;
+  if (isDefaultView) {
+    if (leadId) {
+      lead = cards.find((card) => card.id === leadId) ?? null;
+      if (!lead) {
+        // Pinned, but older than the first page of the feed.
+        const pinned = await getFlashNewsById(leadId);
+        if (pinned?.status === 'published') {
+          lead = (await toCards({ flashNews: [pinned] }, { viewerId, withVelocity: true }))[0] ?? null;
+        }
+      }
+    }
+    lead ??= cards[0] ?? null;
+  }
+  const rest = lead ? cards.filter((card) => card.id !== lead.id) : cards;
 
   const sortLabel = SORTS.find((option) => (option.value ?? undefined) === sort)?.label ?? 'Newest';
   const categoryCount = new Set(cards.map((card) => card.category)).size;
 
   return (
     <div className="page-enter">
-      <HydrateArtifacts cards={cards} />
+      <HydrateArtifacts cards={lead ? [lead, ...rest] : cards} />
 
       <section className="rail">
         <PageIntro

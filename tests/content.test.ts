@@ -273,3 +273,17 @@ describe('deleting an artifact permanently', () => {
     expect(await deleteArtifactPermanently('flash_news', 'no-such-id')).toEqual({ deleted: false, slug: null });
   });
 });
+
+describe('the lead story setting', () => {
+  it('stores a pin, replaces it, and clears it', async () => {
+    const { getLeadStoryId, setLeadStoryId } = await import('@/lib/services/settings');
+    expect(await getLeadStoryId()).toBeNull();
+
+    await setLeadStoryId('story-a');
+    await setLeadStoryId('story-b');
+    expect(await getLeadStoryId()).toBe('story-b');
+
+    await setLeadStoryId(null);
+    expect(await getLeadStoryId()).toBeNull();
+  });
+});

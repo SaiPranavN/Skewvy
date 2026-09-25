@@ -19,12 +19,13 @@ export function CardGrid({
   const wide = {
     2: 'sm:grid-cols-2',
     3: 'sm:grid-cols-2 lg:grid-cols-3',
-    4: 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-    5: 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5',
+    // Three across at most: a card needs the width for its big numbers.
+    4: 'sm:grid-cols-2 lg:grid-cols-3',
+    5: 'sm:grid-cols-2 lg:grid-cols-3',
   }[columns];
 
   return (
-    <div className={`grid grid-cols-1 gap-4 ${wide}`}>
+    <div className={`grid grid-cols-1 gap-5 ${wide}`}>
       {cards.map((card, index) =>
         card.type === 'entity' ? (
           <EntityCard key={`${card.type}:${card.id}`} card={card} priority={index < priorityCount} />

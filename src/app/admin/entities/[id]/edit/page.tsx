@@ -15,10 +15,13 @@ export const dynamic = 'force-dynamic';
 
 export default async function EditEntityPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const entity = await getEntityById(id);
+  // One round of queries, not two: everything below only needs the id.
+  const [entity, totals, comments] = await Promise.all([
+    getEntityById(id),
+    getTotals('entity', id),
+    countComments('entity', id),
+  ]);
   if (!entity) notFound();
-
-  const [totals, comments] = await Promise.all([getTotals('entity', entity.id), countComments('entity', entity.id)]);
 
   async function action(previous: ActionResult, formData: FormData) {
     'use server';

@@ -15,15 +15,15 @@ export const dynamic = 'force-dynamic';
 
 export default async function EditFlashNewsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const item = await getFlashNewsById(id);
-  if (!item) notFound();
-
-  const [entities, entityIds, totals] = await Promise.all([
+  // One round of queries, not three: everything below only needs the id.
+  const [item, entities, entityIds, totals, comments] = await Promise.all([
+    getFlashNewsById(id),
     listEntities({ status: 'any', limit: 200 }),
-    entityIdsForFlashNews(item.id),
-    getTotals('flash_news', item.id),
+    entityIdsForFlashNews(id),
+    getTotals('flash_news', id),
+    countComments('flash_news', id),
   ]);
-  const comments = await countComments('flash_news', item.id);
+  if (!item) notFound();
 
   async function action(previous: ActionResult, formData: FormData) {
     'use server';

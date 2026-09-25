@@ -16,7 +16,9 @@ const ADMIN_NAV = [
  * direct POST from a non-admin session is refused regardless of the UI.
  */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const admin = await requireAdmin();
+  // The report count is cheap and only shown to an admin, so it is fetched
+  // alongside the admin check rather than after it.
+  const [admin, openReports] = await Promise.all([requireAdmin(), countOpenReports()]);
 
   if (!admin) {
     const user = await getCurrentUser();
@@ -38,8 +40,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </div>
     );
   }
-
-  const openReports = await countOpenReports();
 
   return (
     <div className="rail py-8">

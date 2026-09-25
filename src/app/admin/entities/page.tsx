@@ -6,15 +6,17 @@ import { listEntities, flashNewsCountsForEntities } from '@/lib/services/content
 import { getTotalsFor } from '@/lib/services/totals';
 import { emptyTotals } from '@/lib/domain/types';
 
-export const metadata: Metadata = { title: 'Admin · Entities' };
+export const metadata: Metadata = { title: 'Admin · Profiles' };
 export const dynamic = 'force-dynamic';
 
 export default async function AdminEntitiesPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
 
   const entities = await listEntities({ status: 'any', search: q ?? null, limit: 200 });
-  const totals = await getTotalsFor(entities.map((entity) => ({ type: 'entity' as const, id: entity.id })));
-  const counts = await flashNewsCountsForEntities(entities.map((entity) => entity.id));
+  const [totals, counts] = await Promise.all([
+    getTotalsFor(entities.map((entity) => ({ type: 'entity' as const, id: entity.id }))),
+    flashNewsCountsForEntities(entities.map((entity) => entity.id)),
+  ]);
 
   const rows: ContentRow[] = entities.map((entity) => ({
     id: entity.id,
