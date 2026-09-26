@@ -12,6 +12,7 @@ import { ShareReceipt } from '@/components/share/ShareReceipt';
 import { LocalDateTime } from '@/components/ui/TimeAgo';
 import { DetailsList } from '@/components/artifact/DetailsList';
 import { LiveTally } from '@/components/artifact/LiveTally';
+import { EDITORIAL_STATUS_LABELS } from '@/lib/domain/site-reports';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { absoluteUrl, DEFAULT_SHARE_IMAGE } from '@/lib/site';
 import { getCurrentUser } from '@/lib/auth/current-user';
@@ -144,6 +145,11 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
 
           <div className="mb-[clamp(14px,1.8vw,20px)] flex flex-wrap items-center gap-2.5">
             <span className="flag">{card.category}</span>
+            {item.editorialStatus && (
+              <span className="editorial-badge" data-status={item.editorialStatus}>
+                {EDITORIAL_STATUS_LABELS[item.editorialStatus]}
+              </span>
+            )}
             <span className="text-xs font-semibold uppercase leading-none tracking-[0.06em] text-tertiary">
               Published <LocalDateTime iso={card.publishedAt} />
             </span>
@@ -205,8 +211,9 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
             <DetailsList details={item.details} className="mt-6 border-t border-[var(--rule-subtle)] pt-5" />
           )}
 
+          <div className="mt-6 border-t border-[var(--rule-subtle)] pt-4">
           {item.sourceLabel && (
-            <p className="m-0 mt-6 border-t border-[var(--rule-subtle)] pt-4 text-xs font-semibold uppercase leading-none tracking-[0.08em] text-[rgb(23_20_15_/_0.62)]">
+            <p className="m-0 text-xs font-semibold uppercase leading-none tracking-[0.08em] text-[rgb(23_20_15_/_0.62)]">
               Source:{' '}
               {item.sourceUrl ? (
                 <a
@@ -222,6 +229,10 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
               )}
             </p>
           )}
+            <p className="m-0 mt-2 text-[12.5px] leading-[1.5] text-[rgb(23_20_15_/_0.6)]">
+              Summary based on linked sources. Details may change.
+            </p>
+          </div>
         </article>
 
         <RelatedEntityAside entities={relatedEntities} cards={entityCards} id="entity" />

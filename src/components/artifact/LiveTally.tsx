@@ -6,6 +6,7 @@ import { SentimentLine } from '@/components/cards/SentimentLine';
 import { cardTone, intensityComparison } from '@/lib/domain/copy';
 import { formatCount } from '@/lib/domain/format';
 import { ReactionLine } from './ReactionLine';
+import { InfoTip, METRICS_EXPLAINER } from '@/components/ui/InfoTip';
 import type { ArtifactCard } from '@/lib/domain/types';
 
 /**
@@ -38,8 +39,9 @@ export function LiveTally({ card, imageLabel }: { card: ArtifactCard; imageLabel
 
       <div className="space-y-5 p-[clamp(16px,1.8vw,22px)]">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id={`${card.id}-tally-heading`} className="eyebrow-ink m-0">
+          <h2 id={`${card.id}-tally-heading`} className="eyebrow-ink m-0 inline-flex items-center gap-1.5">
             Live tally
+            <InfoTip text={METRICS_EXPLAINER} align="start" tone="paper" />
           </h2>
           <span className="tone-badge">{badge.flashLabel}</span>
         </div>

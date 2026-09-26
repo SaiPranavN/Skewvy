@@ -273,6 +273,25 @@ CREATE TABLE IF NOT EXISTS comment_reports (
 );
 CREATE INDEX IF NOT EXISTS idx_comment_reports_open ON comment_reports(resolved_at, created_at);
 
+-- Concerns sent through the public report form: a page, a comment, anything.
+-- Kept apart from comment_reports because a report here may be about content
+-- that is not a comment, and may come from someone without an account. The
+-- reporter's details are never shown anywhere but the admin review queue.
+CREATE TABLE IF NOT EXISTS site_reports (
+  id            TEXT PRIMARY KEY,
+  target_url    TEXT NOT NULL,
+  reason        TEXT NOT NULL CHECK (reason IN ('harassment', 'private_information', 'impersonation', 'false_claim', 'copyright', 'spam', 'other')),
+  details       TEXT NOT NULL,
+  evidence_url  TEXT,
+  contact_email TEXT,
+  reporter_id   TEXT REFERENCES users(id) ON DELETE SET NULL,
+  ip_hash       TEXT,
+  created_at    TEXT NOT NULL,
+  resolved_at   TEXT,
+  resolved_by   TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_site_reports_open ON site_reports(resolved_at, created_at);
+
 -- Server-side rate limiting; a fixed window keyed by action + subject.
 CREATE TABLE IF NOT EXISTS rate_limits (
   bucket_key   TEXT PRIMARY KEY,
@@ -298,6 +317,13 @@ ALTER TABLE artifact_totals ADD COLUMN IF NOT EXISTS rotten_egg_contributor_tota
 ALTER TABLE artifact_totals ADD COLUMN IF NOT EXISTS medal_contributor_total INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE entities ADD COLUMN IF NOT EXISTS details TEXT;
 ALTER TABLE flash_news ADD COLUMN IF NOT EXISTS details TEXT;
+ALTER TABLE flash_news ADD COLUMN IF NOT EXISTS editorial_status TEXT;
+ALTER TABLE pending_registrations ADD COLUMN IF NOT EXISTS terms_version TEXT;
+ALTER TABLE pending_registrations ADD COLUMN IF NOT EXISTS privacy_version TEXT;
+ALTER TABLE pending_registrations ADD COLUMN IF NOT EXISTS policies_accepted_at TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_version TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS privacy_version TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS policies_accepted_at TEXT;
 
 -- ---------------------------------------------------------------------------
 -- Keep these tables out of the public API. See postgresHardeningSql().
@@ -307,7 +333,7 @@ DECLARE
   target text;
   supabase_roles boolean := EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon');
 BEGIN
-  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'opinion_changes', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'comments', 'comment_votes', 'comment_reports', 'rate_limits', 'app_settings']
+  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'opinion_changes', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'comments', 'comment_votes', 'comment_reports', 'site_reports', 'rate_limits', 'app_settings']
   LOOP
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = target) THEN
       EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', target);

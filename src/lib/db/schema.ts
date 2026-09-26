@@ -271,6 +271,25 @@ CREATE TABLE IF NOT EXISTS comment_reports (
 );
 CREATE INDEX IF NOT EXISTS idx_comment_reports_open ON comment_reports(resolved_at, created_at);
 
+-- Concerns sent through the public report form: a page, a comment, anything.
+-- Kept apart from comment_reports because a report here may be about content
+-- that is not a comment, and may come from someone without an account. The
+-- reporter's details are never shown anywhere but the admin review queue.
+CREATE TABLE IF NOT EXISTS site_reports (
+  id            TEXT PRIMARY KEY,
+  target_url    TEXT NOT NULL,
+  reason        TEXT NOT NULL CHECK (reason IN ('harassment', 'private_information', 'impersonation', 'false_claim', 'copyright', 'spam', 'other')),
+  details       TEXT NOT NULL,
+  evidence_url  TEXT,
+  contact_email TEXT,
+  reporter_id   TEXT REFERENCES users(id) ON DELETE SET NULL,
+  ip_hash       TEXT,
+  created_at    TEXT NOT NULL,
+  resolved_at   TEXT,
+  resolved_by   TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_site_reports_open ON site_reports(resolved_at, created_at);
+
 -- Server-side rate limiting; a fixed window keyed by action + subject.
 CREATE TABLE IF NOT EXISTS rate_limits (
   bucket_key   TEXT PRIMARY KEY,
@@ -301,6 +320,16 @@ export const ADDED_COLUMNS: Array<{ table: string; column: string; definition: s
   // Editor-entered facts about the subject, as a JSON array of { label, value }.
   { table: 'entities', column: 'details', definition: 'TEXT' },
   { table: 'flash_news', column: 'details', definition: 'TEXT' },
+  // developing | disputed | corrected | resolved, or nothing. Set by an editor.
+  { table: 'flash_news', column: 'editorial_status', definition: 'TEXT' },
+  // Which Terms and Privacy versions a person accepted by clicking Continue,
+  // carried from the pending sign-up onto the account it becomes.
+  { table: 'pending_registrations', column: 'terms_version', definition: 'TEXT' },
+  { table: 'pending_registrations', column: 'privacy_version', definition: 'TEXT' },
+  { table: 'pending_registrations', column: 'policies_accepted_at', definition: 'TEXT' },
+  { table: 'users', column: 'terms_version', definition: 'TEXT' },
+  { table: 'users', column: 'privacy_version', definition: 'TEXT' },
+  { table: 'users', column: 'policies_accepted_at', definition: 'TEXT' },
 ];
 
 /**

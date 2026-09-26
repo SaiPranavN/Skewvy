@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { REPORT_REASONS, REPORT_DETAILS_MAX_LENGTH } from '@/lib/domain/reports';
 import { DETAILS_MAX, DETAIL_LABEL_MAX, DETAIL_VALUE_MAX } from '@/lib/domain/details';
+import { SITE_REPORT_REASONS, EDITORIAL_STATUSES } from '@/lib/domain/site-reports';
 
 /** Shared by the client forms and the route handlers so rules can never drift. */
 
@@ -140,6 +141,25 @@ export const commentReportSchema = z
     path: ['details'],
   });
 
+/** A web address someone typed. Only http(s), so nothing odd is stored as a "link". */
+const webUrl = z
+  .string()
+  .trim()
+  .max(600)
+  .refine((value) => /^https?:\/\/\S+$/i.test(value), 'Enter a full web address, starting with https://');
+
+/** The public report form. The page URL is required; how to reach the reporter is not. */
+export const siteReportSchema = z.object({
+  targetUrl: webUrl,
+  reason: z.enum(SITE_REPORT_REASONS, { message: 'Choose a reason.' }),
+  details: z.string().trim().min(10, 'Tell us a little more — at least a sentence.').max(3000),
+  evidenceUrl: z.union([webUrl, z.literal('')]).optional(),
+  contactEmail: z.union([emailSchema, z.literal('')]).optional(),
+  turnstileToken: z.string().min(1, 'Complete the robot check.'),
+});
+
+export const editorialStatusSchema = z.union([z.enum(EDITORIAL_STATUSES), z.literal(''), z.null()]).optional();
+
 export const contentStatusSchema = z.enum(['draft', 'published', 'archived']);
 
 /** Editor-entered facts. Blank rows are dropped before this sees them. */
@@ -184,6 +204,7 @@ export const flashNewsInputSchema = z.object({
   accent: z.string().trim().max(20).optional().nullable(),
   sourceLabel: z.string().trim().max(120).optional().nullable(),
   sourceUrl: z.string().trim().max(600).optional().nullable(),
+  editorialStatus: editorialStatusSchema,
   details: detailsSchema,
   status: contentStatusSchema.default('draft'),
   entityIds: z.array(z.string().min(1)).max(12).default([]),

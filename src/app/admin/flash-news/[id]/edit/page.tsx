@@ -55,6 +55,7 @@ export default async function EditFlashNewsPage({ params }: { params: Promise<{ 
           sourceLabel: item.sourceLabel,
           sourceUrl: item.sourceUrl,
           details: item.details,
+          editorialStatus: item.editorialStatus,
           status: item.status,
           entityIds,
         }}

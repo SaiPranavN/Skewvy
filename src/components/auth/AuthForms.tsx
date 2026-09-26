@@ -51,7 +51,20 @@ export interface AuthFormProps {
  * bypass in development; and a fallback when the widget cannot load and no real
  * keys are configured — the server rejects that fallback the moment keys exist.
  */
-function RobotCheck({
+function PolicyLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener"
+      className="font-semibold text-secondary underline underline-offset-2 transition-colors duration-150 hover:text-primary"
+    >
+      {children}
+    </a>
+  );
+}
+
+export function RobotCheck({
   siteKey,
   disabled,
   required,
@@ -383,7 +396,7 @@ export function RegisterForm({
         value={displayName}
         error={fieldErrors.displayName}
         onChange={(event) => setDisplayName(event.target.value)}
-        hint="Shown next to your comments. Not your email address."
+        hint="Your display name may appear publicly."
       />
 
       <TextField
@@ -396,11 +409,7 @@ export function RegisterForm({
         error={fieldErrors.email}
         onChange={(event) => setEmail(event.target.value)}
         placeholder="you@example.com"
-        hint={
-          emailVerificationRequired
-            ? 'We send one link here. You choose your PIN after opening it.'
-            : 'Used to sign in. No confirmation email is sent.'
-        }
+        hint="Used for account verification, security and recovery. Never shown publicly."
       />
 
       <RobotCheck
@@ -412,6 +421,17 @@ export function RegisterForm({
       />
 
       <SubmitButton pending={pending}>Continue</SubmitButton>
+
+      {/*
+        * Clicking Continue is the acceptance; the versions linked here are
+        * recorded with the sign-up. The links open in a new tab so reading them
+        * does not throw away what has been typed.
+        */}
+      <p className="text-xs leading-relaxed text-tertiary">
+        By continuing, you agree to the{' '}
+        <PolicyLink href="/terms">Terms</PolicyLink> and <PolicyLink href="/community-rules">Community Rules</PolicyLink>{' '}
+        and acknowledge the <PolicyLink href="/privacy">Privacy Notice</PolicyLink>.
+      </p>
 
       {!compact && (
         <p className="text-sm text-tertiary">

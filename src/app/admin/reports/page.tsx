@@ -3,6 +3,8 @@ import type { Metadata } from 'next';
 import { ReportsQueue } from '@/components/admin/ReportsQueue';
 import { requireAdmin } from '@/lib/auth/current-user';
 import { listReportedComments } from '@/lib/services/comments';
+import { listOpenSiteReports } from '@/lib/services/site-reports';
+import { SiteReportsQueue } from '@/components/admin/SiteReportsQueue';
 import { formatCount } from '@/lib/domain/format';
 
 export const metadata: Metadata = { title: 'Reports' };
@@ -12,7 +14,7 @@ export default async function AdminReportsPage() {
   const admin = await requireAdmin();
   if (!admin) redirect('/login?redirectTo=/admin/reports');
 
-  const reported = await listReportedComments();
+  const [reported, siteReports] = await Promise.all([listReportedComments(), listOpenSiteReports()]);
 
   return (
     <div className="space-y-6">
@@ -34,6 +36,18 @@ export default async function AdminReportsPage() {
       </div>
 
       <ReportsQueue reported={reported} />
+
+      <section aria-labelledby="site-reports-heading" className="space-y-3 pt-4">
+        <div>
+          <h2 id="site-reports-heading" className="text-lg font-medium tracking-[-0.01em] text-primary">
+            From the report form
+          </h2>
+          <p className="mt-1 text-sm text-secondary">
+            Sent through /report — pages, comments, facts or anything else. Reporters are never shown publicly.
+          </p>
+        </div>
+        <SiteReportsQueue reports={siteReports} />
+      </section>
     </div>
   );
 }

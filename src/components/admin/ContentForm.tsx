@@ -6,6 +6,7 @@ import { useActionState, useEffect, useState } from 'react';
 import { ImageField } from './ImageField';
 import { DetailsEditor } from './DetailsEditor';
 import { SUGGESTED_DETAILS, SUGGESTED_STORY_DETAILS, type ArtifactDetail } from '@/lib/domain/details';
+import { EDITORIAL_STATUSES, EDITORIAL_STATUS_LABELS, type EditorialStatus } from '@/lib/domain/site-reports';
 import { ENTITY_CATEGORIES, FLASH_NEWS_CATEGORIES } from '@/lib/domain/types';
 import type { ActionResult } from '@/app/admin/actions';
 import type { ContentStatus } from '@/lib/domain/types';
@@ -64,6 +65,7 @@ export interface FlashNewsFormValues {
   imageUrl: string | null;
   sourceLabel: string | null;
   sourceUrl: string | null;
+  editorialStatus: EditorialStatus | null;
   details: ArtifactDetail[];
   status: ContentStatus;
   entityIds: string[];
@@ -322,6 +324,21 @@ export function FlashNewsForm({
             className={inputClass}
             placeholder="Company statement"
           />
+        </FormField>
+
+        <FormField
+          id="editorialStatus"
+          label="Editorial status"
+          hint="Optional. Shown as a small badge on the Story. Leave as None unless the facts are moving."
+        >
+          <select id="editorialStatus" name="editorialStatus" defaultValue={values.editorialStatus ?? ''} className={inputClass}>
+            <option value="">None</option>
+            {EDITORIAL_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {EDITORIAL_STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
         </FormField>
 
         <FormField id="sourceUrl" label="Source URL">

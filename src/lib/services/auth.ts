@@ -139,7 +139,7 @@ export async function completeRegistration(options: {
   const claimed = await claimPendingRegistration(options.token);
   if (!claimed.ok) return { status: 'link_invalid', reason: claimed.reason };
 
-  const { displayName, email, redirectTo } = claimed.pending;
+  const { displayName, email, redirectTo, termsVersion, privacyVersion, policiesAcceptedAt } = claimed.pending;
   const normalized = normalizeEmail(email);
   const now = new Date().toISOString();
   const pinHash = await hashPin(options.pin);
@@ -159,15 +159,28 @@ export async function completeRegistration(options: {
     userId = existing.id;
     await execute(
       `UPDATE users SET display_name = $1, pin_hash = $2, email_verified_at = $3,
-              pin_failed_attempts = 0, pin_locked_until = NULL, updated_at = $3 WHERE id = $4`,
-      [displayName, pinHash, now, userId],
+              pin_failed_attempts = 0, pin_locked_until = NULL, updated_at = $3,
+              terms_version = $5, privacy_version = $6, policies_accepted_at = $7 WHERE id = $4`,
+      [displayName, pinHash, now, userId, termsVersion, privacyVersion, policiesAcceptedAt],
     );
   } else {
     userId = newId();
     await execute(
-      `INSERT INTO users (id, display_name, email, email_normalized, pin_hash, email_verified_at, is_admin, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $6, $6)`,
-      [userId, displayName, email, normalized, pinHash, now, isAdminEmail(email) ? 1 : 0],
+      `INSERT INTO users (id, display_name, email, email_normalized, pin_hash, email_verified_at, is_admin, created_at, updated_at,
+                          terms_version, privacy_version, policies_accepted_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $6, $6, $8, $9, $10)`,
+      [
+        userId,
+        displayName,
+        email,
+        normalized,
+        pinHash,
+        now,
+        isAdminEmail(email) ? 1 : 0,
+        termsVersion,
+        privacyVersion,
+        policiesAcceptedAt,
+      ],
     );
   }
 

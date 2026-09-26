@@ -10,6 +10,7 @@ import type {
 } from '@/lib/domain/types';
 import type { EntityInput, FlashNewsInput } from '@/lib/validation/schemas';
 import { parseDetails, serializeDetails } from '@/lib/domain/details';
+import { isEditorialStatus } from '@/lib/domain/site-reports';
 
 interface EntityRow {
   id: string;
@@ -37,6 +38,7 @@ interface FlashNewsRow {
   source_label: string | null;
   source_url: string | null;
   details: string | null;
+  editorial_status: string | null;
   published_at: string | null;
   status: string;
   created_at: string;
@@ -72,6 +74,7 @@ function mapFlashNews(row: FlashNewsRow): FlashNews {
     sourceLabel: row.source_label,
     sourceUrl: row.source_url,
     details: parseDetails(row.details),
+    editorialStatus: isEditorialStatus(row.editorial_status) ? row.editorial_status : null,
     publishedAt: row.published_at,
     status: row.status as ContentStatus,
     createdAt: row.created_at,
@@ -296,6 +299,7 @@ export async function toCards(
       imageUrl: item.imageUrl,
       details: item.details,
       sourceLabel: item.sourceLabel,
+      editorialStatus: item.editorialStatus,
       publishedAt: item.publishedAt,
       totals: totals.get(key)!,
       contribution: contributions?.get(key) ?? null,
@@ -379,8 +383,8 @@ export async function createFlashNews(input: FlashNewsInput): Promise<FlashNews>
   await transaction(async (tx) => {
     await tx.execute(
       `INSERT INTO flash_news (id, slug, headline, summary, body, category, image_url, accent,
-              source_label, source_url, published_at, status, created_at, updated_at, details)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14)`,
+              source_label, source_url, published_at, status, created_at, updated_at, details, editorial_status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14, $15)`,
       [
         id,
         input.slug,
@@ -396,6 +400,7 @@ export async function createFlashNews(input: FlashNewsInput): Promise<FlashNews>
         input.status ?? 'draft',
         now,
         serializeDetails(input.details ?? []),
+        input.editorialStatus || null,
       ],
     );
     for (const entityId of input.entityIds ?? []) {
@@ -418,7 +423,7 @@ export async function updateFlashNews(id: string, input: FlashNewsInput): Promis
     await tx.execute(
       `UPDATE flash_news SET slug = $1, headline = $2, summary = $3, body = $4, category = $5,
               image_url = $6, accent = $7, source_label = $8, source_url = $9,
-              published_at = $10, status = $11, updated_at = $12, details = $14 WHERE id = $13`,
+              published_at = $10, status = $11, updated_at = $12, details = $14, editorial_status = $15 WHERE id = $13`,
       [
         input.slug,
         input.headline,
@@ -434,6 +439,7 @@ export async function updateFlashNews(id: string, input: FlashNewsInput): Promis
         now,
         id,
         serializeDetails(input.details ?? []),
+        input.editorialStatus || null,
       ],
     );
     await tx.execute('DELETE FROM flash_news_entities WHERE flash_news_id = $1', [id]);

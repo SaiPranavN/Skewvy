@@ -469,6 +469,182 @@ body {
     padding: clamp(18px, 2.4vw, 28px);
   }
 
+  /* Policy pages: plain reading text on the ground, no decoration. */
+  .policy-prose {
+    color: var(--color-secondary, inherit);
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
+  .policy-prose p {
+    margin: 0;
+    max-width: 68ch;
+  }
+
+  .policy-prose p + p,
+  .policy-prose p + ul,
+  .policy-prose ul + p {
+    margin-top: 0.9em;
+  }
+
+  .policy-prose ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    max-width: 68ch;
+  }
+
+  .policy-prose li {
+    position: relative;
+    padding-left: 1.2em;
+  }
+
+  .policy-prose li + li {
+    margin-top: 0.45em;
+  }
+
+  .policy-prose li::before {
+    content: '';
+    position: absolute;
+    left: 0.15em;
+    top: 0.72em;
+    width: 0.4em;
+    height: 0.4em;
+    background-color: var(--color-egg);
+  }
+
+  .policy-prose strong {
+    color: var(--color-primary);
+    font-weight: 700;
+  }
+
+  .policy-link {
+    color: var(--color-primary);
+    font-weight: 600;
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+  }
+
+  .policy-link:hover {
+    color: var(--color-brand, var(--color-egg));
+  }
+
+  /* An editor's note on a Story's state. Outlined, so it reads as a label, not a verdict. */
+  .editorial-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 9px;
+    border: 2px solid currentColor;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+  }
+
+  .editorial-badge::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    background-color: currentColor;
+  }
+
+  .editorial-badge[data-status='developing'] {
+    color: var(--color-medal);
+  }
+
+  .editorial-badge[data-status='disputed'] {
+    color: var(--color-egg);
+  }
+
+  .editorial-badge[data-status='corrected'] {
+    color: var(--color-indigo-soft);
+  }
+
+  .editorial-badge[data-status='resolved'] {
+    color: var(--color-success);
+  }
+
+  /* The ⓘ explainer: a small target that still gets a 32px hit area. */
+  .info-tip-button {
+    display: inline-flex;
+    height: 32px;
+    width: 32px;
+    align-items: center;
+    justify-content: center;
+    margin: -8px -6px;
+    color: currentColor;
+    opacity: 0.7;
+    transition: opacity var(--duration-micro) var(--ease-standard);
+  }
+
+  .info-tip-button:hover,
+  .info-tip-button[aria-expanded='true'] {
+    opacity: 1;
+  }
+
+  .info-tip-bubble {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    z-index: 30;
+    width: max-content;
+    max-width: min(260px, 80vw);
+    padding: 10px 12px;
+    border: 2px solid var(--color-paper);
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+    box-shadow: 4px 4px 0 var(--color-indigo);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.45;
+    letter-spacing: 0;
+    text-transform: none;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .info-tip-on-paper {
+    border-color: var(--color-ink);
+  }
+
+  /* Footer links: 44px tall to tap, but text-sized to look at. */
+  .footer-link {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    padding: 0 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    transition: color var(--duration-micro) var(--ease-standard);
+  }
+
+  .footer-link:hover {
+    color: var(--color-brand);
+  }
+
+  .policy-tab {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    padding: 0 8px;
+    border-bottom: 3px solid transparent;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-tertiary, inherit);
+  }
+
+  .policy-tab:hover {
+    color: var(--color-primary);
+  }
+
+  .policy-tab[aria-current='page'] {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-egg);
+  }
+
   /* The carousel's arrows: square paper keys that press flat. */
   .carousel-arrow {
     display: inline-flex;

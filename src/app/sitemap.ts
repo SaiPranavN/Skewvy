@@ -19,6 +19,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl('/flash-news'), lastModified: now, changeFrequency: 'hourly', priority: 0.9 },
     { url: absoluteUrl('/entities'), lastModified: now, changeFrequency: 'daily', priority: 0.9 },
     { url: absoluteUrl('/trending'), lastModified: now, changeFrequency: 'hourly', priority: 0.7 },
+    ...['/terms', '/privacy', '/community-rules', '/report', '/contact'].map((path) => ({
+      url: absoluteUrl(path),
+      changeFrequency: 'monthly' as const,
+      priority: 0.3,
+    })),
   ];
 
   try {

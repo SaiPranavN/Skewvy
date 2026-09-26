@@ -4,6 +4,7 @@ import { normalizeEmail } from './auth';
 import { sendVerificationEmail } from './email';
 import { buildLinkUrl } from './auth-tokens';
 import { requiresEmailVerification } from './auth';
+import { POLICY_VERSIONS } from '@/lib/legal';
 
 /**
  * Two-step sign-up: prove the address, then choose the PIN.
@@ -71,8 +72,9 @@ export async function beginRegistration(
   const token = generateToken(32);
   await execute(
     `INSERT INTO pending_registrations
-       (id, display_name, email, email_normalized, token_hash, expires_at, created_at, requested_ip_hash, redirect_to)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+       (id, display_name, email, email_normalized, token_hash, expires_at, created_at, requested_ip_hash, redirect_to,
+        terms_version, privacy_version, policies_accepted_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $7)`,
     [
       newId(),
       options.displayName.trim(),
@@ -83,6 +85,10 @@ export async function beginRegistration(
       now.toISOString(),
       hashIp(options.ip ?? null),
       options.redirectTo ?? null,
+      // Clicking Continue under the notice is the acceptance; these are the
+      // versions that notice linked to.
+      POLICY_VERSIONS.terms,
+      POLICY_VERSIONS.privacy,
     ],
   );
 
@@ -113,6 +119,9 @@ export interface PendingRegistration {
   displayName: string;
   email: string;
   redirectTo: string | null;
+  termsVersion: string | null;
+  privacyVersion: string | null;
+  policiesAcceptedAt: string | null;
 }
 
 export type PendingLookup =
@@ -127,8 +136,11 @@ export async function findPendingRegistration(token: string): Promise<PendingLoo
     expires_at: string;
     consumed_at: string | null;
     redirect_to: string | null;
+    terms_version: string | null;
+    privacy_version: string | null;
+    policies_accepted_at: string | null;
   }>(
-    `SELECT display_name, email, expires_at, consumed_at, redirect_to
+    `SELECT display_name, email, expires_at, consumed_at, redirect_to, terms_version, privacy_version, policies_accepted_at
        FROM pending_registrations WHERE token_hash = $1`,
     [hashToken(token)],
   );
@@ -139,7 +151,14 @@ export async function findPendingRegistration(token: string): Promise<PendingLoo
 
   return {
     ok: true,
-    pending: { displayName: row.display_name, email: row.email, redirectTo: row.redirect_to },
+    pending: {
+      displayName: row.display_name,
+      email: row.email,
+      redirectTo: row.redirect_to,
+      termsVersion: row.terms_version,
+      privacyVersion: row.privacy_version,
+      policiesAcceptedAt: row.policies_accepted_at,
+    },
   };
 }
 

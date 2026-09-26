@@ -12,6 +12,7 @@ import { ShareReceipt } from '@/components/share/ShareReceipt';
 import { Media, initialsFor } from '@/components/ui/Media';
 import { DetailsList } from '@/components/artifact/DetailsList';
 import { JsonLd } from '@/components/seo/JsonLd';
+import { InfoTip, METRICS_EXPLAINER } from '@/components/ui/InfoTip';
 import { absoluteUrl, DEFAULT_SHARE_IMAGE } from '@/lib/site';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { getEntityBySlug, listFlashNews, toCards } from '@/lib/services/content';
@@ -135,6 +136,9 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
           <p className="m-0 mt-[clamp(16px,2vw,24px)] max-w-[48ch] text-pretty text-[clamp(16px,1.3vw,21px)] leading-[1.5] text-secondary">
             {entity.description}
           </p>
+          <p className="m-0 mt-2.5 text-[12.5px] leading-[1.5] text-tertiary">
+            Unofficial Profile. Not affiliated with or endorsed by {entity.name}.
+          </p>
 
           <div className="mt-[clamp(20px,2.4vw,30px)] flex flex-wrap items-center gap-3">
             <ShareReceipt card={card} url={shareUrl} />
@@ -159,7 +163,10 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
         <div className="min-w-[min(100%,280px)] max-w-[520px] flex-[1_1_320px]">
           <div className="border border-[var(--border-default)] p-[clamp(16px,1.8vw,24px)]">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <p className="eyebrow">Lifetime record</p>
+              <p className="eyebrow inline-flex items-center gap-1.5">
+                Lifetime record
+                <InfoTip text={METRICS_EXPLAINER} align="start" />
+              </p>
               <p className="text-[11px] font-semibold uppercase leading-none tracking-[0.08em] text-tertiary">
                 {recent.rottenEggs + recent.medals > 0 ? (
                   <>

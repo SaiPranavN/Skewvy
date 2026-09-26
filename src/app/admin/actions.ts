@@ -29,6 +29,7 @@ import {
 } from '@/lib/services/accounts';
 import { resolveCommentReports } from '@/lib/services/comments';
 import { setLeadStoryId } from '@/lib/services/settings';
+import { resolveSiteReport } from '@/lib/services/site-reports';
 
 /**
  * Admin mutations. Every one of these re-checks the admin flag on the server —
@@ -126,6 +127,7 @@ function readFlashNewsForm(formData: FormData) {
     accent: String(formData.get('accent') ?? '').trim() || null,
     sourceLabel: String(formData.get('sourceLabel') ?? '').trim() || null,
     sourceUrl: String(formData.get('sourceUrl') ?? '').trim() || null,
+    editorialStatus: String(formData.get('editorialStatus') ?? '').trim() || null,
     details: readDetails(formData),
     status: String(formData.get('status') ?? 'draft'),
     entityIds: formData.getAll('entityIds').map(String).filter(Boolean),
@@ -379,4 +381,17 @@ export async function resolveReportAction(commentId: string, action: 'remove' | 
     ok: true,
     message: action === 'remove' ? 'Comment removed and its reports closed.' : 'Reports dismissed. The comment stays up.',
   };
+}
+
+/** Closes a report from the public form once it has been looked at. */
+export async function resolveSiteReportAction(id: string): Promise<ActionResult> {
+  const blocked = await guard();
+  if (blocked) return blocked;
+
+  const admin = await requireAdmin();
+  if (!admin) return { ok: false, message: 'Administrator access required.' };
+
+  const done = await resolveSiteReport(id, admin.id);
+  revalidatePath('/admin/reports');
+  return done ? { ok: true, message: 'Marked as reviewed.' } : { ok: false, message: 'That report was already closed.' };
 }

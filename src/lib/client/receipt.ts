@@ -332,8 +332,12 @@ function headlineFor(input: ReceiptInput, variant: ReceiptVariant): Headline {
   };
 }
 
+/**
+ * The receipt's small print: this is people expressing themselves, as of a
+ * moment — not a fact, not a poll.
+ */
 function stampFor(): string {
-  return `As of ${new Date().toLocaleString(undefined, {
+  return `User expression · Totals as of ${new Date().toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
@@ -661,10 +665,23 @@ export async function renderReceipt(input: ReceiptInput, format: ReceiptFormat):
   context.fillText(cue, M, footerBaseline);
   setTracking(context, '0em');
 
-  context.font = bodyFont(story ? 18 : 15, 500);
+  // The stamp shares the line with the link, so it shrinks rather than collide.
+  const stamp = stampFor();
+  let stampSize = story ? 18 : 15;
+  context.font = bodyFont(stampSize, 500);
+  while (context.measureText(stamp).width > contentWidth * 0.36 && stampSize > 10) {
+    stampSize -= 1;
+    context.font = bodyFont(stampSize, 500);
+  }
   context.globalAlpha = 0.68;
   context.textAlign = 'right';
-  context.fillText(stampFor(), spec.width - M, footerBaseline);
+  context.fillText(stamp, spec.width - M, footerBaseline);
+
+  // The tall format has room above the stamp for the one fact people misread.
+  if (story) {
+    context.font = bodyFont(15, 500);
+    context.fillText('Reactions count taps.', spec.width - M, footerBaseline - 26);
+  }
   context.textAlign = 'left';
   context.globalAlpha = 1;
 

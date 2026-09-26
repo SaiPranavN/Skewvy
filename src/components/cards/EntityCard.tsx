@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { Media, initialsFor } from '@/components/ui/Media';
-import { RelativeTime } from '@/components/ui/TimeAgo';
 import { useArtifact } from '@/components/reactions/useArtifact';
 import { cardTone } from '@/lib/domain/copy';
 import { formatCount } from '@/lib/domain/format';
 import { SentimentLine } from './SentimentLine';
+import { MetricsLabel } from './MetricsLabel';
 import { ReactionSplit } from './ReactionSplit';
 import { cardDetailLine } from '@/lib/domain/details';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
@@ -83,13 +83,7 @@ export function EntityCard({ card, priority = false }: { card: ArtifactCardModel
       </div>
 
       <div className="flex items-center justify-between gap-3 text-[11.5px] leading-none text-secondary">
-        <span className="truncate">
-          {card.publishedAt ? (
-            <>
-              Updated <RelativeTime iso={card.publishedAt} />
-            </>
-          ) : null}
-        </span>
+        <MetricsLabel totals={state.totals} className="min-w-0" />
         {itemCount > 0 && (
           <Link
             href={`/entities/${card.slug}#stories`}

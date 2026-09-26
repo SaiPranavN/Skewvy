@@ -7,6 +7,7 @@ import { useArtifact } from '@/components/reactions/useArtifact';
 import { cardTone } from '@/lib/domain/copy';
 import type { ArtifactCard as ArtifactCardModel } from '@/lib/domain/types';
 import { SentimentLine } from './SentimentLine';
+import { MetricsLabel } from './MetricsLabel';
 import { ReactionSplit } from './ReactionSplit';
 
 /**
@@ -72,6 +73,7 @@ export function ArtifactCard({ card, priority = false }: { card: ArtifactCardMod
         <div className="mt-auto space-y-3 pt-1.5">
           <SentimentLine totals={state.totals} />
           <ReactionSplit totals={state.totals} />
+          <MetricsLabel totals={state.totals} />
         </div>
       </div>
     </article>

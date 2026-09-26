@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { requireAdmin, getCurrentUser } from '@/lib/auth/current-user';
 import { countOpenReports } from '@/lib/services/comments';
+import { countOpenSiteReports } from '@/lib/services/site-reports';
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
@@ -21,7 +22,12 @@ const ADMIN_NAV = [
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // The report count is cheap and only shown to an admin, so it is fetched
   // alongside the admin check rather than after it.
-  const [admin, openReports] = await Promise.all([requireAdmin(), countOpenReports()]);
+  const [admin, openCommentReports, openSiteReports] = await Promise.all([
+    requireAdmin(),
+    countOpenReports(),
+    countOpenSiteReports(),
+  ]);
+  const openReports = openCommentReports + openSiteReports;
 
   if (!admin) {
     const user = await getCurrentUser();

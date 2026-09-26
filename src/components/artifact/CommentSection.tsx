@@ -352,9 +352,9 @@ export function CommentSection({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--rule-default)] px-3.5 py-3">
           <p
             id={`${fieldId}-rules`}
-            className="m-0 max-w-[44ch] text-[12.5px] font-medium leading-[1.4] text-[rgb(23_20_15_/_0.62)]"
+            className="m-0 max-w-[52ch] text-[12.5px] font-medium leading-[1.4] text-[rgb(23_20_15_/_0.62)]"
           >
-            Be specific. Be fair. Criticize actions, not identities.
+            Criticize actions, not identities. Don’t post private information or unverified claims.
           </p>
 
           <div className="flex items-center gap-3">
