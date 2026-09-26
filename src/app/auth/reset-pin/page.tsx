@@ -4,7 +4,7 @@ import { ResetPinFlow } from '@/components/auth/ResetPinFlow';
 import { turnstileSiteKey, turnstileDisabled, turnstileConfigured } from '@/lib/services/turnstile';
 import { requiresEmailVerification } from '@/lib/services/auth';
 
-export const metadata: Metadata = { title: 'Reset your PIN' };
+export const metadata: Metadata = { title: 'Reset your PIN', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function ResetPinPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {

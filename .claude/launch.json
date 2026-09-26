@@ -27,6 +27,15 @@
         "start"
       ],
       "port": 3000
+    },
+    {
+      "name": "skewvy-sqlite-prod",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "DATABASE_URL=sqlite:./data/skewvy.db NODE_OPTIONS=--experimental-sqlite npx next start -p 3101"
+      ],
+      "port": 3101
     }
   ]
 }

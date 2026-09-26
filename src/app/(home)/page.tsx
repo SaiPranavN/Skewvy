@@ -12,8 +12,45 @@ import { heatIndex, leaderboard } from '@/lib/services/trending';
 import { siteTotals } from '@/lib/services/totals';
 import { FLASH_NEWS_CATEGORIES } from '@/lib/domain/types';
 import type { ArtifactCard } from '@/lib/domain/types';
+import type { Metadata } from 'next';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { CONTACT_EMAIL, SITE_DESCRIPTION, SITE_NAME, SITE_URL, absoluteUrl } from '@/lib/site';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+};
+
+/*
+ * Who this site is, in the vocabulary search engines read: the site and its
+ * name (so a search for "skewvy" is matched to it), the organisation behind
+ * it, and the site search, which Google can offer straight from a result.
+ */
+const SITE_JSON_LD = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    alternateName: ['skewvy.com', 'Skewvy.com'],
+    url: SITE_URL,
+    description: SITE_DESCRIPTION,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: { '@type': 'EntryPoint', urlTemplate: `${absoluteUrl('/search')}?q={search_term_string}` },
+      'query-input': 'required name=search_term_string',
+    },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: absoluteUrl('/apple-icon.png'),
+    email: CONTACT_EMAIL,
+    description: SITE_DESCRIPTION,
+  },
+];
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
   const { category } = await searchParams;
@@ -72,6 +109,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   return (
     <div className="page-enter flex flex-col gap-[clamp(44px,6vw,104px)]">
+      <JsonLd data={SITE_JSON_LD} />
       <HydrateArtifacts cards={allCards} />
 
       <Hero featured={featured} totals={totals} isAuthenticated={Boolean(user)} />

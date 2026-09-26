@@ -11,6 +11,8 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ShareReceipt } from '@/components/share/ShareReceipt';
 import { Media, initialsFor } from '@/components/ui/Media';
 import { DetailsList } from '@/components/artifact/DetailsList';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { absoluteUrl, DEFAULT_SHARE_IMAGE } from '@/lib/site';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { getEntityBySlug, listFlashNews, toCards } from '@/lib/services/content';
 import { recentVelocityFor } from '@/lib/services/totals';
@@ -27,13 +29,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const entity = await loadEntity(slug);
   if (!entity) return { title: 'Not found' };
+  const description = entity.description || `What people think of ${entity.name}, counted on Skewvy.`;
+  const images = entity.imageUrl ? [entity.imageUrl] : undefined;
   return {
     title: entity.name,
-    description: entity.description,
+    description,
+    alternates: { canonical: `/entities/${entity.slug}` },
     openGraph: {
-      title: entity.name,
-      description: entity.description,
-      images: entity.imageUrl ? [entity.imageUrl] : [],
+      type: 'profile',
+      title: `${entity.name} · Skewvy`,
+      description,
+      url: `/entities/${entity.slug}`,
+      images: images ?? [DEFAULT_SHARE_IMAGE],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${entity.name} · Skewvy`,
+      description,
+      images: images ?? [DEFAULT_SHARE_IMAGE.url],
     },
   };
 }
@@ -58,7 +71,7 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
   ]);
 
   const card = cards[0];
-  const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/entities/${entity.slug}`;
+  const shareUrl = absoluteUrl(`/entities/${entity.slug}`);
 
   const badge = cardTone(card.totals);
 
@@ -67,6 +80,16 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
   return (
     <div className={`page-enter tone-${badge.tone}`}>
       <HydrateArtifacts cards={[card, ...relatedFlashNews]} />
+      <JsonLd
+        data={{
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Profiles', item: absoluteUrl('/entities') },
+            { '@type': 'ListItem', position: 2, name: entity.name, item: shareUrl },
+          ],
+        }}
+      />
 
       {/*
        * An entity leads with identity rather than a headline: the mark, the

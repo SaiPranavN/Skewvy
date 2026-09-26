@@ -10,7 +10,12 @@ import { formatCount } from '@/lib/domain/format';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = { title: 'Search', description: 'Find a Profile or a Story.' };
+// Result pages are thin and endless; crawl the links, do not index the page.
+export const metadata: Metadata = {
+  title: 'Search',
+  description: 'Find a Profile or a Story.',
+  robots: { index: false, follow: true },
+};
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;

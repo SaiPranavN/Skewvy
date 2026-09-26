@@ -13,6 +13,7 @@ import type { ArtifactCard } from '@/lib/domain/types';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/entities' },
   title: 'Profiles',
   description: 'Companies, clubs, studios and public bodies with a lifetime sentiment record.',
 };

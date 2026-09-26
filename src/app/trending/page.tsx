@@ -11,6 +11,7 @@ import { rankedIndex, trendingTab, newlyAdded, TRENDING_TABS } from '@/lib/servi
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/trending' },
   title: 'Leaderboards',
   description: 'Ranked by reactions received in the last 24 hours, not by lifetime totals.',
 };

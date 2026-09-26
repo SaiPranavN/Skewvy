@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import type { Metadata } from 'next';
 import { requireAdmin, getCurrentUser } from '@/lib/auth/current-user';
 import { countOpenReports } from '@/lib/services/comments';
+
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 const ADMIN_NAV = [
   { href: '/admin', label: 'Overview' },

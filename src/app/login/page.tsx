@@ -6,7 +6,7 @@ import { turnstileSiteKey, turnstileDisabled, turnstileConfigured } from '@/lib/
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { safeRedirect } from '@/lib/api/request-context';
 
-export const metadata: Metadata = { title: 'Sign in' };
+export const metadata: Metadata = { title: 'Sign in', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ redirectTo?: string }> }) {

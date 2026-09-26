@@ -3,7 +3,7 @@ import { Suspense } from 'react';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { VerifyClient } from '@/components/auth/VerifyClient';
 
-export const metadata: Metadata = { title: 'Confirm your email' };
+export const metadata: Metadata = { title: 'Confirm your email', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function VerifyPage({

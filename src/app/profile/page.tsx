@@ -10,7 +10,7 @@ import { StatBlock } from '@/components/ui/StatBlock';
 import { pinAlgorithm } from '@/lib/services/pin';
 import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
-export const metadata: Metadata = { title: 'Your profile' };
+export const metadata: Metadata = { title: 'Your profile', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 interface ContributionRow {

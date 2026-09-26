@@ -11,6 +11,9 @@ import { CardGrid } from '@/components/cards/CardGrid';
 import { ShareReceipt } from '@/components/share/ShareReceipt';
 import { LocalDateTime } from '@/components/ui/TimeAgo';
 import { DetailsList } from '@/components/artifact/DetailsList';
+import { LiveTally } from '@/components/artifact/LiveTally';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { absoluteUrl, DEFAULT_SHARE_IMAGE } from '@/lib/site';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { getFlashNewsBySlug, entitiesForFlashNews, listFlashNews, toCards } from '@/lib/services/content';
 
@@ -23,13 +26,27 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const item = await loadStory(slug);
   if (!item) return { title: 'Not found' };
+  const description = item.summary || item.body.slice(0, 180) || `How people are reacting to "${item.headline}" on Skewvy.`;
+  const images = item.imageUrl ? [item.imageUrl] : undefined;
   return {
     title: item.headline,
-    description: item.summary,
+    description,
+    alternates: { canonical: `/flash-news/${item.slug}` },
     openGraph: {
+      type: 'article',
       title: item.headline,
-      description: item.summary,
-      images: item.imageUrl ? [item.imageUrl] : [],
+      description,
+      url: `/flash-news/${item.slug}`,
+      ...(item.publishedAt ? { publishedTime: item.publishedAt } : {}),
+      modifiedTime: item.updatedAt,
+      section: item.category,
+      images: images ?? [DEFAULT_SHARE_IMAGE],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: item.headline,
+      description,
+      images: images ?? [DEFAULT_SHARE_IMAGE.url],
     },
   };
 }
@@ -58,22 +75,54 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
       ])
     : [[], []];
 
-  const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/flash-news/${item.slug}`;
+  const shareUrl = absoluteUrl(`/flash-news/${item.slug}`);
 
   const sectionPad = 'pt-[clamp(30px,4vw,64px)]';
 
   return (
     <div className="page-enter">
       <HydrateArtifacts cards={[card, ...moreFromEntity, ...entityCards]} />
+      <JsonLd
+        data={[
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Article',
+            headline: item.headline.slice(0, 110),
+            description: item.summary || undefined,
+            articleSection: item.category,
+            ...(item.imageUrl ? { image: [item.imageUrl] } : {}),
+            ...(item.publishedAt ? { datePublished: item.publishedAt } : {}),
+            dateModified: item.updatedAt,
+            mainEntityOfPage: shareUrl,
+            ...(relatedEntities.length > 0
+              ? { about: relatedEntities.map((entity) => ({ '@type': 'Thing', name: entity.name })) }
+              : {}),
+            author: { '@type': 'Organization', name: 'Skewvy', url: absoluteUrl('/') },
+            publisher: {
+              '@type': 'Organization',
+              name: 'Skewvy',
+              logo: { '@type': 'ImageObject', url: absoluteUrl('/apple-icon.png') },
+            },
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Stories', item: absoluteUrl('/flash-news') },
+              { '@type': 'ListItem', position: 2, name: item.headline, item: shareUrl },
+            ],
+          },
+        ]}
+      />
 
       {/*
-       * Headline first, then the reaction flow across the full width beneath
-       * it. The flow reads left to right, so it gets the width rather than a
-       * column beside the headline — and the reader still meets both in one
+       * Headline on the left, the live tally beside it, then the reaction flow
+       * across the full width beneath. The flow reads left to right, so it gets
+       * the width rather than a column — and the reader meets all three in one
        * screen.
        */}
-      <section className="rail pt-[clamp(24px,3.2vw,52px)]">
-        <div className="max-w-[min(100%,860px)]">
+      <section className="rail flex flex-wrap items-start gap-x-[clamp(28px,4vw,72px)] gap-y-8 pt-[clamp(24px,3.2vw,52px)]">
+        <div className="min-w-[min(100%,320px)] max-w-[860px] flex-[1_1_560px]">
           <nav
             aria-label="Breadcrumb"
             className="mb-[clamp(16px,2vw,24px)] flex flex-wrap items-center gap-2 text-xs font-semibold uppercase leading-none tracking-[0.06em] text-tertiary"
@@ -100,7 +149,7 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
             </span>
           </div>
 
-          <h1 className="display m-0 text-[clamp(40px,6vw,96px)] text-primary">{card.title}</h1>
+          <h1 className="display m-0 text-[clamp(38px,5vw,84px)] text-primary">{card.title}</h1>
 
           {card.subtitle && (
             <p className="m-0 mt-[clamp(16px,2vw,24px)] max-w-[46ch] text-pretty text-[clamp(17px,1.35vw,23px)] leading-[1.5] text-secondary">
@@ -121,6 +170,10 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
           </div>
         </div>
 
+        {/* The picture at card size, and the crowd so far — what filled this space was nothing. */}
+        <div className="w-full max-w-[440px] flex-[1_1_320px] lg:mt-9">
+          <LiveTally card={card} imageLabel={primaryEntity?.name ?? card.title} />
+        </div>
       </section>
 
       <section className="rail pt-[clamp(24px,3vw,44px)]">

@@ -6,7 +6,7 @@ import { findPendingRegistration } from '@/lib/services/registration';
 import { turnstileSiteKey, turnstileDisabled, turnstileConfigured } from '@/lib/services/turnstile';
 import { safeRedirect } from '@/lib/api/request-context';
 
-export const metadata: Metadata = { title: 'Finish setting up your account' };
+export const metadata: Metadata = { title: 'Finish setting up your account', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 /**

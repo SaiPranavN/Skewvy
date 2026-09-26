@@ -7,7 +7,7 @@ import { requiresEmailVerification } from '@/lib/services/auth';
 import { getCurrentUser } from '@/lib/auth/current-user';
 import { safeRedirect } from '@/lib/api/request-context';
 
-export const metadata: Metadata = { title: 'Create an account' };
+export const metadata: Metadata = { title: 'Create an account', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ redirectTo?: string }> }) {

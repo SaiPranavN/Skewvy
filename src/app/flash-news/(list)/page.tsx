@@ -15,6 +15,7 @@ import type { ArtifactCard } from '@/lib/domain/types';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/flash-news' },
   title: 'Stories',
   description: 'Specific events, decisions and announcements the public is reacting to.',
 };

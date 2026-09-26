@@ -5,6 +5,7 @@ import { SiteHeader } from '@/components/layout/SiteHeader';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { ReactionProvider } from '@/components/reactions/ReactionProvider';
 import { getCurrentUser } from '@/lib/auth/current-user';
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from '@/lib/site';
 
 /*
  * Archivo carries the interface; Archivo Black carries every display size —
@@ -25,20 +26,55 @@ const archivoBlack = Archivo_Black({
   variable: '--font-archivo-black',
 });
 
+/*
+ * Site-wide defaults. Each page sets its own title, description and canonical
+ * address on top of these; the canonical is deliberately not set here, or
+ * every page that forgot its own would claim to be the home page.
+ */
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Skewvy — Public sentiment, counted',
-    template: '%s · Skewvy',
+    default: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    template: `%s · ${SITE_NAME}`,
   },
-  description:
-    'React to the stories, decisions and profiles shaping the moment. Send Rotten Eggs when something deserves criticism. Award Medals when it deserves recognition.',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    'Skewvy',
+    'skewvy.com',
+    'public sentiment',
+    'public opinion',
+    'rotten eggs',
+    'medals',
+    'react to news',
+    'opinion poll',
+  ],
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: 'news',
   openGraph: {
-    title: 'Skewvy — Public sentiment, counted',
-    description: 'Every tap adds to the reaction total. Every person counts once in the public opinion.',
-    siteName: 'Skewvy',
     type: 'website',
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION,
+    locale: 'en_US',
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
+  },
+  // Set GOOGLE_SITE_VERIFICATION to the code Search Console gives for the
+  // "HTML tag" method; nothing is emitted until it is.
+  ...(process.env.GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } }
+    : {}),
 };
 
 export const viewport: Viewport = {
