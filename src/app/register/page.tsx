@@ -10,8 +10,10 @@ import { safeRedirect } from '@/lib/api/request-context';
 export const metadata: Metadata = { title: 'Create an account', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
-export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ redirectTo?: string }> }) {
-  const { redirectTo } = await searchParams;
+export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ redirectTo?: string; returnTo?: string }> }) {
+  // `returnTo` is accepted as another name for `redirectTo`; MoodStamps links use it.
+  const { redirectTo: redirectParam, returnTo } = await searchParams;
+  const redirectTo = returnTo ?? redirectParam;
   const user = await getCurrentUser();
   if (user) redirect(safeRedirect(redirectTo, '/'));
 

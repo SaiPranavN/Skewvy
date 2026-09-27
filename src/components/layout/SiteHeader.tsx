@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Wordmark } from './Wordmark';
+import { MoodStampsNavLink } from '@/components/moodstamps/MoodStampsNavLink';
 import type { PublicUser } from '@/lib/domain/types';
 
 const NAV_ITEMS = [
@@ -44,6 +45,16 @@ export function SiteHeader({ user }: { user: PublicUser | null }) {
           <Wordmark />
         </Link>
 
+        {/*
+          On a phone, MoodStamps rides up beside the wordmark instead of
+          wrapping onto a row of its own: it stays the first thing in reach,
+          and the sticky masthead does not grow a line on every page. Only one
+          of the two copies is ever displayed.
+        */}
+        <nav aria-label="MoodStamps" className="ml-auto sm:hidden">
+          <MoodStampsNavLink active={isActive('/moodstamps')} />
+        </nav>
+
         <nav aria-label="Primary" className="flex flex-wrap items-center gap-0.5">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.href);
@@ -62,6 +73,9 @@ export function SiteHeader({ user }: { user: PublicUser | null }) {
               </Link>
             );
           })}
+          <span className="hidden sm:contents">
+            <MoodStampsNavLink active={isActive('/moodstamps')} />
+          </span>
         </nav>
 
         <div className="ml-auto flex flex-wrap items-center gap-3">

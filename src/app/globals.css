@@ -47,6 +47,13 @@
   --color-indigo-soft: #8e9bff;
 
   /*
+   * MoodStamps' own colour: an electric violet, kept well clear of the
+   * discussion indigo. Light enough that ink type on it clears 5.9:1, which is
+   * why it always carries ink and never cream.
+   */
+  --color-violet: #9f7aff;
+
+  /*
    * Chart series. Red reads as the bad direction and green as the good one
    * without anyone being told, which is worth more on a line chart than brand
    * consistency is — a trend line is scanned, not studied.
@@ -1411,6 +1418,533 @@ body {
     color: var(--color-tertiary);
   }
 
+  /* ------------------------------- MoodStamps ------------------------------- */
+
+  /*
+   * The MoodStamps key: a violet label with an ink edge, pushed forward on a
+   * hard offset shadow. It is the one navigation item that is a thing rather
+   * than a word, because it leads somewhere private rather than to another
+   * list.
+   *
+   * The shadow is cream, not ink. On the near-black masthead an ink shadow
+   * disappears, and so does the edge it is meant to throw — the same reason
+   * `.card-brutal` shadows take a tone. Cream keeps the ink border visible where
+   * it matters, between the violet and its shadow.
+   *
+   * Hover moves it toward the shadow; press drives it all the way in.
+   */
+  .ms-key {
+    --ms-shadow: var(--color-paper);
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 2px solid var(--color-ink);
+    border-radius: 0;
+    background-color: var(--color-violet);
+    color: var(--color-ink);
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 3px 3px 0 var(--ms-shadow);
+    transition:
+      transform 120ms var(--ease-standard),
+      box-shadow 120ms var(--ease-standard),
+      background-color var(--duration-control) var(--ease-standard);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .ms-key:hover {
+      transform: translate(1px, 1px);
+      box-shadow: 2px 2px 0 var(--ms-shadow);
+    }
+  }
+
+  .ms-key:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 var(--ms-shadow);
+  }
+
+  .ms-key:focus-visible {
+    outline-offset: 4px;
+  }
+
+  /* The navigation label: compact, the height of its neighbours. */
+  .ms-nav {
+    height: 34px;
+    padding: 0 11px 0 9px;
+    margin-left: 6px;
+    font-size: 13px;
+    letter-spacing: 0.005em;
+  }
+
+  /* A 44px hit area around a 34px label, so it is easy to tap without being big. */
+  .ms-nav::after {
+    content: '';
+    position: absolute;
+    inset: -7px -5px;
+  }
+
+  /*
+   * Already inside MoodStamps: the label turns to cream paper with a violet
+   * shadow. Same size, same place — and a filled marker says it in shape as
+   * well as colour.
+   */
+  .ms-nav[aria-current='page'] {
+    --ms-shadow: var(--color-violet);
+    background-color: var(--color-paper);
+  }
+
+  .ms-nav-mark {
+    display: inline-block;
+    flex: none;
+    width: 14px;
+    height: 14px;
+  }
+
+  /* The square + key in the control bar. */
+  .ms-plus {
+    min-height: 48px;
+    min-width: 48px;
+    padding: 0 14px;
+    font-size: 14px;
+  }
+
+  .ms-plus[aria-expanded='true'] {
+    transform: translate(3px, 3px);
+    box-shadow: 0 0 0 var(--ms-shadow);
+  }
+
+  /* The primary action in the empty board: the same key, at button scale. */
+  .ms-cta {
+    min-height: 52px;
+    padding: 0 20px;
+    font-size: 15px;
+  }
+
+  /* ---- Received / Sent ---- */
+
+  /*
+   * Two equal tracks with one cream block sliding between them. Equal widths
+   * mean the indicator is always exactly one track, so it moves by a whole
+   * `100%` and never has to be measured.
+   */
+  .ms-tabs {
+    position: relative;
+    display: inline-grid;
+    grid-template-columns: 1fr 1fr;
+    border: 2px solid var(--color-paper);
+    flex: none;
+  }
+
+  .ms-tab-indicator {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 50%;
+    background-color: var(--color-paper);
+    transition: transform var(--duration-surface) var(--ease-standard);
+    pointer-events: none;
+  }
+
+  .ms-tabs[data-view='sent'] .ms-tab-indicator {
+    transform: translateX(100%);
+  }
+
+  .ms-tab {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 clamp(14px, 2.4vw, 22px);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-secondary);
+    transition: color var(--duration-surface) var(--ease-standard);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .ms-tab[aria-selected='false']:hover {
+      color: var(--color-primary);
+    }
+  }
+
+  .ms-tab[aria-selected='true'] {
+    color: var(--color-ink);
+    font-weight: 800;
+  }
+
+  .ms-tab:focus-visible {
+    outline-offset: 4px;
+  }
+
+  .ms-tab-count {
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 3px 6px;
+    background-color: var(--color-violet);
+    color: var(--color-ink);
+  }
+
+  /* ---- The create menu ---- */
+
+  .ms-popover {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 12px);
+    z-index: 40;
+    width: min(380px, calc(100vw - 32px));
+    padding: 8px;
+    border: 3px solid var(--color-ink);
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    box-shadow: 8px 8px 0 var(--color-violet);
+    transform-origin: top right;
+  }
+
+  .ms-choice {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 72px;
+    padding: 12px 14px 12px 12px;
+    color: var(--color-ink);
+    text-align: left;
+    transition: background-color var(--duration-micro) var(--ease-standard);
+  }
+
+  .ms-choice + .ms-choice {
+    border-top: 1px solid var(--rule-default);
+  }
+
+  .ms-choice:hover,
+  .ms-choice:focus-visible {
+    background-color: rgb(159 122 255 / 0.22);
+  }
+
+  .ms-choice:focus-visible {
+    outline: 3px solid var(--color-indigo);
+    outline-offset: -3px;
+  }
+
+  .ms-choice-icon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border: 2px solid var(--color-ink);
+    background-color: var(--color-violet);
+    color: var(--color-ink);
+  }
+
+  .ms-choice[data-choice='receive'] .ms-choice-icon {
+    background-color: var(--color-paper);
+  }
+
+  /*
+   * The phone's version: a sheet from the bottom edge, in the top layer. The
+   * dialog element has no padding of its own, so a tap that lands on it rather
+   * than its body is a tap on the backdrop.
+   */
+  .ms-sheet {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 48px);
+    margin: auto 0 0;
+    padding: 0;
+    border: 0;
+    border-top: 3px solid var(--color-ink);
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    box-shadow: 0 -6px 0 var(--color-violet);
+    overflow: auto;
+  }
+
+  .ms-sheet::backdrop {
+    background-color: rgb(20 17 15 / 0.7);
+  }
+
+  .ms-sheet-body {
+    padding: 18px 16px calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .ms-sheet .ms-choice {
+    min-height: 80px;
+    border: 2px solid var(--color-ink);
+  }
+
+  .ms-sheet .ms-choice + .ms-choice {
+    margin-top: 10px;
+    border-top: 2px solid var(--color-ink);
+  }
+
+  /* ---- The board ---- */
+
+  .ms-grid {
+    display: grid;
+    gap: clamp(22px, 2.6vw, 34px);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media (min-width: 640px) {
+    .ms-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .ms-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  /*
+   * The top of a stamp, cropped: the tone, the inner ink frame, the feeling
+   * and the count. When real artwork exists it replaces this, cropped the same.
+   */
+  .ms-stamp {
+    position: relative;
+    container-type: inline-size;
+    aspect-ratio: 7 / 5;
+    overflow: hidden;
+    background-color: var(--tone);
+    color: var(--color-ink);
+  }
+
+  .ms-stamp::before {
+    content: '';
+    position: absolute;
+    inset: 10px 10px -10px;
+    border: 2px solid var(--color-ink);
+    border-bottom: 0;
+    pointer-events: none;
+  }
+
+  /* The perforated edge: ink-dark bites along the bottom, like a torn-off stamp. */
+  .ms-stamp::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -5px;
+    height: 10px;
+    background-image: radial-gradient(circle at 5px 5px, var(--color-ink) 4px, transparent 4.5px);
+    background-size: 12px 10px;
+    pointer-events: none;
+  }
+
+  .ms-emotion {
+    font-family: var(--font-display);
+    font-weight: 900;
+    line-height: 0.86;
+    letter-spacing: -0.045em;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+  }
+
+  .ms-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border: 2px solid var(--color-ink);
+    color: var(--color-ink);
+    font-size: 10.5px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .ms-status[data-state='unopened'] {
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  .ms-status[data-state='unopened']::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    background-color: var(--color-violet);
+  }
+
+  /* ---- The empty board ---- */
+
+  .ms-example {
+    position: relative;
+    width: 100%;
+    max-width: 452px;
+    margin-inline: auto;
+    padding: 28px 22px 26px 8px;
+
+    /*
+     * The tilt and the shadow reach past the image's own box. Clipping here
+     * rather than on the page keeps a phone from ever scrolling sideways,
+     * and the padding keeps the clip clear of anything that should show.
+     */
+    overflow-x: clip;
+  }
+
+  .ms-example-frame {
+    position: relative;
+    border: 3px solid var(--color-ink);
+    background-color: var(--color-ink);
+    box-shadow: 12px 12px 0 var(--color-violet);
+    transform: rotate(var(--ms-tilt, -2deg));
+  }
+
+  .ms-example-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  /* The second stamp, tucked behind: it says "collection" without competing. */
+  .ms-example-behind {
+    position: absolute;
+    top: 10px;
+    right: 6px;
+    width: 72%;
+    border: 3px solid var(--color-ink);
+    transform: rotate(6deg);
+    opacity: 0.9;
+  }
+
+  .ms-example-behind img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .ms-example-label {
+    position: absolute;
+    z-index: 2;
+    top: 12px;
+    left: 0;
+    padding: 8px 11px;
+    border: 2px solid var(--color-ink);
+    background-color: var(--color-ink);
+    color: var(--color-violet);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    transform: rotate(-3deg);
+    box-shadow: 3px 3px 0 var(--color-violet);
+  }
+
+  .ms-private-note {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-secondary);
+  }
+
+  .ms-steps {
+    counter-reset: ms-step;
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .ms-steps li {
+    counter-increment: ms-step;
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 12px;
+    align-items: baseline;
+    font-size: 14.5px;
+    line-height: 1.45;
+    color: var(--color-secondary);
+  }
+
+  .ms-steps li::before {
+    content: counter(ms-step, decimal-leading-zero);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--color-violet);
+  }
+
+  .ms-steps strong {
+    color: var(--color-primary);
+    font-weight: 700;
+  }
+}
+
+/* --------------------------------- MoodStamps motion --------------------------------- */
+
+/* The create menu: a short scale up past its size, and a settle back. */
+@keyframes ms-menu-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.94);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(0) scale(1.012);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ms-menu-in {
+  animation: ms-menu-in 200ms var(--ease-standard) both;
+}
+
+@keyframes ms-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.ms-sheet[open] {
+  animation: ms-sheet-in 240ms var(--ease-enter) both;
+}
+
+/* The example stamp arrives once: a short rise and a fade, then it is still. */
+@keyframes ms-example-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ms-example-in {
+  animation: ms-example-in 420ms var(--ease-enter) 80ms both;
+}
+
+@keyframes ms-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* ------------------------------ reaction UI ------------------------------ */
@@ -1670,5 +2204,25 @@ body {
   .card-brutal:hover,
   .card-brutal:active {
     transform: none;
+  }
+
+  /*
+   * MoodStamps: the keys still lose their shadow when pressed, but nothing
+   * travels, and everything that would have moved in simply fades.
+   */
+  .ms-key:hover,
+  .ms-key:active,
+  .ms-plus[aria-expanded='true'] {
+    transform: none;
+  }
+
+  .ms-menu-in,
+  .ms-sheet[open],
+  .ms-example-in {
+    animation: ms-fade-in 180ms linear both !important;
+  }
+
+  .ms-tab-indicator {
+    transition: none;
   }
 }
