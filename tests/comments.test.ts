@@ -220,7 +220,24 @@ describe('filtering by recorded position', () => {
     // The critic sent two hundred Rotten Eggs; the comment carries a label,
     // not a score, and nothing on it is bigger for having tapped harder.
     expect(page.comments[0].authorStance).toBe('negative');
-    expect(JSON.stringify(page.comments[0])).not.toContain('200');
+
+    // Walk the fields rather than searching the serialised text: a random id
+    // such as `12004033-…` contains "200" without carrying any volume at all.
+    const numbers: number[] = [];
+    const keys: string[] = [];
+    const walk = (value: unknown) => {
+      if (typeof value === 'number') numbers.push(value);
+      else if (value && typeof value === 'object') {
+        for (const [key, child] of Object.entries(value)) {
+          keys.push(key);
+          walk(child);
+        }
+      }
+    };
+    walk(page.comments[0]);
+
+    expect(numbers).not.toContain(200);
+    expect(keys.filter((key) => /egg|medal|reaction|volume|intensity/i.test(key))).toEqual([]);
   });
 });
 
