@@ -34,17 +34,35 @@ export interface MoodStampSummary {
   /** Whether the recipient has opened it. */
   opened: boolean;
   /**
-   * Where a sent stamp stands. Email and WhatsApp delivery are not switched
-   * on yet, so those wait as 'awaiting'; a downloaded stamp was handed over by
-   * the sender themselves. Received stamps are always 'delivered'.
+   * Where a sent stamp stands. An emailed stamp is 'delivered' once the email
+   * has gone; WhatsApp delivery is not switched on yet, so those wait as
+   * 'awaiting'; a downloaded stamp was handed over by the sender themselves.
+   * Received stamps are always 'delivered'.
    */
   delivery: MoodStampDeliveryState;
+  /** Why the last delivery attempt did not go through, while it is still waiting. */
+  deliveryError: MoodStampDeliveryError | null;
   /** The rendered artwork, once artwork generation exists. */
   artworkUrl: string | null;
 }
 
 export type MoodStampChannel = 'email' | 'whatsapp' | 'download';
 export type MoodStampDeliveryState = 'awaiting' | 'downloaded' | 'delivered';
+export type MoodStampDeliveryError = 'opted_out' | 'recipient_limit' | 'send_failed' | 'not_configured';
+
+/** What the sender is told when an email did not go out, and what they can do. */
+export function deliveryErrorMessage(error: MoodStampDeliveryError): string {
+  switch (error) {
+    case 'opted_out':
+      return 'This address has asked not to receive MoodStamps, so it was not sent. You can still download it and hand it over yourself.';
+    case 'recipient_limit':
+      return 'This address has already been sent several MoodStamps today. Try again tomorrow.';
+    case 'not_configured':
+      return 'Email delivery is not available right now. Try again later.';
+    case 'send_failed':
+      return 'The email did not go through. Nothing was sent — try again.';
+  }
+}
 
 /** Everything printed on a stamp. Drawn the same by the page and the downloaded image. */
 export interface MoodStampArtworkData {

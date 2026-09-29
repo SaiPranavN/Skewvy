@@ -73,4 +73,13 @@ export const RATE_RULES = {
   opinionSwitch: { limit: 6, windowSeconds: 600 },
   /** A MoodStamp takes minutes to write; dozens an hour is not someone writing them. */
   moodStampCreate: { limit: 20, windowSeconds: 3600 },
+  /**
+   * How many MoodStamps one address can be emailed in a day, from everyone
+   * together. A person being piled on by strangers is the harm this caps.
+   */
+  moodStampToRecipient: { limit: 5, windowSeconds: 86400 },
+  /** Retrying a failed send, or sending one that was waiting. */
+  moodStampDeliver: { limit: 10, windowSeconds: 600 },
+  /** Opening a stamp and stopping MoodStamps are public, keyed by IP. */
+  moodStampPublic: { limit: 60, windowSeconds: 600 },
 } satisfies Record<string, RateLimitRule>;

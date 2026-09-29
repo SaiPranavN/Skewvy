@@ -4,6 +4,7 @@ import type { PublicUser } from '@/lib/domain/types';
 import type {
   MoodStampBoardData,
   MoodStampChannel,
+  MoodStampDeliveryError,
   MoodStampDeliveryState,
   MoodStampReaction,
   MoodStampRecord,
@@ -12,7 +13,7 @@ import type {
 import type { MoodStampDelivery, MoodStampDraft } from '@/lib/moodstamps/validation';
 import { newId } from './crypto';
 
-interface MoodStampRow {
+export interface MoodStampRow {
   id: string;
   receipt_code: string;
   sender_name: string;
@@ -28,16 +29,17 @@ interface MoodStampRow {
   recipient_email: string | null;
   recipient_phone: string | null;
   delivery_status: MoodStampDeliveryState;
+  delivery_error: MoodStampDeliveryError | null;
   opened_at: string | null;
   created_at: string;
 }
 
-const COLUMNS = `id, receipt_code, sender_name, anonymous, recipient_name, reaction, emotion, quantity,
+export const COLUMNS = `id, receipt_code, sender_name, anonymous, recipient_name, reaction, emotion, quantity,
   reason_what, reason_impact, reason_request, channel, recipient_email, recipient_phone,
-  delivery_status, opened_at, created_at`;
+  delivery_status, delivery_error, opened_at, created_at`;
 
 /** Seen by its sender: every stamp here is one they sent. */
-function toRecord(row: MoodStampRow): MoodStampRecord {
+export function toRecord(row: MoodStampRow): MoodStampRecord {
   return {
     id: row.id,
     direction: 'sent',
@@ -49,6 +51,7 @@ function toRecord(row: MoodStampRow): MoodStampRecord {
     occurredAt: row.created_at,
     opened: row.opened_at !== null,
     delivery: row.delivery_status,
+    deliveryError: row.delivery_status === 'awaiting' ? row.delivery_error : null,
     artworkUrl: null,
     receiptCode: row.receipt_code,
     senderName: row.sender_name,
@@ -71,6 +74,7 @@ function toSummary(record: MoodStampRecord): MoodStampSummary {
     occurredAt: record.occurredAt,
     opened: record.opened,
     delivery: record.delivery,
+    deliveryError: record.deliveryError,
     artworkUrl: record.artworkUrl,
   };
 }

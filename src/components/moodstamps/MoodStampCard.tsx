@@ -91,10 +91,12 @@ export function MoodStampCard({ stamp }: { stamp: MoodStampSummary }) {
  * Where a stamp stands, in words. A sent stamp that has not gone anywhere yet
  * says so plainly rather than pretending to be unopened.
  */
-export function StatusBadge({ stamp }: { stamp: Pick<MoodStampSummary, 'delivery' | 'opened'> }) {
+export function StatusBadge({ stamp }: { stamp: Pick<MoodStampSummary, 'delivery' | 'opened' | 'deliveryError'> }) {
   const state =
-    stamp.delivery === 'awaiting'
-      ? { key: 'awaiting', label: 'Awaiting delivery' }
+    stamp.delivery === 'awaiting' && stamp.deliveryError
+      ? { key: 'failed', label: 'Not delivered' }
+      : stamp.delivery === 'awaiting'
+        ? { key: 'awaiting', label: 'Awaiting delivery' }
       : stamp.delivery === 'downloaded'
         ? { key: 'downloaded', label: 'Downloaded' }
         : stamp.opened

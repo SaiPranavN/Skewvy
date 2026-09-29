@@ -5,7 +5,13 @@ import { MoodStampArtwork } from '@/components/moodstamps/MoodStampArtwork';
 import { StatusBadge } from '@/components/moodstamps/MoodStampCard';
 import { DownloadStampButton } from '@/components/moodstamps/DownloadStampButton';
 import { requireMoodStampsUser } from '@/lib/moodstamps/auth';
-import { artworkFromRecord, formatMoodStampDate, type MoodStampRecord } from '@/lib/moodstamps/types';
+import {
+  artworkFromRecord,
+  deliveryErrorMessage,
+  formatMoodStampDate,
+  type MoodStampRecord,
+} from '@/lib/moodstamps/types';
+import { DeliverNowButton } from '@/components/moodstamps/DeliverNowButton';
 import { getMoodStampForSender } from '@/lib/services/moodstamps';
 
 export const metadata: Metadata = { title: 'MoodStamp', robots: { index: false, follow: false } };
@@ -13,11 +19,25 @@ export const dynamic = 'force-dynamic';
 
 function deliveryLine(record: MoodStampRecord): string {
   if (record.channel === 'download') return 'You downloaded this one to hand over yourself.';
-  const route = record.channel === 'email' ? 'Email' : 'WhatsApp';
-  if (record.delivery === 'awaiting') {
-    return `${route} delivery is not switched on yet, so this has not reached ${record.destination} — it is waiting here until it does.`;
+  if (record.delivery === 'delivered') {
+    const route = record.channel === 'email' ? 'email' : 'WhatsApp';
+    return `Delivered by ${route} to ${record.destination}.${record.opened ? ' They have opened it.' : ' They have not opened it yet.'}`;
   }
-  return `Delivered by ${route.toLowerCase()} to ${record.destination}.`;
+  if (record.channel === 'whatsapp') {
+    return `WhatsApp delivery is not switched on yet, so this has not reached ${record.destination} — it is waiting here until it does.`;
+  }
+  if (record.deliveryError) return deliveryErrorMessage(record.deliveryError);
+  return `This has not been emailed to ${record.destination} yet.`;
+}
+
+/** An email stamp that has not gone, for a reason sending again could fix. */
+function canSend(record: MoodStampRecord): boolean {
+  return (
+    record.channel === 'email' &&
+    record.delivery === 'awaiting' &&
+    record.deliveryError !== 'opted_out' &&
+    record.deliveryError !== 'recipient_limit'
+  );
 }
 
 /**
@@ -57,7 +77,10 @@ export default async function MoodStampRoute({ params }: { params: Promise<{ id:
             </p>
           )}
           <p className="mt-3 text-[13.5px] font-semibold text-tertiary">Receipt {record.receiptCode}</p>
-          <div className="mt-8">
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
+            {canSend(record) && (
+              <DeliverNowButton id={record.id} label={record.deliveryError ? 'Try sending again' : 'Send it now'} />
+            )}
             <DownloadStampButton artwork={artworkFromRecord(record)} />
           </div>
         </div>

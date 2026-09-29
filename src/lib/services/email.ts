@@ -6,6 +6,8 @@ export interface OutboundEmail {
   subject: string;
   html: string;
   text: string;
+  /** Extra message headers, such as List-Unsubscribe. */
+  headers?: Record<string, string>;
   sentAt: string;
 }
 
@@ -38,7 +40,12 @@ export function emailDeliveryConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY?.trim());
 }
 
-export async function sendEmail(message: Omit<OutboundEmail, 'sentAt'>): Promise<void> {
+/**
+ * Sends one message. Resolves with the provider's message id when there is a
+ * real provider, and null from the dev transport; throws if the provider
+ * refuses it.
+ */
+export async function sendEmail(message: Omit<OutboundEmail, 'sentAt'>): Promise<{ id: string | null }> {
   const record: OutboundEmail = { ...message, sentAt: new Date().toISOString() };
   const store = outbox();
   store.push(record);
@@ -55,12 +62,14 @@ export async function sendEmail(message: Omit<OutboundEmail, 'sentAt'>): Promise
         subject: message.subject,
         html: message.html,
         text: message.text,
+        ...(message.headers ? { headers: message.headers } : {}),
       }),
     });
     if (!response.ok) {
       throw new Error(`Email delivery failed with status ${response.status}`);
     }
-    return;
+    const body = (await response.json().catch(() => ({}))) as { id?: string };
+    return { id: body.id ?? null };
   }
 
   if (process.env.NODE_ENV !== 'test') {
@@ -75,6 +84,7 @@ export async function sendEmail(message: Omit<OutboundEmail, 'sentAt'>): Promise
     const link = message.text.match(/https?:\/\/\S+/)?.[0];
     console.info(`\n📮 [skewvy dev mail] to=${message.to} — ${message.subject}\n   ${link ?? file}\n`);
   }
+  return { id: null };
 }
 
 const BRAND_STYLES = `font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,sans-serif;background:#0b0b12;color:#f3f1f7;padding:32px;border-radius:20px;max-width:520px;margin:0 auto;`;

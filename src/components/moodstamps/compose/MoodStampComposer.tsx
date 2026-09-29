@@ -22,7 +22,7 @@ const HEADINGS: Record<Step, { title: string; intro: string }> = {
   },
   preview: { title: 'Read it as they will.', intro: 'This is exactly how your MoodStamp will look.' },
   send: { title: 'Where should it go?', intro: 'Choose how it reaches them.' },
-  done: { title: 'It’s on your board.', intro: '' },
+  done: { title: 'Saved.', intro: '' },
 };
 
 const FIELD_ORDER: Array<keyof MoodStampDraft> = [
@@ -124,7 +124,8 @@ export function MoodStampComposer({ senderName }: { senderName: string }) {
   };
 
   const shownErrors = { ...(showErrors ? errors : {}), ...serverErrors };
-  const heading = HEADINGS[headingStep];
+  const heading =
+    headingStep === 'done' && sent ? { title: doneTitle(sent), intro: '' } : HEADINGS[headingStep];
   const voice = draft.reaction ? REACTION_VOICES[draft.reaction] : null;
 
   return (
@@ -194,6 +195,7 @@ export function MoodStampComposer({ senderName }: { senderName: string }) {
         {step === 'done' && sent && (
           <SentStep
             record={sent}
+            onRecordChange={setSent}
             onSendAnother={() => {
               setSent(null);
               go('write', true);
@@ -203,6 +205,14 @@ export function MoodStampComposer({ senderName }: { senderName: string }) {
       </div>
     </div>
   );
+}
+
+/** The done screen's heading says what actually happened, never more. */
+function doneTitle(record: MoodStampRecord): string {
+  if (record.channel === 'download') return 'Downloaded.';
+  if (record.delivery === 'delivered') return 'Delivered.';
+  if (record.channel === 'email') return 'Saved, but not sent yet.';
+  return 'Saved to your board.';
 }
 
 const TRAIL: Array<{ step: Step; label: string }> = [

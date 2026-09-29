@@ -17,6 +17,7 @@ const SAMPLE_RECEIVED: MoodStampSummary[] = [
     occurredAt: '2026-09-23T10:00:00.000Z',
     opened: true,
     delivery: 'delivered',
+    deliveryError: null,
     artworkUrl: null,
   },
   {
@@ -30,6 +31,7 @@ const SAMPLE_RECEIVED: MoodStampSummary[] = [
     occurredAt: '2026-09-21T10:00:00.000Z',
     opened: false,
     delivery: 'delivered',
+    deliveryError: null,
     artworkUrl: null,
   },
   {
@@ -43,6 +45,7 @@ const SAMPLE_RECEIVED: MoodStampSummary[] = [
     occurredAt: '2026-08-02T10:00:00.000Z',
     opened: false,
     delivery: 'delivered',
+    deliveryError: null,
     artworkUrl: null,
   },
   {
@@ -56,6 +59,7 @@ const SAMPLE_RECEIVED: MoodStampSummary[] = [
     occurredAt: '2026-07-14T10:00:00.000Z',
     opened: true,
     delivery: 'delivered',
+    deliveryError: null,
     artworkUrl: null,
   },
 ];
@@ -72,6 +76,7 @@ const SAMPLE_SENT: MoodStampSummary[] = [
     occurredAt: '2026-09-20T10:00:00.000Z',
     opened: true,
     delivery: 'delivered',
+    deliveryError: null,
     artworkUrl: null,
   },
   {
@@ -85,6 +90,7 @@ const SAMPLE_SENT: MoodStampSummary[] = [
     occurredAt: '2026-09-18T10:00:00.000Z',
     opened: false,
     delivery: 'awaiting',
+    deliveryError: null,
     artworkUrl: null,
   },
   {
@@ -98,6 +104,7 @@ const SAMPLE_SENT: MoodStampSummary[] = [
     occurredAt: '2026-09-12T10:00:00.000Z',
     opened: false,
     delivery: 'downloaded',
+    deliveryError: null,
     artworkUrl: null,
   },
 ];

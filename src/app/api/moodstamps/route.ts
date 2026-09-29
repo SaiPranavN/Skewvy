@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE, resolveSession } from '@/lib/services/sessions';
 import { createMoodStamp, loadMoodStampBoard } from '@/lib/services/moodstamps';
+import { deliverMoodStampByEmail } from '@/lib/services/moodstamp-delivery';
 import { consumeRateLimit, RATE_RULES } from '@/lib/services/rate-limit';
 import { apiError, rateLimited, validationError } from '@/lib/api/responses';
 import { moodStampCreateSchema } from '@/lib/moodstamps/validation';
@@ -21,11 +22,15 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Sends a MoodStamp — which, for now, means saving it.
+ * Sends a MoodStamp: saves it, and emails it when that is the chosen route.
  *
  * The same schema the form uses runs again here, language checks and all: the
  * form is a guide, and this is the rule. The sender is always the session's
  * own account, never a name or id from the body.
+ *
+ * The stamp is saved before the email is attempted, so a failed send leaves a
+ * stamp the sender can retry rather than one they have to write again. The
+ * response carries the outcome either way. WhatsApp is not delivered yet.
  */
 export async function POST(request: NextRequest) {
   const session = await resolveSession(request.cookies.get(SESSION_COOKIE)?.value);
@@ -37,6 +42,10 @@ export async function POST(request: NextRequest) {
   const limit = await consumeRateLimit(`moodstamp:${session.user.id}`, RATE_RULES.moodStampCreate);
   if (!limit.allowed) return rateLimited(limit.retryAfterSeconds);
 
-  const moodStamp = await createMoodStamp({ sender: session.user, ...parsed.data });
+  let moodStamp = await createMoodStamp({ sender: session.user, ...parsed.data });
+  if (moodStamp.channel === 'email') {
+    const outcome = await deliverMoodStampByEmail(moodStamp.id, session.user.id);
+    if (outcome.record) moodStamp = outcome.record;
+  }
   return NextResponse.json({ moodStamp }, { status: 201, headers: { 'cache-control': 'private, no-store' } });
 }

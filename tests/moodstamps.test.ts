@@ -120,7 +120,7 @@ describe('Sending a MoodStamp', () => {
     expect(response.status).toBe(401);
   });
 
-  it('saves an email MoodStamp as awaiting delivery, never as delivered', async () => {
+  it('saves an email MoodStamp and emails it at once', async () => {
     const { userId, token } = await signedIn();
     const response = await createRoute(
       createRequest({ draft: VALID_DRAFT, delivery: { channel: 'email', email: ' Aarav@Example.COM ' } }, token),
@@ -138,7 +138,8 @@ describe('Sending a MoodStamp', () => {
       senderName: 'Tester',
       channel: 'email',
       destination: 'aarav@example.com',
-      delivery: 'awaiting',
+      delivery: 'delivered',
+      deliveryError: null,
       opened: false,
     });
     expect(moodStamp.receiptCode).toMatch(/^SKV-[0-9A-F]{4}-045$/);
@@ -146,7 +147,7 @@ describe('Sending a MoodStamp', () => {
 
     const board = await loadMoodStampBoard(userId);
     expect(board.counts).toEqual({ received: 0, sent: 1 });
-    expect(board.sent[0]).toMatchObject({ id: moodStamp.id, delivery: 'awaiting', counterpartName: 'Aarav' });
+    expect(board.sent[0]).toMatchObject({ id: moodStamp.id, delivery: 'delivered', counterpartName: 'Aarav' });
     // A summary carries no reasons and no address.
     expect(JSON.stringify(board.sent[0])).not.toContain('aarav@example.com');
     expect(board.received).toEqual([]);

@@ -316,9 +316,34 @@ CREATE TABLE IF NOT EXISTS moodstamps (
   delivery_status TEXT NOT NULL CHECK (delivery_status IN ('awaiting', 'downloaded', 'delivered')),
   delivered_at    TEXT,
   opened_at       TEXT,
-  created_at      TEXT NOT NULL
+  created_at      TEXT NOT NULL,
+  -- Why the last delivery attempt did not go through, if it did not.
+  delivery_error  TEXT,
+  -- When delivery was last tried. Also a short claim, so two attempts cannot both send.
+  delivery_attempted_at TEXT,
+  -- The email provider's id for the delivered message.
+  provider_message_id TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_moodstamps_sender ON moodstamps(sender_id, created_at);
+
+-- The private link a recipient opens a MoodStamp with. Only a hash of the token
+-- is kept, like every other link Skewvy emails; the token itself exists in the
+-- email and nowhere else. Anyone holding it sees that one stamp, and nothing
+-- about the sender beyond what the stamp itself prints.
+CREATE TABLE IF NOT EXISTS moodstamp_links (
+  token_hash   TEXT PRIMARY KEY,
+  moodstamp_id TEXT NOT NULL REFERENCES moodstamps(id) ON DELETE CASCADE,
+  created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_moodstamp_links_stamp ON moodstamp_links(moodstamp_id);
+
+-- Addresses that have asked not to be emailed MoodStamps. Kept as a hash of the
+-- normalised address: enough to refuse the next send, without keeping a list
+-- of people's email addresses.
+CREATE TABLE IF NOT EXISTS moodstamp_optouts (
+  email_hash TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL
+);
 
 -- Server-side rate limiting; a fixed window keyed by action + subject.
 CREATE TABLE IF NOT EXISTS rate_limits (
@@ -360,6 +385,10 @@ export const ADDED_COLUMNS: Array<{ table: string; column: string; definition: s
   { table: 'users', column: 'terms_version', definition: 'TEXT' },
   { table: 'users', column: 'privacy_version', definition: 'TEXT' },
   { table: 'users', column: 'policies_accepted_at', definition: 'TEXT' },
+  // MoodStamp email delivery: what went wrong, when it was tried, and the provider's message id.
+  { table: 'moodstamps', column: 'delivery_error', definition: 'TEXT' },
+  { table: 'moodstamps', column: 'delivery_attempted_at', definition: 'TEXT' },
+  { table: 'moodstamps', column: 'provider_message_id', definition: 'TEXT' },
 ];
 
 /**

@@ -234,11 +234,19 @@ function DeliveryNote({ channel, anonymous }: { channel: MoodStampChannel; anony
       </p>
     );
   }
+  if (channel === 'email') {
+    return (
+      <p className="msc-note mt-5">
+        Skewvy emails it to them as soon as you send it. It comes from Skewvy, and your email address is never shared
+        {anonymous ? ' — nor your name' : ''}. They can open it, keep it, or ask not to be sent MoodStamps.
+      </p>
+    );
+  }
   return (
     <p className="msc-note mt-5">
-      <strong>{channel === 'email' ? 'Email' : 'WhatsApp'} delivery is not switched on yet.</strong> Your MoodStamp is
-      saved to your Sent board as <em>Awaiting delivery</em> — nothing reaches them until delivery is live. You can
-      download the image in the meantime.
+      <strong>WhatsApp delivery is not switched on yet.</strong> Your MoodStamp is saved to your Sent board as{' '}
+      <em>Awaiting delivery</em> — nothing reaches them until delivery is live. You can download the image in the
+      meantime.
     </p>
   );
 }

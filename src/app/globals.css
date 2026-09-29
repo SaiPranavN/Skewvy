@@ -1783,6 +1783,14 @@ body {
     border-style: dashed;
   }
 
+  /* Tried and did not go: struck through, so it reads without the colour. */
+  .ms-status[data-state='failed'] {
+    border-style: dashed;
+    background-color: rgb(224 71 42 / 0.14);
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
+  }
+
   .ms-status[data-state='downloaded']::before {
     content: '↓';
     font-size: 11px;
