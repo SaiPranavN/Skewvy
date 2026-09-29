@@ -33,8 +33,61 @@ export interface MoodStampSummary {
   occurredAt: string;
   /** Whether the recipient has opened it. */
   opened: boolean;
+  /**
+   * Where a sent stamp stands. Email and WhatsApp delivery are not switched
+   * on yet, so those wait as 'awaiting'; a downloaded stamp was handed over by
+   * the sender themselves. Received stamps are always 'delivered'.
+   */
+  delivery: MoodStampDeliveryState;
   /** The rendered artwork, once artwork generation exists. */
   artworkUrl: string | null;
+}
+
+export type MoodStampChannel = 'email' | 'whatsapp' | 'download';
+export type MoodStampDeliveryState = 'awaiting' | 'downloaded' | 'delivered';
+
+/** Everything printed on a stamp. Drawn the same by the page and the downloaded image. */
+export interface MoodStampArtworkData {
+  reaction: MoodStampReaction;
+  emotion: string;
+  quantity: number;
+  /** The sender's name as printed, whether or not it is shown. */
+  senderName: string;
+  anonymous: boolean;
+  recipientName: string;
+  reasons: [string, string, string];
+  /** Assigned when the stamp is sent; null on a preview. */
+  receiptCode: string | null;
+  /** ISO 8601. The day it was sent, or today on a preview. */
+  date: string;
+  /** What the badge row says about it. */
+  state: 'preview' | 'sent' | 'unopened' | 'opened';
+}
+
+/** A stamp as its sender sees it, on its own page. */
+export interface MoodStampRecord extends MoodStampSummary {
+  receiptCode: string;
+  senderName: string;
+  recipientName: string;
+  reasons: [string, string, string];
+  channel: MoodStampChannel;
+  /** The address it is going to: shown back to the sender only. */
+  destination: string | null;
+}
+
+export function artworkFromRecord(record: MoodStampRecord): MoodStampArtworkData {
+  return {
+    reaction: record.reaction,
+    emotion: record.emotion,
+    quantity: record.quantity,
+    senderName: record.senderName,
+    anonymous: record.anonymous,
+    recipientName: record.recipientName,
+    reasons: record.reasons,
+    receiptCode: record.receiptCode,
+    date: record.occurredAt,
+    state: record.delivery === 'delivered' ? (record.opened ? 'opened' : 'unopened') : 'sent',
+  };
 }
 
 export interface MoodStampCounts {

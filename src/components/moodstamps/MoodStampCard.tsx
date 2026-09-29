@@ -55,9 +55,7 @@ export function MoodStampCard({ stamp }: { stamp: MoodStampSummary }) {
             {stamp.reaction === 'medal' ? <MedalIcon size={15} /> : <EggIcon size={15} />}
             {reactionIntent(stamp.reaction)}
           </span>
-          <span className="ms-status" data-state={stamp.opened ? 'opened' : 'unopened'}>
-            {stamp.opened ? 'Opened' : 'Unopened'}
-          </span>
+          <StatusBadge stamp={stamp} />
         </div>
 
         <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -86,6 +84,27 @@ export function MoodStampCard({ stamp }: { stamp: MoodStampSummary }) {
         </div>
       </div>
     </article>
+  );
+}
+
+/**
+ * Where a stamp stands, in words. A sent stamp that has not gone anywhere yet
+ * says so plainly rather than pretending to be unopened.
+ */
+export function StatusBadge({ stamp }: { stamp: Pick<MoodStampSummary, 'delivery' | 'opened'> }) {
+  const state =
+    stamp.delivery === 'awaiting'
+      ? { key: 'awaiting', label: 'Awaiting delivery' }
+      : stamp.delivery === 'downloaded'
+        ? { key: 'downloaded', label: 'Downloaded' }
+        : stamp.opened
+          ? { key: 'opened', label: 'Opened' }
+          : { key: 'unopened', label: 'Unopened' };
+
+  return (
+    <span className="ms-status" data-state={state.key}>
+      {state.label}
+    </span>
   );
 }
 

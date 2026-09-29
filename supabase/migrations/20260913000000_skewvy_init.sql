@@ -292,6 +292,36 @@ CREATE TABLE IF NOT EXISTS site_reports (
 );
 CREATE INDEX IF NOT EXISTS idx_site_reports_open ON site_reports(resolved_at, created_at);
 
+-- A MoodStamp: one feeling, counted and addressed to one person.
+--
+-- Everything printed on the stamp is stored as it was sent, sender name
+-- included, so a later change of display name never rewrites a stamp someone
+-- already holds. The recipient's address is kept only for delivery and is
+-- shown to nobody but the sender. Delivery by email and WhatsApp is not
+-- switched on yet: those stamps wait as 'awaiting' until it is.
+CREATE TABLE IF NOT EXISTS moodstamps (
+  id              TEXT PRIMARY KEY,
+  receipt_code    TEXT NOT NULL UNIQUE,
+  sender_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sender_name     TEXT NOT NULL,
+  anonymous       INTEGER NOT NULL DEFAULT 0,
+  recipient_name  TEXT NOT NULL,
+  reaction        TEXT NOT NULL CHECK (reaction IN ('medal', 'rotten_egg')),
+  emotion         TEXT NOT NULL,
+  quantity        INTEGER NOT NULL CHECK (quantity BETWEEN 1 AND 100),
+  reason_what     TEXT NOT NULL,
+  reason_impact   TEXT NOT NULL,
+  reason_request  TEXT NOT NULL,
+  channel         TEXT NOT NULL CHECK (channel IN ('email', 'whatsapp', 'download')),
+  recipient_email TEXT,
+  recipient_phone TEXT,
+  delivery_status TEXT NOT NULL CHECK (delivery_status IN ('awaiting', 'downloaded', 'delivered')),
+  delivered_at    TEXT,
+  opened_at       TEXT,
+  created_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_moodstamps_sender ON moodstamps(sender_id, created_at);
+
 -- Server-side rate limiting; a fixed window keyed by action + subject.
 CREATE TABLE IF NOT EXISTS rate_limits (
   bucket_key   TEXT PRIMARY KEY,
@@ -333,7 +363,7 @@ DECLARE
   target text;
   supabase_roles boolean := EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon');
 BEGIN
-  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'opinion_changes', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'comments', 'comment_votes', 'comment_reports', 'site_reports', 'rate_limits', 'app_settings']
+  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'opinion_changes', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'comments', 'comment_votes', 'comment_reports', 'site_reports', 'moodstamps', 'rate_limits', 'app_settings']
   LOOP
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = target) THEN
       EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', target);

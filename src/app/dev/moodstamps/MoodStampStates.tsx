@@ -16,6 +16,7 @@ const SAMPLE_RECEIVED: MoodStampSummary[] = [
     anonymous: false,
     occurredAt: '2026-09-23T10:00:00.000Z',
     opened: true,
+    delivery: 'delivered',
     artworkUrl: null,
   },
   {
@@ -28,6 +29,7 @@ const SAMPLE_RECEIVED: MoodStampSummary[] = [
     anonymous: true,
     occurredAt: '2026-09-21T10:00:00.000Z',
     opened: false,
+    delivery: 'delivered',
     artworkUrl: null,
   },
   {
@@ -40,6 +42,7 @@ const SAMPLE_RECEIVED: MoodStampSummary[] = [
     anonymous: false,
     occurredAt: '2026-08-02T10:00:00.000Z',
     opened: false,
+    delivery: 'delivered',
     artworkUrl: null,
   },
   {
@@ -52,6 +55,7 @@ const SAMPLE_RECEIVED: MoodStampSummary[] = [
     anonymous: false,
     occurredAt: '2026-07-14T10:00:00.000Z',
     opened: true,
+    delivery: 'delivered',
     artworkUrl: null,
   },
 ];
@@ -67,6 +71,7 @@ const SAMPLE_SENT: MoodStampSummary[] = [
     anonymous: false,
     occurredAt: '2026-09-20T10:00:00.000Z',
     opened: true,
+    delivery: 'delivered',
     artworkUrl: null,
   },
   {
@@ -79,6 +84,20 @@ const SAMPLE_SENT: MoodStampSummary[] = [
     anonymous: true,
     occurredAt: '2026-09-18T10:00:00.000Z',
     opened: false,
+    delivery: 'awaiting',
+    artworkUrl: null,
+  },
+  {
+    id: 'sample-s3',
+    direction: 'sent',
+    emotion: 'Grateful',
+    reaction: 'medal',
+    quantity: 60,
+    counterpartName: 'Meera',
+    anonymous: false,
+    occurredAt: '2026-09-12T10:00:00.000Z',
+    opened: false,
+    delivery: 'downloaded',
     artworkUrl: null,
   },
 ];

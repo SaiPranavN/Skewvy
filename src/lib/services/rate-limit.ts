@@ -71,4 +71,6 @@ export const RATE_RULES = {
    * with the head count, and each flip moves a public number.
    */
   opinionSwitch: { limit: 6, windowSeconds: 600 },
+  /** A MoodStamp takes minutes to write; dozens an hour is not someone writing them. */
+  moodStampCreate: { limit: 20, windowSeconds: 3600 },
 } satisfies Record<string, RateLimitRule>;

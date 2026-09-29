@@ -1778,6 +1778,17 @@ body {
     background-color: var(--color-violet);
   }
 
+  /* Not gone anywhere yet: dashed, like something still in transit. */
+  .ms-status[data-state='awaiting'] {
+    border-style: dashed;
+  }
+
+  .ms-status[data-state='downloaded']::before {
+    content: '↓';
+    font-size: 11px;
+    line-height: 1;
+  }
+
   /* ---- The empty board ---- */
 
   .ms-example {
@@ -1884,6 +1895,691 @@ body {
   .ms-steps strong {
     color: var(--color-primary);
     font-weight: 700;
+  }
+
+  /* A moment worth a MoodStamp, on the empty board: paper, with its tone as a hard shadow. */
+  .ms-moment {
+    display: flex;
+    flex-direction: column;
+    min-height: 196px;
+    padding: 18px 18px 16px;
+    border: 2px solid var(--color-ink);
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    box-shadow: 6px 6px 0 var(--tone);
+  }
+
+  .ms-moment-mark {
+    display: block;
+    width: 38px;
+    height: 38px;
+    margin-bottom: 14px;
+  }
+
+  .ms-moment-mark svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ------------------------------ Sending a MoodStamp ------------------------------ */
+
+  /* One part of the form: a sheet of paper with an ink edge. */
+  .msc-card {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    border: 2px solid var(--color-ink);
+    padding: clamp(18px, 2.6vw, 30px);
+    min-width: 0;
+  }
+
+  .msc-card :focus-visible {
+    outline-color: var(--color-indigo);
+  }
+
+  .msc-legend,
+  .msc-label {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    line-height: 1.2;
+    text-transform: uppercase;
+    color: rgb(23 20 15 / 0.7);
+  }
+
+  .msc-question {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 15.5px;
+    font-weight: 800;
+    line-height: 1.3;
+  }
+
+  .msc-question-number {
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: rgb(23 20 15 / 0.5);
+  }
+
+  .msc-counter {
+    flex: none;
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: rgb(23 20 15 / 0.55);
+  }
+
+  .msc-counter[data-near] {
+    color: var(--color-egg-deep);
+  }
+
+  /*
+   * A large radio choice: the whole card is the target, the real input is
+   * hidden, and the state shows three ways — fill, a hard shadow and a
+   * checkmark — so it never rests on colour alone.
+   */
+  .msc-choice {
+    position: relative;
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr) 24px;
+    align-items: center;
+    gap: 14px;
+    min-height: 84px;
+    padding: 14px 16px;
+    border: 2px solid var(--color-ink);
+    background-color: var(--color-paper);
+    cursor: pointer;
+    transition:
+      transform var(--duration-micro) var(--ease-standard),
+      box-shadow var(--duration-micro) var(--ease-standard),
+      background-color var(--duration-control) var(--ease-standard);
+  }
+
+  .msc-choice-compact {
+    grid-template-columns: minmax(0, 1fr) 24px;
+    min-height: 72px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .msc-choice:hover {
+      background-color: rgb(23 20 15 / 0.05);
+    }
+  }
+
+  .msc-choice:has(input:checked) {
+    background-color: var(--color-violet);
+    box-shadow: 5px 5px 0 var(--color-ink);
+    transform: translate(-2px, -2px);
+  }
+
+  .msc-choice[data-reaction='medal']:has(input:checked) {
+    background-color: var(--color-medal);
+  }
+
+  .msc-choice[data-reaction='rotten_egg']:has(input:checked) {
+    background-color: var(--color-egg);
+  }
+
+  .msc-choice:has(input:focus-visible) {
+    outline: 3px solid var(--color-indigo);
+    outline-offset: 3px;
+  }
+
+  .msc-choice-mark {
+    display: block;
+    width: 52px;
+    height: 52px;
+    padding: 6px;
+    border: 2px solid var(--color-ink);
+    background-color: var(--color-paper);
+  }
+
+  .msc-choice-mark svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .msc-choice-check {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--color-ink);
+    background-color: var(--color-paper);
+  }
+
+  .msc-choice:has(input:checked) .msc-choice-check {
+    background-color: var(--color-ink);
+    box-shadow: inset 0 0 0 4px var(--color-paper);
+  }
+
+  /* A small choice: a feeling, a quick amount. */
+  .msc-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 15px;
+    border: 2px solid var(--color-ink);
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color var(--duration-micro) var(--ease-standard);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .msc-chip:hover {
+      background-color: rgb(23 20 15 / 0.07);
+    }
+  }
+
+  .msc-chip:has(input:checked),
+  .msc-chip[aria-pressed='true'] {
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  .msc-chip:has(input:focus-visible) {
+    outline: 3px solid var(--color-indigo);
+    outline-offset: 2px;
+  }
+
+  .msc-chip-button {
+    min-width: 56px;
+    justify-content: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  fieldset:disabled .msc-chip {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .msc-range {
+    display: block;
+    width: 100%;
+    height: 44px;
+    accent-color: var(--color-ink);
+    cursor: pointer;
+  }
+
+  .msc-card textarea.field-ink,
+  .msc-card input.field-ink,
+  .msc-card select.field-ink {
+    border-width: 2px;
+    border-color: rgb(23 20 15 / 0.35);
+    background-color: #fffdf8;
+    font-size: 16px;
+  }
+
+  .msc-card .field-ink:focus-visible {
+    border-color: var(--color-ink);
+  }
+
+  .msc-card .field-ink[aria-invalid='true'] {
+    border-color: var(--color-egg-deep);
+  }
+
+  /* A caught word: said plainly, beside the field, with a mark that is not only colour. */
+  .msc-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-left: 4px solid var(--color-egg-deep);
+    background-color: rgb(255 107 69 / 0.14);
+    color: var(--color-ink);
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+
+  .msc-warning-icon,
+  .msc-notice-icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    background-color: var(--color-egg-deep);
+    color: var(--color-paper);
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .msc-error {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-egg-deep);
+  }
+
+  /* The language rule, before the form starts. */
+  .msc-notice {
+    display: flex;
+    gap: 14px;
+    padding: 16px 18px;
+    border: 2px solid var(--color-ink);
+    border-left-width: 6px;
+    border-left-color: var(--color-egg-deep);
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  .msc-notice-icon {
+    width: 26px;
+    height: 26px;
+    font-size: 15px;
+  }
+
+  .msc-note {
+    padding: 12px 14px;
+    border: 1px dashed rgb(23 20 15 / 0.45);
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: rgb(23 20 15 / 0.8);
+  }
+
+  /* Write → Preview → Send. */
+  .msc-trail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .msc-trail li {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-tertiary);
+  }
+
+  .msc-trail li[data-state='current'] {
+    color: var(--color-primary);
+  }
+
+  .msc-trail-number {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: 2px solid currentColor;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .msc-trail li[data-state='current'] .msc-trail-number {
+    border-color: var(--color-violet);
+    background-color: var(--color-violet);
+    color: var(--color-ink);
+  }
+
+  .msc-trail li[data-state='done'] .msc-trail-number {
+    border-color: var(--color-paper);
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  /* ------------------------------ MoodStamp artwork ------------------------------ */
+
+  /*
+   * One stamp, sized entirely from its container's width (`cqi`), so it is
+   * the same design at any size. Small type is floored with `max()` so it
+   * never drops below reading size on a phone; below 520px the reasons and
+   * the From / To bar stack instead of squeezing.
+   */
+  .msa-root {
+    container-type: inline-size;
+    width: 100%;
+    color: var(--color-ink);
+  }
+
+  /* The hard shadow follows the perforated edge, which a box-shadow would not. */
+  .msa-shadow {
+    filter: drop-shadow(1cqi 1cqi 0 var(--color-ink));
+  }
+
+  /* Bites along the left and right edges… */
+  .msa-perf {
+    --r: max(3px, 0.9cqi);
+    --p: max(10px, 2.7cqi);
+    -webkit-mask:
+      radial-gradient(circle at 0 50%, #0000 var(--r), #000 calc(var(--r) + 0.5px)) 0 50% / 51% var(--p) repeat-y,
+      radial-gradient(circle at 100% 50%, #0000 var(--r), #000 calc(var(--r) + 0.5px)) 100% 50% / 51% var(--p) repeat-y;
+    mask:
+      radial-gradient(circle at 0 50%, #0000 var(--r), #000 calc(var(--r) + 0.5px)) 0 50% / 51% var(--p) repeat-y,
+      radial-gradient(circle at 100% 50%, #0000 var(--r), #000 calc(var(--r) + 0.5px)) 100% 50% / 51% var(--p) repeat-y;
+  }
+
+  /* …and along the top and bottom. Nested, so the two masks multiply. */
+  .msa {
+    --r: max(3px, 0.9cqi);
+    --p: max(10px, 2.7cqi);
+    background-color: var(--tone);
+    padding: max(12px, 2.6cqi);
+    -webkit-mask:
+      radial-gradient(circle at 50% 0, #0000 var(--r), #000 calc(var(--r) + 0.5px)) 50% 0 / var(--p) 51% repeat-x,
+      radial-gradient(circle at 50% 100%, #0000 var(--r), #000 calc(var(--r) + 0.5px)) 50% 100% / var(--p) 51% repeat-x;
+    mask:
+      radial-gradient(circle at 50% 0, #0000 var(--r), #000 calc(var(--r) + 0.5px)) 50% 0 / var(--p) 51% repeat-x,
+      radial-gradient(circle at 50% 100%, #0000 var(--r), #000 calc(var(--r) + 0.5px)) 50% 100% / var(--p) 51% repeat-x;
+  }
+
+  .msa-inner {
+    border: max(1.5px, 0.22cqi) solid var(--color-ink);
+    padding: max(14px, 3.4cqi) max(14px, 3.4cqi) max(12px, 2.6cqi);
+  }
+
+  .msa-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: max(8px, 1.4cqi);
+    border-bottom: max(3px, 0.5cqi) solid var(--color-ink);
+  }
+
+  .msa-site {
+    font-size: max(13px, 2.5cqi);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  .msa-brand {
+    font-family: var(--font-display);
+    font-size: max(13px, 2.5cqi);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .msa-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: max(5px, 0.9cqi);
+    margin: max(10px, 1.6cqi) 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .msa-badges li {
+    border: max(1.5px, 0.2cqi) solid var(--color-ink);
+    padding: max(4px, 0.7cqi) max(6px, 1.1cqi);
+    font-size: max(9.5px, 1.15cqi);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .msa-badges li[data-solid] {
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  .msa-lead {
+    margin-top: max(22px, 5cqi);
+    font-family: var(--font-display);
+    font-size: max(13px, 2.7cqi);
+    letter-spacing: 0.2em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .msa-emotion {
+    margin-top: 1.4cqi;
+    font-family: var(--font-display);
+    line-height: 0.84;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+  }
+
+  .msa-count {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2cqi;
+    margin-top: 2.4cqi;
+  }
+
+  .msa-number {
+    font-family: var(--font-display);
+    font-size: 17cqi;
+    line-height: 0.8;
+    letter-spacing: -0.06em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .msa-unit {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.2cqi;
+    min-width: 0;
+  }
+
+  .msa-unit-word {
+    font-family: var(--font-display);
+    font-size: max(18px, 5.4cqi);
+    line-height: 0.9;
+    letter-spacing: -0.035em;
+    text-transform: uppercase;
+  }
+
+  .msa-tag {
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+    font-family: var(--font-display);
+    font-size: max(9px, 1.9cqi);
+    letter-spacing: 0.08em;
+    line-height: 1;
+    padding: max(5px, 0.9cqi) max(7px, 1.3cqi);
+    text-transform: uppercase;
+    transform: rotate(-1.5deg);
+  }
+
+  .msa-tile {
+    display: block;
+    width: 12cqi;
+    min-width: 44px;
+    aspect-ratio: 1;
+    padding: 1.6cqi;
+    border: max(2px, 0.3cqi) solid var(--color-ink);
+    background-color: var(--color-paper);
+    box-shadow: 0.8cqi 0.8cqi 0 var(--color-ink);
+    transform: rotate(4deg);
+  }
+
+  .msa-tile svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .msa-people {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    margin-top: max(20px, 5cqi);
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  .msa-person {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4em max(8px, 1.4cqi);
+    padding: max(10px, 2cqi) max(12px, 2.2cqi);
+    min-width: 0;
+  }
+
+  .msa-person-to {
+    border-left: max(1px, 0.15cqi) dashed rgb(247 242 231 / 0.45);
+  }
+
+  .msa-person-label {
+    font-size: max(10px, 1.3cqi);
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .msa-person-name {
+    font-family: var(--font-display);
+    font-size: max(17px, 3.4cqi);
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+  }
+
+  .msa-verified {
+    font-size: max(10px, 1.3cqi);
+    font-weight: 700;
+  }
+
+  .msa-verified span {
+    color: var(--tone);
+  }
+
+  .msa-reasons {
+    margin-top: max(12px, 2.2cqi);
+    border: max(2px, 0.25cqi) solid var(--color-ink);
+    background-color: var(--color-paper);
+    box-shadow: 1cqi 1cqi 0 var(--color-ink);
+  }
+
+  .msa-reasons-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 12px;
+    padding: max(10px, 1.8cqi) max(12px, 2.2cqi);
+    border-bottom: max(2px, 0.25cqi) solid var(--color-ink);
+  }
+
+  .msa-intent {
+    font-size: max(10px, 1.5cqi);
+    font-weight: 800;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  .msa-intent-aside {
+    font-size: max(12px, 1.5cqi);
+    font-weight: 600;
+  }
+
+  .msa-row {
+    display: grid;
+    grid-template-columns: 30% minmax(0, 1fr);
+    gap: 2cqi;
+    padding: max(10px, 1.8cqi) max(12px, 2.2cqi);
+    border-bottom: max(1.5px, 0.2cqi) solid var(--color-ink);
+  }
+
+  .msa-row-label {
+    padding-top: 0.35em;
+    font-size: max(10.5px, 1.3cqi);
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    line-height: 1.3;
+    text-transform: uppercase;
+  }
+
+  .msa-row-number {
+    opacity: 0.6;
+    margin-right: 0.4em;
+  }
+
+  .msa-row-text {
+    font-size: max(14px, 2.1cqi);
+    font-weight: 600;
+    line-height: 1.32;
+    overflow-wrap: anywhere;
+  }
+
+  .msa-row-lead {
+    grid-template-columns: minmax(0, 1fr);
+    gap: max(6px, 1cqi);
+    border-bottom: 0;
+    background-color: var(--tone);
+  }
+
+  .msa-row-lead .msa-row-text {
+    font-family: var(--font-display);
+    font-size: max(19px, 3.4cqi);
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+  }
+
+  .msa-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin-top: max(16px, 2.8cqi);
+    padding-top: max(10px, 1.6cqi);
+    border-top: max(3px, 0.5cqi) solid var(--color-ink);
+  }
+
+  .msa-foot-right {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px max(10px, 1.6cqi);
+  }
+
+  .msa-foot-strong {
+    font-size: max(12px, 1.7cqi);
+    font-weight: 800;
+  }
+
+  .msa-foot-small {
+    margin-top: 0.5em;
+    font-size: max(10px, 1.25cqi);
+    font-weight: 600;
+  }
+
+  .msa-seal {
+    border: max(1.5px, 0.2cqi) solid var(--color-ink);
+    padding: max(4px, 0.6cqi) max(6px, 1cqi);
+    font-size: max(9px, 1.1cqi);
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    transform: rotate(-3deg);
+  }
+
+  @container (max-width: 520px) {
+    .msa-row {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 6px;
+    }
+
+    .msa-row-label {
+      padding-top: 0;
+    }
+
+    .msa-people {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .msa-person-to {
+      border-left: 0;
+      border-top: 1px dashed rgb(247 242 231 / 0.45);
+    }
   }
 }
 
@@ -2212,7 +2908,8 @@ body {
    */
   .ms-key:hover,
   .ms-key:active,
-  .ms-plus[aria-expanded='true'] {
+  .ms-plus[aria-expanded='true'],
+  .msc-choice:has(input:checked) {
     transform: none;
   }
 

@@ -42,8 +42,10 @@ export function MoodStampsPage({ initial }: { initial: MoodStampBoardResult }) {
       <header className="pt-[clamp(24px,3vw,44px)]">
         <p className="eyebrow text-[color:var(--color-violet)]">Personal expressions</p>
         <h1 className="display mt-3 text-[clamp(36px,4.4vw,60px)]">MoodStamps</h1>
-        <p className="mt-3 max-w-[44ch] text-[clamp(15px,1.15vw,17px)] leading-[1.5] text-secondary">
-          Send what you felt. Keep what people sent you.
+        <p className="mt-3 max-w-[56ch] text-[clamp(15px,1.15vw,17px)] leading-[1.5] text-secondary">
+          Some feelings are too big for a text and too important to swallow — the thank-you you never said out loud,
+          the frustration you keep biting back. <span className="font-semibold text-primary">Send what you felt. Keep what
+          people sent you.</span>
         </p>
       </header>
 

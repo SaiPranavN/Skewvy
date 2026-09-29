@@ -5,6 +5,7 @@ import { useId, useState } from 'react';
 import type { MoodStampView } from '@/lib/moodstamps/types';
 import { MOODSTAMP_TAGLINE } from '@/lib/moodstamps/types';
 import { MoodStampExample } from './MoodStampExample';
+import { MoodStampMoments } from './MoodStampMoments';
 import { ArrowRightIcon, LockIcon } from './icons';
 
 /**
@@ -17,15 +18,18 @@ import { ArrowRightIcon, LockIcon } from './icons';
  */
 export function MoodStampEmptyState({ view }: { view: MoodStampView }) {
   return (
-    <section
-      aria-labelledby={`moodstamps-empty-${view}`}
-      className="grid items-center gap-y-10 gap-x-[clamp(32px,5vw,88px)] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.92fr)]"
-    >
-      <div className="max-w-[560px] lg:pb-8">
-        {view === 'received' ? <ReceivedCopy /> : <SentCopy />}
-      </div>
-      <MoodStampExample lead={view === 'received' ? 'medals' : 'eggs'} />
-    </section>
+    <>
+      <section
+        aria-labelledby={`moodstamps-empty-${view}`}
+        className="grid items-center gap-y-10 gap-x-[clamp(32px,5vw,88px)] lg:grid-cols-[minmax(0,1fr)_minmax(0,0.92fr)]"
+      >
+        <div className="max-w-[560px] lg:pb-8">
+          {view === 'received' ? <ReceivedCopy /> : <SentCopy />}
+        </div>
+        <MoodStampExample lead={view === 'received' ? 'medals' : 'eggs'} />
+      </section>
+      <MoodStampMoments />
+    </>
   );
 }
 
