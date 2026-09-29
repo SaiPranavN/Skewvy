@@ -36,6 +36,7 @@ export async function truncateAll(): Promise<void> {
   for (const table of [
     'moodstamp_links',
     'moodstamp_optouts',
+    'moodstamp_recipients',
     'moodstamps',
     'site_reports',
     'comment_reports',

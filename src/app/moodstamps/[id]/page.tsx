@@ -5,51 +5,45 @@ import { MoodStampArtwork } from '@/components/moodstamps/MoodStampArtwork';
 import { StatusBadge } from '@/components/moodstamps/MoodStampCard';
 import { DownloadStampButton } from '@/components/moodstamps/DownloadStampButton';
 import { requireMoodStampsUser } from '@/lib/moodstamps/auth';
-import {
-  artworkFromRecord,
-  deliveryErrorMessage,
-  formatMoodStampDate,
-  type MoodStampRecord,
-} from '@/lib/moodstamps/types';
+import { artworkFromRecord, formatMoodStampDate } from '@/lib/moodstamps/types';
+import { canSendAgain, deliverySummary } from '@/lib/moodstamps/delivery-copy';
 import { DeliverNowButton } from '@/components/moodstamps/DeliverNowButton';
-import { getMoodStampForSender } from '@/lib/services/moodstamps';
+import { ReceivedStampView } from '@/components/moodstamps/recipient/ReceivedStampView';
+import { getMoodStampForSender, openReceivedMoodStamp, receivingAddress } from '@/lib/services/moodstamps';
 
 export const metadata: Metadata = { title: 'MoodStamp', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
-function deliveryLine(record: MoodStampRecord): string {
-  if (record.channel === 'download') return 'You downloaded this one to hand over yourself.';
-  if (record.delivery === 'delivered') {
-    const route = record.channel === 'email' ? 'email' : 'WhatsApp';
-    return `Delivered by ${route} to ${record.destination}.${record.opened ? ' They have opened it.' : ' They have not opened it yet.'}`;
-  }
-  if (record.channel === 'whatsapp') {
-    return `WhatsApp delivery is not switched on yet, so this has not reached ${record.destination} — it is waiting here until it does.`;
-  }
-  if (record.deliveryError) return deliveryErrorMessage(record.deliveryError);
-  return `This has not been emailed to ${record.destination} yet.`;
-}
-
-/** An email stamp that has not gone, for a reason sending again could fix. */
-function canSend(record: MoodStampRecord): boolean {
-  return (
-    record.channel === 'email' &&
-    record.delivery === 'awaiting' &&
-    record.deliveryError !== 'opted_out' &&
-    record.deliveryError !== 'recipient_limit'
-  );
-}
-
 /**
- * One MoodStamp, on its own page. Only its sender can open it: anyone else is
- * told there is nothing here, which is also what they would see for an id that
- * never existed.
+ * One MoodStamp, on its own page — for the two people it belongs to.
+ *
+ * Its sender sees where it went. The person it was sent to, signed in with
+ * the verified address it was sent to, sees it as theirs, and opening it here
+ * marks it opened. Anyone else is told there is nothing here, which is also
+ * what they would see for an id that never existed.
  */
 export default async function MoodStampRoute({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireMoodStampsUser(`/moodstamps/${encodeURIComponent(id)}`);
   const record = await getMoodStampForSender(id, user.id);
-  if (!record) notFound();
+
+  if (!record) {
+    const received = await openReceivedMoodStamp(id, receivingAddress(user));
+    if (!received) notFound();
+    return (
+      <ReceivedStampView
+        artwork={received.artwork}
+        back={
+          <Link
+            href="/moodstamps?view=received"
+            className="inline-flex min-h-11 items-center gap-2 text-[13px] font-bold text-secondary transition-colors duration-150 hover:text-primary"
+          >
+            <span aria-hidden="true">←</span> Your Received board
+          </Link>
+        }
+      />
+    );
+  }
 
   return (
     <div className="rail page-enter pb-[clamp(56px,7vw,110px)] pt-[clamp(24px,3vw,44px)]">
@@ -70,7 +64,7 @@ export default async function MoodStampRoute({ params }: { params: Promise<{ id:
             </span>
             <span className="text-[14px] font-semibold text-secondary">Sent {formatMoodStampDate(record.occurredAt)}</span>
           </div>
-          <p className="mt-5 max-w-[46ch] text-[15px] leading-relaxed text-secondary">{deliveryLine(record)}</p>
+          <p className="mt-5 max-w-[46ch] text-[15px] leading-relaxed text-secondary">{deliverySummary(record)}</p>
           {record.anonymous && (
             <p className="mt-3 max-w-[46ch] text-[14px] leading-relaxed text-tertiary">
               Signed anonymously: they will see “Anonymous”, and that Skewvy verified the sender.
@@ -78,7 +72,7 @@ export default async function MoodStampRoute({ params }: { params: Promise<{ id:
           )}
           <p className="mt-3 text-[13.5px] font-semibold text-tertiary">Receipt {record.receiptCode}</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
-            {canSend(record) && (
+            {canSendAgain(record) && (
               <DeliverNowButton id={record.id} label={record.deliveryError ? 'Try sending again' : 'Send it now'} />
             )}
             <DownloadStampButton artwork={artworkFromRecord(record)} />

@@ -238,7 +238,9 @@ function DeliveryNote({ channel, anonymous }: { channel: MoodStampChannel; anony
     return (
       <p className="msc-note mt-5">
         Skewvy emails it to them as soon as you send it. It comes from Skewvy, and your email address is never shared
-        {anonymous ? ' — nor your name' : ''}. They can open it, keep it, or ask not to be sent MoodStamps.
+        {anonymous ? ' — nor your name' : ''}. To keep anyone from being flooded, an address gets one MoodStamp email a
+        day: if they have already had one today, yours waits in their MoodStamps inbox on Skewvy and they get a
+        reminder.
       </p>
     );
   }

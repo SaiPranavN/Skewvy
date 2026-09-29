@@ -322,9 +322,16 @@ CREATE TABLE IF NOT EXISTS moodstamps (
   -- When delivery was last tried. Also a short claim, so two attempts cannot both send.
   delivery_attempted_at TEXT,
   -- The email provider's id for the delivered message.
-  provider_message_id TEXT
+  provider_message_id TEXT,
+  -- How a delivered email stamp reached them: 'email' (its own email) or
+  -- 'inbox' (held on Skewvy, because the address was emailed within the day).
+  delivery_route  TEXT,
+  -- When the recipient was last told about it: its own email, or the reminder.
+  recipient_notified_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_moodstamps_sender ON moodstamps(sender_id, created_at);
+-- A person's Received board, and the stamps waiting under an address with no account yet.
+CREATE INDEX IF NOT EXISTS idx_moodstamps_recipient ON moodstamps(recipient_email, delivery_status);
 
 -- The private link a recipient opens a MoodStamp with. Only a hash of the token
 -- is kept, like every other link Skewvy emails; the token itself exists in the
@@ -336,6 +343,14 @@ CREATE TABLE IF NOT EXISTS moodstamp_links (
   created_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_moodstamp_links_stamp ON moodstamp_links(moodstamp_id);
+
+-- When each address was last sent a MoodStamp email, of either kind. One email
+-- a day at most: anything more waits on Skewvy until the next reminder is due.
+-- Keyed by a hash of the address, like the opt-outs.
+CREATE TABLE IF NOT EXISTS moodstamp_recipients (
+  email_hash      TEXT PRIMARY KEY,
+  last_emailed_at TEXT NOT NULL
+);
 
 -- Addresses that have asked not to be emailed MoodStamps. Kept as a hash of the
 -- normalised address: enough to refuse the next send, without keeping a list
@@ -389,6 +404,8 @@ export const ADDED_COLUMNS: Array<{ table: string; column: string; definition: s
   { table: 'moodstamps', column: 'delivery_error', definition: 'TEXT' },
   { table: 'moodstamps', column: 'delivery_attempted_at', definition: 'TEXT' },
   { table: 'moodstamps', column: 'provider_message_id', definition: 'TEXT' },
+  { table: 'moodstamps', column: 'delivery_route', definition: 'TEXT' },
+  { table: 'moodstamps', column: 'recipient_notified_at', definition: 'TEXT' },
 ];
 
 /**

@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { downloadMoodStamp } from '@/lib/client/moodstamp-image';
-import { artworkFromRecord, deliveryErrorMessage, moodStampHref, type MoodStampRecord } from '@/lib/moodstamps/types';
+import { artworkFromRecord, moodStampHref, type MoodStampRecord } from '@/lib/moodstamps/types';
+import { canSendAgain, deliverySummary } from '@/lib/moodstamps/delivery-copy';
 import { DeliverNowButton } from '../DeliverNowButton';
 import { MoodStampArtwork } from '../MoodStampArtwork';
 
@@ -34,18 +35,8 @@ export function SentStep({
   const summary =
     record.channel === 'download'
       ? 'The image has been downloaded, and the MoodStamp is saved on your Sent board.'
-      : record.delivery === 'delivered'
-        ? `Delivered to ${record.destination}. It will show as Opened on your Sent board once they open it.`
-        : record.channel === 'email' && record.deliveryError
-          ? deliveryErrorMessage(record.deliveryError)
-          : record.channel === 'whatsapp'
-            ? `WhatsApp delivery is not switched on yet, so it has not gone to ${record.destination}. It is saved on your Sent board as Awaiting delivery.`
-            : 'It is saved on your Sent board and waiting to be sent.';
-  const canRetry =
-    record.channel === 'email' &&
-    record.delivery === 'awaiting' &&
-    record.deliveryError !== 'opted_out' &&
-    record.deliveryError !== 'recipient_limit';
+      : deliverySummary(record);
+  const canRetry = canSendAgain(record);
 
   return (
     <div className="grid max-w-[1080px] items-start gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)]">

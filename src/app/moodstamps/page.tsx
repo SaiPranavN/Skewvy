@@ -4,7 +4,7 @@ import { MoodStampsPage } from '@/components/moodstamps/MoodStampsPage';
 import { MoodStampsPageSkeleton } from '@/components/moodstamps/MoodStampCardSkeleton';
 import { requireMoodStampsUser } from '@/lib/moodstamps/auth';
 import { MOODSTAMP_TAGLINE, parseMoodStampView, type MoodStampBoardResult } from '@/lib/moodstamps/types';
-import { loadMoodStampBoard } from '@/lib/services/moodstamps';
+import { loadMoodStampBoard, receivingAddress } from '@/lib/services/moodstamps';
 
 export const metadata: Metadata = {
   title: 'MoodStamps',
@@ -28,16 +28,16 @@ export default async function MoodStampsRoute({ searchParams }: { searchParams: 
 
   return (
     <Suspense fallback={<MoodStampsPageSkeleton />}>
-      <MoodStampBoardLoader userId={user.id} />
+      <MoodStampBoardLoader userId={user.id} receivingEmail={receivingAddress(user)} />
     </Suspense>
   );
 }
 
-async function MoodStampBoardLoader({ userId }: { userId: string }) {
+async function MoodStampBoardLoader({ userId, receivingEmail }: { userId: string; receivingEmail: string | null }) {
   // A failed read is shown as a recoverable error on the page, not a crash.
   let initial: MoodStampBoardResult;
   try {
-    initial = { status: 'ready', data: await loadMoodStampBoard(userId) };
+    initial = { status: 'ready', data: await loadMoodStampBoard(userId, receivingEmail) };
   } catch (error) {
     console.error('[moodstamps] board failed to load', error);
     initial = { status: 'error' };

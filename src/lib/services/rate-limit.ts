@@ -74,10 +74,12 @@ export const RATE_RULES = {
   /** A MoodStamp takes minutes to write; dozens an hour is not someone writing them. */
   moodStampCreate: { limit: 20, windowSeconds: 3600 },
   /**
-   * How many MoodStamps one address can be emailed in a day, from everyone
-   * together. A person being piled on by strangers is the harm this caps.
+   * How many MoodStamps one person can send one address in a day. Past this
+   * it stops being feedback and starts being a campaign.
    */
-  moodStampToRecipient: { limit: 5, windowSeconds: 86400 },
+  moodStampToRecipient: { limit: 3, windowSeconds: 86400 },
+  /** The reminder sweep, when something outside Vercel's scheduler calls it. */
+  moodStampSweep: { limit: 30, windowSeconds: 3600 },
   /** Retrying a failed send, or sending one that was waiting. */
   moodStampDeliver: { limit: 10, windowSeconds: 600 },
   /** Opening a stamp and stopping MoodStamps are public, keyed by IP. */

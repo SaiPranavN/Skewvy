@@ -324,9 +324,16 @@ CREATE TABLE IF NOT EXISTS moodstamps (
   -- When delivery was last tried. Also a short claim, so two attempts cannot both send.
   delivery_attempted_at TEXT,
   -- The email provider's id for the delivered message.
-  provider_message_id TEXT
+  provider_message_id TEXT,
+  -- How a delivered email stamp reached them: 'email' (its own email) or
+  -- 'inbox' (held on Skewvy, because the address was emailed within the day).
+  delivery_route  TEXT,
+  -- When the recipient was last told about it: its own email, or the reminder.
+  recipient_notified_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_moodstamps_sender ON moodstamps(sender_id, created_at);
+-- A person's Received board, and the stamps waiting under an address with no account yet.
+CREATE INDEX IF NOT EXISTS idx_moodstamps_recipient ON moodstamps(recipient_email, delivery_status);
 
 -- The private link a recipient opens a MoodStamp with. Only a hash of the token
 -- is kept, like every other link Skewvy emails; the token itself exists in the
@@ -338,6 +345,14 @@ CREATE TABLE IF NOT EXISTS moodstamp_links (
   created_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_moodstamp_links_stamp ON moodstamp_links(moodstamp_id);
+
+-- When each address was last sent a MoodStamp email, of either kind. One email
+-- a day at most: anything more waits on Skewvy until the next reminder is due.
+-- Keyed by a hash of the address, like the opt-outs.
+CREATE TABLE IF NOT EXISTS moodstamp_recipients (
+  email_hash      TEXT PRIMARY KEY,
+  last_emailed_at TEXT NOT NULL
+);
 
 -- Addresses that have asked not to be emailed MoodStamps. Kept as a hash of the
 -- normalised address: enough to refuse the next send, without keeping a list
@@ -382,6 +397,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS policies_accepted_at TEXT;
 ALTER TABLE moodstamps ADD COLUMN IF NOT EXISTS delivery_error TEXT;
 ALTER TABLE moodstamps ADD COLUMN IF NOT EXISTS delivery_attempted_at TEXT;
 ALTER TABLE moodstamps ADD COLUMN IF NOT EXISTS provider_message_id TEXT;
+ALTER TABLE moodstamps ADD COLUMN IF NOT EXISTS delivery_route TEXT;
+ALTER TABLE moodstamps ADD COLUMN IF NOT EXISTS recipient_notified_at TEXT;
 
 -- ---------------------------------------------------------------------------
 -- Keep these tables out of the public API. See postgresHardeningSql().
@@ -391,7 +408,7 @@ DECLARE
   target text;
   supabase_roles boolean := EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon');
 BEGIN
-  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'opinion_changes', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'comments', 'comment_votes', 'comment_reports', 'site_reports', 'moodstamps', 'moodstamp_links', 'moodstamp_optouts', 'rate_limits', 'app_settings']
+  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'opinion_changes', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'comments', 'comment_votes', 'comment_reports', 'site_reports', 'moodstamps', 'moodstamp_links', 'moodstamp_recipients', 'moodstamp_optouts', 'rate_limits', 'app_settings']
   LOOP
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = target) THEN
       EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', target);

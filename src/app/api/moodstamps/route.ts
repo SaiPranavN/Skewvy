@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE, resolveSession } from '@/lib/services/sessions';
-import { createMoodStamp, loadMoodStampBoard } from '@/lib/services/moodstamps';
-import { deliverMoodStampByEmail } from '@/lib/services/moodstamp-delivery';
+import { createMoodStamp, loadMoodStampBoard, receivingAddress } from '@/lib/services/moodstamps';
+import { deliverMoodStampByEmail, sweepRemindersSoon } from '@/lib/services/moodstamp-delivery';
 import { consumeRateLimit, RATE_RULES } from '@/lib/services/rate-limit';
 import { apiError, rateLimited, validationError } from '@/lib/api/responses';
 import { moodStampCreateSchema } from '@/lib/moodstamps/validation';
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const session = await resolveSession(request.cookies.get(SESSION_COOKIE)?.value);
   if (!session) return apiError(401, 'unauthorized', 'Sign in to see your MoodStamps.');
 
-  const board = await loadMoodStampBoard(session.user.id);
+  const board = await loadMoodStampBoard(session.user.id, receivingAddress(session.user));
   return NextResponse.json(board, { headers: { 'cache-control': 'private, no-store' } });
 }
 
@@ -29,8 +29,11 @@ export async function GET(request: NextRequest) {
  * own account, never a name or id from the body.
  *
  * The stamp is saved before the email is attempted, so a failed send leaves a
- * stamp the sender can retry rather than one they have to write again. The
+ * stamp the sender can retry rather than one they have to write again. An
+ * address already emailed today gets it in their Skewvy inbox instead. The
  * response carries the outcome either way. WhatsApp is not delivered yet.
+ *
+ * Any reminders that have come due go out after the response, on the way.
  */
 export async function POST(request: NextRequest) {
   const session = await resolveSession(request.cookies.get(SESSION_COOKIE)?.value);
@@ -47,5 +50,6 @@ export async function POST(request: NextRequest) {
     const outcome = await deliverMoodStampByEmail(moodStamp.id, session.user.id);
     if (outcome.record) moodStamp = outcome.record;
   }
+  sweepRemindersSoon();
   return NextResponse.json({ moodStamp }, { status: 201, headers: { 'cache-control': 'private, no-store' } });
 }

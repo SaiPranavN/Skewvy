@@ -49,6 +49,8 @@ export interface MoodStampSummary {
 export type MoodStampChannel = 'email' | 'whatsapp' | 'download';
 export type MoodStampDeliveryState = 'awaiting' | 'downloaded' | 'delivered';
 export type MoodStampDeliveryError = 'opted_out' | 'recipient_limit' | 'send_failed' | 'not_configured';
+/** How a delivered email stamp reached them: its own email, or held in their Skewvy inbox. */
+export type MoodStampDeliveryRoute = 'email' | 'inbox';
 
 /** What the sender is told when an email did not go out, and what they can do. */
 export function deliveryErrorMessage(error: MoodStampDeliveryError): string {
@@ -56,7 +58,7 @@ export function deliveryErrorMessage(error: MoodStampDeliveryError): string {
     case 'opted_out':
       return 'This address has asked not to receive MoodStamps, so it was not sent. You can still download it and hand it over yourself.';
     case 'recipient_limit':
-      return 'This address has already been sent several MoodStamps today. Try again tomorrow.';
+      return 'You have already sent this person three MoodStamps today. Try again tomorrow.';
     case 'not_configured':
       return 'Email delivery is not available right now. Try again later.';
     case 'send_failed':
@@ -91,6 +93,8 @@ export interface MoodStampRecord extends MoodStampSummary {
   channel: MoodStampChannel;
   /** The address it is going to: shown back to the sender only. */
   destination: string | null;
+  /** For a delivered email stamp: whether it was emailed, or held in their Skewvy inbox. */
+  deliveryRoute: MoodStampDeliveryRoute | null;
 }
 
 export function artworkFromRecord(record: MoodStampRecord): MoodStampArtworkData {

@@ -4,8 +4,8 @@ import { setupTestDatabase, teardownTestDatabase, truncateAll, createVerifiedUse
 import { execute } from '@/lib/db';
 import { SESSION_COOKIE, createSession } from '@/lib/services/sessions';
 import { outbox } from '@/lib/services/email';
-import { getMoodStampForSender } from '@/lib/services/moodstamps';
-import { getMoodStampByToken, markMoodStampOpened } from '@/lib/services/moodstamp-delivery';
+import { getMoodStampForSender, loadMoodStampBoard, openReceivedMoodStamp } from '@/lib/services/moodstamps';
+import { getMoodStampByToken, markMoodStampOpened, sendDueMoodStampReminders } from '@/lib/services/moodstamp-delivery';
 import { escapeHtml, renderMoodStampEmail } from '@/lib/moodstamps/email';
 
 const { POST: createRoute } = await import('@/app/api/moodstamps/route');
@@ -121,6 +121,8 @@ describe('Emailing a MoodStamp', () => {
       optOutUrl: 'https://skewvy.com/moodstamps/opt-out/token',
       oneClickOptOutUrl: 'https://skewvy.com/api/moodstamps/opt-out?token=token',
       reportUrl: 'https://skewvy.com/report',
+      assetBaseUrl: 'https://skewvy.com/email',
+      siteUrl: 'https://skewvy.com',
     });
     expect(email.html).not.toContain('<b>Aarav</b>');
     expect(email.html).not.toContain('<script>');
@@ -232,15 +234,159 @@ describe('The recipient', () => {
     expect(outbox().length).toBe(before);
   });
 
-  it('is sent at most five MoodStamps a day, from everyone together', async () => {
-    for (let index = 0; index < 5; index += 1) {
+  it('is emailed once a day; the rest wait in their Skewvy inbox', async () => {
+    const first = await sender();
+    expect(await send(first.token, DRAFT, 'popular@example.com')).toMatchObject({
+      delivery: 'delivered',
+      deliveryRoute: 'email',
+    });
+    const emailsAfterFirst = outbox().length;
+
+    for (let index = 0; index < 4; index += 1) {
       const { token } = await sender();
-      expect((await send(token, DRAFT, 'popular@example.com')).delivery).toBe('delivered');
+      expect(await send(token, DRAFT, 'Popular@Example.com')).toMatchObject({
+        delivery: 'delivered',
+        deliveryRoute: 'inbox',
+        deliveryError: null,
+      });
     }
+    expect(outbox().length).toBe(emailsAfterFirst);
+  });
+
+  it('lets one sender send the same address at most three a day', async () => {
     const { token } = await sender();
-    expect(await send(token, DRAFT, 'popular@example.com')).toMatchObject({
+    for (let index = 0; index < 3; index += 1) {
+      expect((await send(token, DRAFT, 'target@example.com')).delivery).toBe('delivered');
+    }
+    expect(await send(token, DRAFT, 'target@example.com')).toMatchObject({
       delivery: 'awaiting',
       deliveryError: 'recipient_limit',
     });
+  });
+});
+
+describe('Reminders', () => {
+  async function fillInbox(address: string, extra: number) {
+    const first = await sender();
+    await send(first.token, DRAFT, address);
+    for (let index = 0; index < extra; index += 1) {
+      const { token } = await sender();
+      await send(token, { ...DRAFT, anonymous: true }, address);
+    }
+  }
+
+  async function dayPasses() {
+    const past = new Date(Date.now() - 25 * 3600 * 1000).toISOString();
+    await execute('UPDATE moodstamp_recipients SET last_emailed_at = $1', [past]);
+  }
+
+  it('waits a day, then sends one reminder for everything held back, and only once', async () => {
+    await fillInbox('waiting@example.com', 3);
+    const before = outbox().length;
+
+    expect((await sendDueMoodStampReminders()).sent).toBe(0);
+    expect(outbox().length).toBe(before);
+
+    await dayPasses();
+    expect((await sendDueMoodStampReminders()).sent).toBe(1);
+    const reminder = outbox().at(-1)!;
+    expect(reminder.to).toBe('waiting@example.com');
+    expect(reminder.subject).toBe('You have 3 MoodStamps waiting');
+    expect(reminder.headers?.['List-Unsubscribe']).toBeTruthy();
+    // No account holds this address yet: the way in is signing up with it.
+    expect(reminder.text).toContain('/register?returnTo=');
+    expect(reminder.text).toContain('Sign up with waiting@example.com');
+    // It names nobody, and says nothing about what they felt.
+    expect(reminder.html).not.toContain('Pranav');
+    expect(reminder.html).not.toContain('Impressed');
+
+    await dayPasses();
+    expect((await sendDueMoodStampReminders()).sent).toBe(0);
+  });
+
+  it('points someone with an account at their board', async () => {
+    await createVerifiedUser('member@example.com');
+    await fillInbox('member@example.com', 1);
+    await dayPasses();
+    await sendDueMoodStampReminders();
+    const reminder = outbox().at(-1)!;
+    expect(reminder.subject).toBe('You have a MoodStamp waiting');
+    expect(reminder.text).toContain('/moodstamps?view=received');
+    expect(reminder.text).not.toContain('/register');
+  });
+
+  it('sends nothing to an address that opted out in the meantime', async () => {
+    await fillInbox('quiet@example.com', 2);
+    const link = outbox()
+      .filter((message) => message.to === 'quiet@example.com')
+      .at(0)!
+      .text.match(/\/moodstamps\/open\/([A-Za-z0-9_-]+)/)![1];
+    await optOutPost(new NextRequest(`http://localhost/api/moodstamps/opt-out?token=${link}`, { method: 'POST' }));
+
+    await dayPasses();
+    const before = outbox().length;
+    expect((await sendDueMoodStampReminders()).sent).toBe(0);
+    expect(outbox().length).toBe(before);
+    expect((await sendDueMoodStampReminders()).waiting).toBe(0);
+  });
+});
+
+describe('The Received board', () => {
+  it('shows everything sent to the account’s verified email, however it arrived', async () => {
+    const recipientId = await createVerifiedUser('reader@example.com');
+    const named = await sender('Pranav');
+    const hidden = await sender('Secret Sender');
+    const emailed = await send(named.token, DRAFT, 'Reader@Example.com');
+    const held = await send(hidden.token, { ...DRAFT, anonymous: true }, 'reader@example.com');
+    expect(held.deliveryRoute).toBe('inbox');
+
+    const board = await loadMoodStampBoard(recipientId, 'reader@example.com');
+    expect(board.counts.received).toBe(2);
+    expect(board.received.map((stamp) => stamp.id).sort()).toEqual([emailed.id, held.id].sort());
+    expect(board.received.find((stamp) => stamp.id === emailed.id)).toMatchObject({
+      direction: 'received',
+      counterpartName: 'Pranav',
+      opened: false,
+    });
+    expect(board.received.find((stamp) => stamp.id === held.id)).toMatchObject({ anonymous: true, counterpartName: null });
+    expect(JSON.stringify(board.received)).not.toContain('Secret Sender');
+  });
+
+  it('holds stamps for an address until an account proves it owns it', async () => {
+    const { token } = await sender();
+    await send(token, DRAFT, 'later@example.com');
+
+    const unverified = await createVerifiedUser('later@example.com');
+    await execute('UPDATE users SET email_verified_at = NULL WHERE id = $1', [unverified]);
+    const { receivingAddress } = await import('@/lib/services/moodstamps');
+    expect(receivingAddress({ email: 'later@example.com', emailVerifiedAt: null })).toBeNull();
+    expect((await loadMoodStampBoard(unverified, null)).received).toEqual([]);
+
+    expect(receivingAddress({ email: 'Later@Example.com', emailVerifiedAt: new Date().toISOString() })).toBe(
+      'later@example.com',
+    );
+    expect((await loadMoodStampBoard(unverified, 'later@example.com')).counts.received).toBe(1);
+  });
+
+  it('opens a stamp for its recipient, marks it opened, and hides an anonymous sender', async () => {
+    const who = await sender('Secret Sender');
+    const stamp = await send(who.token, { ...DRAFT, anonymous: true }, 'reader@example.com');
+
+    expect(await openReceivedMoodStamp(stamp.id, 'someone-else@example.com')).toBeNull();
+    const opened = await openReceivedMoodStamp(stamp.id, 'reader@example.com');
+    expect(opened?.artwork.senderName).toBe('Anonymous');
+    expect(JSON.stringify(opened)).not.toContain('Secret Sender');
+    expect((await getMoodStampForSender(stamp.id, who.userId))?.opened).toBe(true);
+  });
+
+  it('never shows a stamp that was not delivered', async () => {
+    vi.stubEnv('RESEND_API_KEY', 're_test');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 500 })));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { token } = await sender();
+    const stamp = await send(token, DRAFT, 'reader@example.com');
+    expect(stamp.delivery).toBe('awaiting');
+    expect((await loadMoodStampBoard('anyone', 'reader@example.com')).received).toEqual([]);
+    expect(await openReceivedMoodStamp(stamp.id, 'reader@example.com')).toBeNull();
   });
 });
