@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { query } from '@/lib/db';
-import { formatCount } from '@/lib/domain/format';
+import { formatExact } from '@/lib/domain/format';
 import { StatBlock, type Stat } from '@/components/ui/StatBlock';
 import { pinAlgorithm } from '@/lib/services/pin';
 import { getDb } from '@/lib/db';
@@ -111,10 +111,10 @@ export default async function AdminOverviewPage() {
             {[
               ['Database', db.dialect],
               ['PIN hashing', pinAlgorithm()],
-              ['Accounts', formatCount(Number(people?.users ?? 0))],
-              ['Opinion rows', formatCount(Number(people?.opinions ?? 0))],
-              ['Reaction aggregate rows', formatCount(Number(people?.aggregates ?? 0))],
-              ['Unique participant total', formatCount(Number(totals?.participants ?? 0))],
+              ['Accounts', formatExact(Number(people?.users ?? 0))],
+              ['Opinion rows', formatExact(Number(people?.opinions ?? 0))],
+              ['Reaction aggregate rows', formatExact(Number(people?.aggregates ?? 0))],
+              ['Unique participant total', formatExact(Number(totals?.participants ?? 0))],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between gap-3">
                 <dt className="text-secondary">{label}</dt>

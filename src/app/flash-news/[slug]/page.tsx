@@ -176,9 +176,9 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
           </div>
         </div>
 
-        {/* The picture at card size, and the crowd so far — what filled this space was nothing. */}
-        <div className="w-full max-w-[440px] flex-[1_1_320px] lg:mt-9">
-          <LiveTally card={card} imageLabel={primaryEntity?.name ?? card.title} />
+        {/* Where the crowd stands so far: two bars, people and reactions. */}
+        <div className="w-full max-w-[420px] flex-[1_1_300px] lg:mt-14">
+          <LiveTally card={card} />
         </div>
       </section>
 
@@ -270,7 +270,7 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
         </section>
       )}
 
-      <StickyReactionTray card={card} watchTargetId="reaction-controls" />
+      <StickyReactionTray card={card} watchTargetId="reaction-controls" yieldToId="discussion" />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { StatusControls } from './StatusControls';
 import { LeadStoryControl } from './LeadStoryControl';
-import { formatCount } from '@/lib/domain/format';
+import { formatExact } from '@/lib/domain/format';
 import type { ArtifactTotals, ArtifactType, ContentStatus } from '@/lib/domain/types';
 import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
@@ -70,18 +70,18 @@ export function ContentTable({
 
             <div className="shrink-0 text-right text-xs">
               <p className="font-semibold text-egg">
-                {formatCount(row.totals.rottenEggTotal)} <EggIcon />
+                {formatExact(row.totals.rottenEggTotal)} <EggIcon />
               </p>
               <p className="mt-1 font-semibold text-medal">
-                {formatCount(row.totals.medalTotal)} <MedalIcon />
+                {formatExact(row.totals.medalTotal)} <MedalIcon />
               </p>
               <p className="mt-1.5 text-tertiary">
-                {formatCount(row.totals.negativeOpinionTotal)} / {formatCount(row.totals.positiveOpinionTotal)} opinions
+                {formatExact(row.totals.negativeOpinionTotal)} / {formatExact(row.totals.positiveOpinionTotal)} opinions
               </p>
               <p className="mt-0.5 text-tertiary">
                 {row.totals.uniqueParticipantTotal === 1
                   ? '1 person'
-                  : `${formatCount(row.totals.uniqueParticipantTotal)} people`}
+                  : `${formatExact(row.totals.uniqueParticipantTotal)} people`}
               </p>
             </div>
           </div>

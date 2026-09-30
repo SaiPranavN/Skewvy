@@ -22,9 +22,22 @@ import type { ArtifactCard, ReactionType } from '@/lib/domain/types';
  * desktop too. Position is read directly on scroll rather than inferred from an
  * IntersectionObserver entry: a long jump — an anchor link, a restored scroll
  * position — can skip the observer's thresholds entirely.
+ *
+ * It stands aside while the discussion is on screen: the comment box floats
+ * at the foot of the screen there, in the same place.
  */
-export function StickyReactionTray({ card, watchTargetId }: { card: ArtifactCard; watchTargetId: string }) {
+export function StickyReactionTray({
+  card,
+  watchTargetId,
+  yieldToId,
+}: {
+  card: ArtifactCard;
+  watchTargetId: string;
+  /** An element that takes the foot of the screen while any of it is in view. */
+  yieldToId?: string;
+}) {
   const [scrolledPast, setScrolledPast] = useState(false);
+  const [yielding, setYielding] = useState(false);
   const state = useArtifact(card.type, card.id, { totals: card.totals, contribution: card.contribution });
 
   const side = state.contribution.stance ?? state.selectedStance;
@@ -37,6 +50,13 @@ export function StickyReactionTray({ card, watchTargetId }: { card: ArtifactCard
       const target = document.getElementById(watchTargetId);
       if (!target) return;
       setScrolledPast(target.getBoundingClientRect().bottom <= 8);
+      const other = yieldToId ? document.getElementById(yieldToId) : null;
+      if (other) {
+        const box = other.getBoundingClientRect();
+        setYielding(box.top < window.innerHeight - 80 && box.bottom > 0);
+      } else {
+        setYielding(false);
+      }
     };
 
     const schedule = () => {
@@ -53,9 +73,9 @@ export function StickyReactionTray({ card, watchTargetId }: { card: ArtifactCard
       window.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
     };
-  }, [watchTargetId]);
+  }, [watchTargetId, yieldToId]);
 
-  if (!scrolledPast || !side) return null;
+  if (!scrolledPast || yielding || !side) return null;
 
   return (
     <Overlay>

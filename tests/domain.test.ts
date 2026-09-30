@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatCount, formatCompact, sharePercent } from '@/lib/domain/format';
+import { formatCount, formatCompact, formatExact, sharePercent } from '@/lib/domain/format';
 import { sentimentLabel, cardTone, intensityComparison, contributorPhrase } from '@/lib/domain/copy';
 import { stanceForReaction, emptyTotals } from '@/lib/domain/types';
 import { toSqlitePlaceholders } from '@/lib/db/sqlite';
@@ -9,14 +9,26 @@ import { detailsFromObject, cardDetailLine, parseDetails, serializeDetails } fro
 import { initialsFor, placeholderColour } from '@/components/ui/Media';
 
 describe('number presentation', () => {
-  it('shows reaction totals in full, never abbreviated', () => {
-    expect(formatCount(128429)).toBe('128,429');
-    expect(formatCount(94218)).toBe('94,218');
+  it('shows counts exactly below a thousand, then as 1k, 1.2k, 1M', () => {
+    expect(formatCount(0)).toBe('0');
+    expect(formatCount(999)).toBe('999');
+    expect(formatCount(1000)).toBe('1k');
+    expect(formatCount(1200)).toBe('1.2k');
+    expect(formatCount(94218)).toBe('94.2k');
+    expect(formatCount(128429)).toBe('128.4k');
+    expect(formatCount(1_000_000)).toBe('1M');
+    expect(formatCount(2_345_678)).toBe('2.3M');
+    expect(formatCount(3_000_000_000)).toBe('3B');
   });
 
-  it('keeps compact form for secondary spots only, and only above 10k', () => {
-    expect(formatCompact(9999)).toBe('9,999');
-    expect(formatCompact(128429)).toBe('128.4K');
+  it('rounds down, so a count never reads as more than it is', () => {
+    expect(formatCount(1999)).toBe('1.9k');
+    expect(formatCount(999_999)).toBe('999.9k');
+    expect(formatCompact(1050)).toBe('1k');
+  });
+
+  it('keeps every digit where it has to be exact', () => {
+    expect(formatExact(128429)).toBe('128,429');
   });
 
   it('reports opinion share as whole numbers, with no false precision', () => {

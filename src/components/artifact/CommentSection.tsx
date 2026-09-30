@@ -71,6 +71,16 @@ export function CommentSection({
   const [loadingMore, setLoadingMore] = useState(false);
   const [reporting, setReporting] = useState<CommentView | null>(null);
   const [isPending, startTransition] = useTransition();
+  const fieldRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // The field grows with what is written, up to a few lines, then scrolls.
+  useEffect(() => {
+    const field = fieldRef.current;
+    if (!field) return;
+    field.style.height = 'auto';
+    field.style.height = `${Math.min(field.scrollHeight, 168)}px`;
+    field.style.overflowY = field.scrollHeight > 168 ? 'auto' : 'hidden';
+  }, [draft]);
 
   const viewerStance = state.contribution.stance;
 
@@ -167,6 +177,9 @@ export function CommentSection({
       const comment = payload.comment;
       setDraft('');
       setPosted(true);
+      requestAnimationFrame(() =>
+        document.getElementById(`comment-${comment.id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }),
+      );
       // Placed straight at the top rather than refetching: a person should see
       // their own comment the instant it lands, whichever ordering is active.
       setPage((current) => ({
@@ -261,6 +274,7 @@ export function CommentSection({
 
   return (
     <section
+      id="discussion"
       aria-labelledby={headingId}
       className="discuss border border-[var(--border-subtle)] bg-[var(--color-elevated)] p-[clamp(20px,2.6vw,40px)] text-primary"
     >
@@ -314,82 +328,6 @@ export function CommentSection({
         )}
       </div>
 
-      {/* --------------------------------- composer -------------------------- */}
-
-      <form
-        onSubmit={submit}
-        className="mt-6 border border-[var(--border-default)] bg-[var(--color-surface)] transition-colors duration-150 focus-within:border-[var(--border-strong)]"
-      >
-        <div className="flex flex-wrap items-center gap-2.5 px-4 pt-3.5">
-          <Avatar name={viewerName} />
-          <span className="text-[13.5px] font-bold leading-none">{viewerName ?? 'Not signed in'}</span>
-          {viewerStance && (
-            <ReactionBadge
-              stance={viewerStance}
-              reactions={{ medals: state.contribution.medalCount, rottenEggs: state.contribution.rottenEggCount }}
-            />
-          )}
-        </div>
-
-        <label htmlFor={fieldId} className="sr-only">
-          Write a comment
-        </label>
-        <textarea
-          id={fieldId}
-          value={draft}
-          disabled={posting}
-          aria-describedby={`${fieldId}-rules`}
-          onChange={(event) => {
-            setDraft(event.target.value.slice(0, COMMENT_MAX_LENGTH));
-            if (posted) setPosted(false);
-          }}
-          onFocus={() => {
-            if (!isAuthenticated) requestSignIn();
-          }}
-          placeholder={isAuthenticated ? 'What should people know about this?' : 'Sign in to comment…'}
-          className="block min-h-[clamp(96px,9vw,120px)] w-full resize-y border-0 bg-transparent px-4 py-3 text-[clamp(15.5px,1.15vw,17px)] leading-[1.55] text-primary outline-none placeholder:text-tertiary disabled:opacity-60"
-        />
-
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-3">
-          <p id={`${fieldId}-rules`} className="m-0 max-w-[52ch] text-[12px] leading-[1.4] text-tertiary">
-            Criticize actions, not identities. Don’t post private information or unverified claims.
-          </p>
-
-          <div className="flex items-center gap-3">
-            <span
-              className={`numeric text-[12px] font-semibold leading-none ${
-                remaining < 40 ? 'text-[color:var(--color-egg)]' : 'text-tertiary'
-              }`}
-              aria-live="polite"
-            >
-              {formatCount(remaining)} left
-            </span>
-            <button
-              type="submit"
-              disabled={!canPost}
-              className={`min-h-10 flex-none px-4 text-[13px] font-extrabold transition-colors duration-150 ${
-                canPost
-                  ? 'bg-[var(--color-paper)] text-ink hover:bg-[color:var(--color-medal)]'
-                  : 'cursor-not-allowed bg-[var(--color-surface-3)] text-disabled'
-              }`}
-            >
-              {posting ? 'Posting…' : 'Post'}
-            </button>
-          </div>
-        </div>
-      </form>
-
-      {error && (
-        <p role="alert" className="mt-3 text-[13px] font-bold text-[color:var(--color-egg)]">
-          {error}
-        </p>
-      )}
-      {posted && !error && (
-        <p role="status" className="mt-3 text-[13px] font-semibold text-secondary">
-          Posted. It is at the top of the thread.
-        </p>
-      )}
-
       {/* ---------------------------------- thread --------------------------- */}
 
       {isPending ? (
@@ -403,7 +341,11 @@ export function CommentSection({
       ) : (
         <ul className="mt-6 flex flex-col">
           {page.comments.map((comment) => (
-            <li key={comment.id} className="border-t border-[var(--border-subtle)] py-5">
+            <li
+              key={comment.id}
+              id={`comment-${comment.id}`}
+              className="scroll-mt-24 border-t border-[var(--border-subtle)] py-5"
+            >
               <Comment comment={comment} onVote={vote} onDelete={remove} onReport={startReport} />
             </li>
           ))}
@@ -415,11 +357,107 @@ export function CommentSection({
           type="button"
           onClick={() => void showMore()}
           disabled={loadingMore}
-          className="mt-2 min-h-11 border border-[var(--border-default)] px-4 text-[13px] font-bold text-secondary transition-colors duration-150 hover:border-[var(--border-strong)] hover:text-primary"
+          className="mt-2 min-h-11 rounded-full border border-[var(--border-default)] px-5 text-[13px] font-bold text-secondary transition-colors duration-150 hover:border-[var(--border-strong)] hover:text-primary"
         >
           {loadingMore ? 'Loading…' : 'Show more comments'}
         </button>
       )}
+
+      {/* -------------------------------- composer --------------------------- */}
+
+      {/*
+       * The composer floats at the foot of the screen while the thread scrolls
+       * under it, and settles at the end of the section once that is in view.
+       */}
+      <div className="sticky bottom-0 z-10 -mx-[clamp(20px,2.6vw,40px)] mt-4 bg-[linear-gradient(to_top,var(--color-elevated)_72%,transparent)] px-[clamp(20px,2.6vw,40px)] pb-[max(12px,env(safe-area-inset-bottom))] pt-6">
+        {(error || posted) && (
+          <p
+            role={error ? 'alert' : 'status'}
+            className={`mb-2 px-4 text-[12.5px] font-semibold ${error ? 'text-[color:var(--color-egg)]' : 'text-secondary'}`}
+          >
+            {error ?? 'Posted.'}
+          </p>
+        )}
+
+        <form
+          onSubmit={submit}
+          className="discuss-composer mx-auto flex max-w-[760px] items-end gap-2 rounded-[26px] border border-[var(--border-default)] bg-[var(--color-surface-2)] p-1.5 pl-5 transition-colors duration-150 focus-within:border-[var(--border-strong)]"
+        >
+          <label htmlFor={fieldId} className="sr-only">
+            Write a comment
+          </label>
+          <textarea
+            ref={fieldRef}
+            id={fieldId}
+            rows={1}
+            value={draft}
+            disabled={posting}
+            aria-describedby={`${fieldId}-rules`}
+            onChange={(event) => {
+              setDraft(event.target.value.slice(0, COMMENT_MAX_LENGTH));
+              if (posted) setPosted(false);
+            }}
+            onKeyDown={(event) => {
+              // Enter sends, Shift+Enter starts a new line. Never mid-composition (IME).
+              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault();
+                if (canPost) event.currentTarget.form?.requestSubmit();
+              }
+            }}
+            onFocus={() => {
+              if (!isAuthenticated) requestSignIn();
+            }}
+            placeholder={isAuthenticated ? 'Add to the discussion…' : 'Sign in to comment…'}
+            className="block max-h-[168px] min-h-[40px] flex-1 resize-none self-center border-0 bg-transparent py-[9px] text-[15px] leading-[1.45] text-primary outline-none placeholder:text-tertiary disabled:opacity-60"
+          />
+          {remaining < 100 && (
+            <span
+              className={`numeric self-center text-[11.5px] font-semibold ${
+                remaining < 40 ? 'text-[color:var(--color-egg)]' : 'text-tertiary'
+              }`}
+              aria-live="polite"
+            >
+              {remaining}
+            </span>
+          )}
+          <button
+            type="submit"
+            disabled={!canPost}
+            aria-label={posting ? 'Posting…' : 'Post comment'}
+            className={`flex h-10 w-10 flex-none items-center justify-center rounded-full transition-colors duration-150 ${
+              canPost
+                ? 'bg-[var(--color-paper)] text-ink hover:bg-[color:var(--color-medal)]'
+                : 'cursor-not-allowed bg-[var(--color-surface-3)] text-disabled'
+            }`}
+          >
+            {posting ? (
+              <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            ) : (
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M9 15V3M4 8l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
+        </form>
+
+        <p id={`${fieldId}-rules`} className="mx-auto mt-1.5 flex max-w-[760px] flex-wrap items-center gap-x-2 gap-y-1 px-5 text-[11.5px] leading-[1.4] text-tertiary">
+          {viewerName && (
+            <>
+              <span>
+                As <span className="font-semibold text-secondary">{viewerName}</span>
+              </span>
+              {viewerStance && (
+                <ReactionBadge
+                  stance={viewerStance}
+                  reactions={{ medals: state.contribution.medalCount, rottenEggs: state.contribution.rottenEggCount }}
+                />
+              )}
+              <span aria-hidden="true">·</span>
+            </>
+          )}
+          <span>Criticize actions, not identities.</span>
+        </p>
+      </div>
 
       <ReportDialog
         comment={reporting}

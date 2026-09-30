@@ -1,13 +1,33 @@
-/** Full-precision grouped number — the reaction totals must never be abbreviated away. */
+/**
+ * A count as people read one: exact below a thousand, then 1k, 1.2k, 45.6k,
+ * 1M, 2.3B. Rounded down, never up, so a figure is never shown as more than
+ * it is — 1,999 reads 1.9k, not 2k. Used for every public total: opinions,
+ * Medals, Rotten Eggs, taps, people.
+ */
 export function formatCount(value: number): string {
-  return new Intl.NumberFormat('en-US').format(Math.max(0, Math.round(value)));
+  const count = Math.max(0, Math.round(value));
+  if (count < 1_000) return String(count);
+  for (const [size, suffix] of COMPACT_UNITS) {
+    if (count >= size) {
+      const tenths = Math.floor((count * 10) / size);
+      return `${tenths % 10 === 0 ? tenths / 10 : (tenths / 10).toFixed(1)}${suffix}`;
+    }
+  }
+  return String(count);
 }
 
-/** Compact form for dense secondary spots only (leaderboard deltas, chips). */
-export function formatCompact(value: number): string {
-  const rounded = Math.max(0, Math.round(value));
-  if (rounded < 10_000) return formatCount(rounded);
-  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(rounded);
+const COMPACT_UNITS: Array<[number, string]> = [
+  [1_000_000_000, 'B'],
+  [1_000_000, 'M'],
+  [1_000, 'k'],
+];
+
+/** The same as `formatCount`; kept for the dense spots that asked for it by name. */
+export const formatCompact = formatCount;
+
+/** Every digit, grouped: for admin screens and anything that must be exact. */
+export function formatExact(value: number): string {
+  return new Intl.NumberFormat('en-US').format(Math.max(0, Math.round(value)));
 }
 
 /**

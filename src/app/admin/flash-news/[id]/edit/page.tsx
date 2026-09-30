@@ -7,7 +7,7 @@ import { countComments } from '@/lib/services/comments';
 import { saveFlashNewsAction, type ActionResult } from '@/app/admin/actions';
 import { getFlashNewsById, listEntities, entityIdsForFlashNews } from '@/lib/services/content';
 import { getTotals } from '@/lib/services/totals';
-import { formatCount } from '@/lib/domain/format';
+import { formatExact } from '@/lib/domain/format';
 import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
 export const metadata: Metadata = { title: 'Admin · Edit Story' };
@@ -36,8 +36,8 @@ export default async function EditFlashNewsPage({ params }: { params: Promise<{ 
         <div>
           <h2 className="text-lg font-semibold text-primary">Edit Story</h2>
           <p className="mt-1 text-sm text-secondary">
-            {formatCount(totals.rottenEggTotal)} <EggIcon /> · {formatCount(totals.medalTotal)} <MedalIcon /> ·{' '}
-            {formatCount(totals.negativeOpinionTotal)}/{formatCount(totals.positiveOpinionTotal)} opinions
+            {formatExact(totals.rottenEggTotal)} <EggIcon /> · {formatExact(totals.medalTotal)} <MedalIcon /> ·{' '}
+            {formatExact(totals.negativeOpinionTotal)}/{formatExact(totals.positiveOpinionTotal)} opinions
           </p>
         </div>
         <StatusControls type="flash_news" id={item.id} status={item.status} />

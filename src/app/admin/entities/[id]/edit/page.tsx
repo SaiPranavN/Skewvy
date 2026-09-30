@@ -7,7 +7,7 @@ import { countComments } from '@/lib/services/comments';
 import { saveEntityAction, type ActionResult } from '@/app/admin/actions';
 import { getEntityById } from '@/lib/services/content';
 import { getTotals } from '@/lib/services/totals';
-import { formatCount } from '@/lib/domain/format';
+import { formatExact } from '@/lib/domain/format';
 import { EggIcon, MedalIcon } from '@/components/ui/icons';
 
 export const metadata: Metadata = { title: 'Admin · Edit Profile' };
@@ -34,8 +34,8 @@ export default async function EditEntityPage({ params }: { params: Promise<{ id:
         <div>
           <h2 className="text-lg font-semibold text-primary">Edit Profile</h2>
           <p className="mt-1 text-sm text-secondary">
-            {formatCount(totals.rottenEggTotal)} <EggIcon /> · {formatCount(totals.medalTotal)} <MedalIcon /> ·{' '}
-            {totals.uniqueParticipantTotal === 1 ? '1 person' : `${formatCount(totals.uniqueParticipantTotal)} people`}
+            {formatExact(totals.rottenEggTotal)} <EggIcon /> · {formatExact(totals.medalTotal)} <MedalIcon /> ·{' '}
+            {totals.uniqueParticipantTotal === 1 ? '1 person' : `${formatExact(totals.uniqueParticipantTotal)} people`}
           </p>
         </div>
         <StatusControls type="entity" id={entity.id} status={entity.status} />

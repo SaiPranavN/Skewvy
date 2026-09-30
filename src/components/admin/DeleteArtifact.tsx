@@ -4,7 +4,7 @@ import { useId, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/Modal';
 import { deleteArtifactAction } from '@/app/admin/actions';
-import { formatCount } from '@/lib/domain/format';
+import { formatExact } from '@/lib/domain/format';
 import type { ArtifactTotals } from '@/lib/domain/types';
 
 /**
@@ -88,11 +88,11 @@ export function DeleteArtifact({
 
         <ul className="m-0 mt-4 list-disc space-y-1 pl-5 text-[14px] leading-[1.5] text-[rgb(23_20_15_/_0.78)]">
           <li>
-            {formatCount(people)} {people === 1 ? 'opinion' : 'opinions'}, {formatCount(totals.medalTotal)} Medals and{' '}
-            {formatCount(totals.rottenEggTotal)} Rotten Eggs
+            {formatExact(people)} {people === 1 ? 'opinion' : 'opinions'}, {formatExact(totals.medalTotal)} Medals and{' '}
+            {formatExact(totals.rottenEggTotal)} Rotten Eggs
           </li>
           <li>
-            {formatCount(comments)} {comments === 1 ? 'comment' : 'comments'}, with their votes and reports
+            {formatExact(comments)} {comments === 1 ? 'comment' : 'comments'}, with their votes and reports
           </li>
           <li>The history charts, and the public page at /{type === 'entity' ? 'entities' : 'flash-news'}/{slug}</li>
         </ul>

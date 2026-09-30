@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { RelativeTime } from '@/components/ui/TimeAgo';
-import { formatCount } from '@/lib/domain/format';
+import { formatExact } from '@/lib/domain/format';
 import { suspendAccountAction, restoreAccountAction, deleteAccountAction } from '@/app/admin/actions';
 import type { AccountSummary } from '@/lib/services/accounts';
 
@@ -90,9 +90,9 @@ export function AccountsTable({ accounts, viewerId }: { accounts: AccountSummary
                     {account.lastSeenAt ? <RelativeTime iso={account.lastSeenAt} /> : '—'}
                   </td>
 
-                  <td className="numeric py-3.5 pr-4 text-right text-secondary">{formatCount(account.reactionCount)}</td>
-                  <td className="numeric py-3.5 pr-4 text-right text-secondary">{formatCount(account.opinionCount)}</td>
-                  <td className="numeric py-3.5 pr-4 text-right text-secondary">{formatCount(account.commentCount)}</td>
+                  <td className="numeric py-3.5 pr-4 text-right text-secondary">{formatExact(account.reactionCount)}</td>
+                  <td className="numeric py-3.5 pr-4 text-right text-secondary">{formatExact(account.opinionCount)}</td>
+                  <td className="numeric py-3.5 pr-4 text-right text-secondary">{formatExact(account.commentCount)}</td>
 
                   <td className="py-3.5 text-right">
                     {protectedAccount ? (
@@ -100,8 +100,8 @@ export function AccountsTable({ accounts, viewerId }: { accounts: AccountSummary
                     ) : confirming === account.id ? (
                       <div className="flex flex-col items-end gap-2">
                         <p className="max-w-[16rem] text-left text-xs leading-relaxed text-secondary">
-                          This removes {formatCount(account.reactionCount)} reactions and{' '}
-                          {formatCount(account.commentCount)} comments, and the public totals will drop. Type{' '}
+                          This removes {formatExact(account.reactionCount)} reactions and{' '}
+                          {formatExact(account.commentCount)} comments, and the public totals will drop. Type{' '}
                           <span className="text-primary">{account.displayName}</span> to confirm.
                         </p>
                         <input

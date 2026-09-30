@@ -5,7 +5,7 @@ import { AccountsTable } from '@/components/admin/AccountsTable';
 import { AdminSearch } from '@/components/admin/AdminSearch';
 import { requireAdmin } from '@/lib/auth/current-user';
 import { listAccounts } from '@/lib/services/accounts';
-import { formatCount } from '@/lib/domain/format';
+import { formatExact } from '@/lib/domain/format';
 
 export const metadata: Metadata = { title: 'Accounts' };
 export const dynamic = 'force-dynamic';
@@ -34,7 +34,7 @@ export default async function AdminAccountsPage({
         <div>
           <h1 className="text-lg font-medium tracking-[-0.01em] text-primary">Accounts</h1>
           <p className="mt-1 text-sm text-secondary">
-            {formatCount(page.total)} account{page.total === 1 ? '' : 's'}
+            {formatExact(page.total)} account{page.total === 1 ? '' : 's'}
             {suspended > 0 ? ` · ${suspended} suspended on this page` : ''}
           </p>
         </div>

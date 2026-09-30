@@ -235,7 +235,7 @@ export default async function EntityDetailPage({ params }: { params: Promise<{ s
         )}
       </section>
 
-      <StickyReactionTray card={card} watchTargetId="reaction-controls" />
+      <StickyReactionTray card={card} watchTargetId="reaction-controls" yieldToId="discussion" />
     </div>
   );
 }

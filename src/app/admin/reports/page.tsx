@@ -5,7 +5,7 @@ import { requireAdmin } from '@/lib/auth/current-user';
 import { listReportedComments } from '@/lib/services/comments';
 import { listOpenSiteReports } from '@/lib/services/site-reports';
 import { SiteReportsQueue } from '@/components/admin/SiteReportsQueue';
-import { formatCount } from '@/lib/domain/format';
+import { formatExact } from '@/lib/domain/format';
 
 export const metadata: Metadata = { title: 'Reports' };
 export const dynamic = 'force-dynamic';
@@ -23,7 +23,7 @@ export default async function AdminReportsPage() {
         <p className="mt-1 text-sm text-secondary">
           {reported.length === 0
             ? 'Nothing waiting for review.'
-            : `${formatCount(reported.length)} comment${reported.length === 1 ? '' : 's'} waiting for review, most-reported first.`}
+            : `${formatExact(reported.length)} comment${reported.length === 1 ? '' : 's'} waiting for review, most-reported first.`}
         </p>
       </div>
 
