@@ -38,7 +38,7 @@ export function SectionSkeleton({ label, height, dark = false }: { label: string
   if (dark) {
     return (
       <div
-        className="border border-[var(--border-subtle)] bg-[var(--color-elevated)] p-[clamp(20px,2.6vw,40px)]"
+        className="discuss border border-[var(--border-subtle)] bg-[var(--color-elevated)] p-[clamp(20px,2.6vw,40px)]"
         aria-busy="true"
         aria-label={label}
       >

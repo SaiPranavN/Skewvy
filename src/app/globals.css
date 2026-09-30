@@ -1363,6 +1363,18 @@ body {
 
   /* ------------------------------ discussion ------------------------------ */
 
+  /*
+   * The discussion sits on the page's own black, not on a warmer panel: its
+   * surfaces are neutral tints of white, so nothing in it reads as brown.
+   */
+  .discuss {
+    --color-elevated: var(--color-ground);
+    --color-surface: rgb(255 255 255 / 0.04);
+    --color-surface-2: rgb(255 255 255 / 0.07);
+    --color-surface-3: rgb(255 255 255 / 0.11);
+    --discuss-field: #1c1c1c;
+  }
+
   /* A quiet text tab: the current one is bright and underlined, the rest recede. */
   .discuss-tab {
     min-height: 40px;
@@ -1390,7 +1402,7 @@ body {
   /* The comment menu, on the dark thread: no paper slab, no hard shadow. */
   .discuss .menu-list {
     border: 1px solid var(--border-default);
-    background-color: var(--color-surface-2);
+    background-color: var(--discuss-field);
     box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
   }
 

@@ -381,7 +381,7 @@ export function CommentSection({
 
         <form
           onSubmit={submit}
-          className="discuss-composer mx-auto flex max-w-[760px] items-end gap-2 rounded-[26px] border border-[var(--border-default)] bg-[var(--color-surface-2)] p-1.5 pl-5 transition-colors duration-150 focus-within:border-[var(--border-strong)]"
+          className="discuss-composer mx-auto flex max-w-[760px] items-end gap-2 rounded-[26px] border border-[var(--border-default)] bg-[var(--discuss-field)] p-1.5 pl-5 transition-colors duration-150 focus-within:border-[var(--border-strong)]"
         >
           <label htmlFor={fieldId} className="sr-only">
             Write a comment
