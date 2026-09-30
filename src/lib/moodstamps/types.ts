@@ -46,7 +46,8 @@ export interface MoodStampSummary {
   artworkUrl: string | null;
 }
 
-export type MoodStampChannel = 'email' | 'whatsapp' | 'download';
+/** 'link' is a stamp written on the recipient's own MoodStamp link, delivered as it is sent. */
+export type MoodStampChannel = 'email' | 'whatsapp' | 'download' | 'link';
 export type MoodStampDeliveryState = 'awaiting' | 'downloaded' | 'delivered';
 export type MoodStampDeliveryError = 'opted_out' | 'recipient_limit' | 'send_failed' | 'not_configured';
 /** How a delivered email stamp reached them: its own email, or held in their Skewvy inbox. */
@@ -74,6 +75,12 @@ export interface MoodStampArtworkData {
   /** The sender's name as printed, whether or not it is shown. */
   senderName: string;
   anonymous: boolean;
+  /**
+   * Whether Skewvy knows who sent it: true for anyone signed in. False for a
+   * stamp written on someone's link without an account, whose name is only
+   * what they typed. Missing means true.
+   */
+  senderVerified?: boolean;
   recipientName: string;
   reasons: [string, string, string];
   /** Assigned when the stamp is sent; null on a preview. */
@@ -82,6 +89,16 @@ export interface MoodStampArtworkData {
   date: string;
   /** What the badge row says about it. */
   state: 'preview' | 'sent' | 'unopened' | 'opened';
+}
+
+/**
+ * The third badge on a stamp. One sent through someone's link without an
+ * account never claims a verified sender: Skewvy only vouches for delivery.
+ */
+export function verifiedBadge(data: Pick<MoodStampArtworkData, 'state' | 'senderVerified'>): string {
+  const delivered = data.state === 'unopened' || data.state === 'opened';
+  if (delivered) return 'Verified delivery';
+  return data.senderVerified === false ? 'Sent by link' : 'Verified sender';
 }
 
 /** A stamp as its sender sees it, on its own page. */
@@ -95,6 +112,8 @@ export interface MoodStampRecord extends MoodStampSummary {
   destination: string | null;
   /** For a delivered email stamp: whether it was emailed, or held in their Skewvy inbox. */
   deliveryRoute: MoodStampDeliveryRoute | null;
+  /** See `MoodStampArtworkData.senderVerified`. */
+  senderVerified: boolean;
 }
 
 export function artworkFromRecord(record: MoodStampRecord): MoodStampArtworkData {
@@ -104,12 +123,25 @@ export function artworkFromRecord(record: MoodStampRecord): MoodStampArtworkData
     quantity: record.quantity,
     senderName: record.senderName,
     anonymous: record.anonymous,
+    senderVerified: record.senderVerified,
     recipientName: record.recipientName,
     reasons: record.reasons,
     receiptCode: record.receiptCode,
     date: record.occurredAt,
     state: record.delivery === 'delivered' ? (record.opened ? 'opened' : 'unopened') : 'sent',
   };
+}
+
+/** A person's own MoodStamp link, as they see it. */
+export interface InboxLink {
+  code: string;
+  url: string;
+  paused: boolean;
+  /** Whether they are emailed when a MoodStamp arrives through it. */
+  notify: boolean;
+  createdAt: string;
+  /** How many MoodStamps have arrived through it, earlier links included. */
+  received: number;
 }
 
 export interface MoodStampCounts {

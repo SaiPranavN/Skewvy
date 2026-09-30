@@ -9,7 +9,7 @@
  */
 
 import { REACTION_VOICES } from '@/lib/moodstamps/catalog';
-import type { MoodStampArtworkData } from '@/lib/moodstamps/types';
+import { verifiedBadge, type MoodStampArtworkData } from '@/lib/moodstamps/types';
 import { bodyFont, displayFont, ensureFonts, fitSize, setTracking, wrapLines } from './canvas-text';
 
 const INK = '#17140F';
@@ -268,7 +268,7 @@ export async function renderMoodStamp(data: MoodStampArtworkData): Promise<HTMLC
   y += 26;
 
   // Badges.
-  const badges = ['PRIVATE', STATE_BADGE[data.state], data.state === 'unopened' || data.state === 'opened' ? 'VERIFIED DELIVERY' : 'VERIFIED SENDER'];
+  const badges = ['PRIVATE', STATE_BADGE[data.state], verifiedBadge(data).toUpperCase()];
   context.font = bodyFont(15, 800);
   setTracking(context, '2.5px');
   let badgeX = x;
@@ -378,7 +378,14 @@ export async function renderMoodStamp(data: MoodStampArtworkData): Promise<HTMLC
     }
   };
   const from = data.anonymous ? 'Anonymous' : data.senderName;
-  person('FROM:', from, x + 26, split - x - 44, data.anonymous ? 'Identity verified by Skewvy' : null);
+  const verified = data.senderVerified !== false;
+  person(
+    'FROM:',
+    from,
+    x + 26,
+    split - x - 44,
+    data.anonymous && verified ? 'Identity verified by Skewvy' : !data.anonymous && !verified ? 'Name given by the sender' : null,
+  );
   person('TO:', data.recipientName, split + 26, right - split - 44, null);
   y += barHeight + 28;
 

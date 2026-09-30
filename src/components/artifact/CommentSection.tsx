@@ -8,6 +8,7 @@ import { initialsFor } from '@/components/ui/Media';
 import { formatCount } from '@/lib/domain/format';
 import { COMMENT_MAX_LENGTH } from '@/lib/validation/schemas';
 import { Modal } from '@/components/ui/Modal';
+import { ReactionMark } from '@/components/ui/icons';
 import {
   REPORT_DETAILS_MAX_LENGTH,
   REPORT_REASONS,
@@ -32,10 +33,12 @@ import type { ArtifactCard, Stance } from '@/lib/domain/types';
  * having reacted — a person who has never sent an Egg or a Medal can write, and
  * appears without a badge rather than as a lesser participant.
  *
- * The stance badge reports the side the author took on *this* item, when they
- * took one. It never reports how many reactions they sent: the volume of
- * somebody's tapping is not a credential, and putting it beside their name
- * would turn the discussion into a second intensity chart.
+ * The badge beside a name says what that person sent this item — "Gave 10
+ * medals", "Smashed 4 eggs" — for the side they are on. Someone who has not
+ * reacted has no badge; their comment stands on its own.
+ *
+ * Dark and quiet on purpose: the page around it is loud paper and ink, and a
+ * thread is for reading.
  *
  * Votes are ordinary and reversible. They say "useful" or "not", not "critical"
  * or "appreciative", and the permanence rule that governs Eggs and Medals has
@@ -257,23 +260,26 @@ export function CommentSection({
   const canPost = draft.trim().length >= 2 && !posting;
 
   return (
-    <section aria-labelledby={headingId} className="paper p-[clamp(20px,2.6vw,40px)]">
-      <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3.5">
-        <h2 id={headingId} className="display-sm m-0 flex items-center gap-3 text-[clamp(24px,2.8vw,40px)]">
+    <section
+      aria-labelledby={headingId}
+      className="discuss border border-[var(--border-subtle)] bg-[var(--color-elevated)] p-[clamp(20px,2.6vw,40px)] text-primary"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
+        <h2 id={headingId} className="display-sm m-0 flex items-baseline gap-3 text-[clamp(22px,2.4vw,32px)]">
           Discussion
-          <span className="numeric bg-[color:var(--color-indigo)] px-[11px] py-[7px] text-[clamp(15px,1.4vw,20px)] font-extrabold leading-none text-paper">
+          <span className="numeric text-[clamp(15px,1.3vw,18px)] font-bold text-tertiary">
             {formatCount(page.overallTotal)}
           </span>
         </h2>
 
-        <div className="seg" role="group" aria-label="Sort comments">
+        <div className="flex gap-5" role="group" aria-label="Sort comments">
           {(['new', 'top'] as const).map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => changeSort(option)}
               aria-pressed={sort === option}
-              className="seg-opt"
+              className="discuss-tab"
             >
               {option === 'new' ? 'Newest' : 'Top rated'}
             </button>
@@ -281,15 +287,8 @@ export function CommentSection({
         </div>
       </div>
 
-      <p className="m-0 mt-3.5 max-w-[68ch] text-[14.5px] leading-[1.55] text-[rgb(23_20_15_/_0.68)]">
-        Open to everyone with an account, whether or not you have reacted. Nothing written here changes a reaction
-        total or an opinion count — those are counted separately and are not affected by anything said in this
-        thread.
-      </p>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <span className="eyebrow-ink">Filter</span>
-        <div className="seg" role="group" aria-label="Filter comments by the commenter’s recorded position">
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+        <div className="flex gap-5" role="group" aria-label="Filter comments by the commenter’s recorded position">
           {(
             [
               ['all', 'All'],
@@ -302,32 +301,34 @@ export function CommentSection({
               type="button"
               onClick={() => changeStance(value)}
               aria-pressed={stance === value}
-              className="seg-opt"
+              className="discuss-tab"
             >
               {label}
             </button>
           ))}
         </div>
         {stance !== 'all' && (
-          <span className="text-[12px] font-medium leading-[1.35] text-[rgb(23_20_15_/_0.62)]">
-            Showing {formatCount(page.total)} of {formatCount(page.overallTotal)} — people who recorded{' '}
-            {stance === 'negative' ? 'a critical' : 'an appreciative'} position.
+          <span className="text-[12px] font-medium leading-[1.35] text-tertiary">
+            Showing {formatCount(page.total)} of {formatCount(page.overallTotal)}
           </span>
         )}
       </div>
 
       {/* --------------------------------- composer -------------------------- */}
 
-      <form onSubmit={submit} className="mt-[22px] border-2 border-ink">
-        <div className="flex flex-wrap items-center gap-3 border-b border-[var(--rule-default)] px-4 py-3.5">
+      <form
+        onSubmit={submit}
+        className="mt-6 border border-[var(--border-default)] bg-[var(--color-surface)] transition-colors duration-150 focus-within:border-[var(--border-strong)]"
+      >
+        <div className="flex flex-wrap items-center gap-2.5 px-4 pt-3.5">
           <Avatar name={viewerName} />
-          <div className="min-w-0">
-            <p className="m-0 text-[14.5px] font-extrabold leading-none">Join the discussion</p>
-            <p className="m-0 mt-1.5 text-[12px] font-medium leading-none text-[rgb(23_20_15_/_0.62)]">
-              {viewerName ?? 'Not signed in'}
-            </p>
-          </div>
-          {viewerStance && <StanceBadge stance={viewerStance} />}
+          <span className="text-[13.5px] font-bold leading-none">{viewerName ?? 'Not signed in'}</span>
+          {viewerStance && (
+            <ReactionBadge
+              stance={viewerStance}
+              reactions={{ medals: state.contribution.medalCount, rottenEggs: state.contribution.rottenEggCount }}
+            />
+          )}
         </div>
 
         <label htmlFor={fieldId} className="sr-only">
@@ -346,21 +347,18 @@ export function CommentSection({
             if (!isAuthenticated) requestSignIn();
           }}
           placeholder={isAuthenticated ? 'What should people know about this?' : 'Sign in to comment…'}
-          className="block min-h-[clamp(110px,11vw,140px)] w-full resize-y border-0 bg-transparent p-4 text-[clamp(16px,1.25vw,19px)] leading-[1.5] text-ink outline-none placeholder:text-[rgb(23_20_15_/_0.45)] disabled:opacity-60"
+          className="block min-h-[clamp(96px,9vw,120px)] w-full resize-y border-0 bg-transparent px-4 py-3 text-[clamp(15.5px,1.15vw,17px)] leading-[1.55] text-primary outline-none placeholder:text-tertiary disabled:opacity-60"
         />
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--rule-default)] px-3.5 py-3">
-          <p
-            id={`${fieldId}-rules`}
-            className="m-0 max-w-[52ch] text-[12.5px] font-medium leading-[1.4] text-[rgb(23_20_15_/_0.62)]"
-          >
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 pb-3">
+          <p id={`${fieldId}-rules`} className="m-0 max-w-[52ch] text-[12px] leading-[1.4] text-tertiary">
             Criticize actions, not identities. Don’t post private information or unverified claims.
           </p>
 
           <div className="flex items-center gap-3">
             <span
-              className={`numeric text-[12px] font-bold leading-none ${
-                remaining < 40 ? 'text-[color:var(--color-egg-deep)]' : 'text-[rgb(23_20_15_/_0.55)]'
+              className={`numeric text-[12px] font-semibold leading-none ${
+                remaining < 40 ? 'text-[color:var(--color-egg)]' : 'text-tertiary'
               }`}
               aria-live="polite"
             >
@@ -369,23 +367,25 @@ export function CommentSection({
             <button
               type="submit"
               disabled={!canPost}
-              className={`btn min-h-11 flex-none px-[18px] py-3.5 text-[13.5px] font-extrabold tracking-[0.02em] ${
-                canPost ? 'border-2 border-ink bg-egg text-ink' : 'bg-[rgb(23_20_15_/_0.1)] text-[rgb(23_20_15_/_0.6)]'
+              className={`min-h-10 flex-none px-4 text-[13px] font-extrabold transition-colors duration-150 ${
+                canPost
+                  ? 'bg-[var(--color-paper)] text-ink hover:bg-[color:var(--color-medal)]'
+                  : 'cursor-not-allowed bg-[var(--color-surface-3)] text-disabled'
               }`}
             >
-              {posting ? 'Posting…' : 'Post comment'}
+              {posting ? 'Posting…' : 'Post'}
             </button>
           </div>
         </div>
       </form>
 
       {error && (
-        <p role="alert" className="mt-3 text-[13px] font-bold text-[color:var(--color-egg-deep)]">
+        <p role="alert" className="mt-3 text-[13px] font-bold text-[color:var(--color-egg)]">
           {error}
         </p>
       )}
       {posted && !error && (
-        <p role="status" className="mt-3 text-[13px] font-bold text-ink">
+        <p role="status" className="mt-3 text-[13px] font-semibold text-secondary">
           Posted. It is at the top of the thread.
         </p>
       )}
@@ -401,14 +401,9 @@ export function CommentSection({
           onClearFilter={() => changeStance('all')}
         />
       ) : (
-        <ul className="mt-[22px] flex flex-col">
-          {page.comments.map((comment, index) => (
-            <li
-              key={comment.id}
-              className={`border-t border-[var(--rule-subtle)] px-3 py-[18px] ${
-                index % 2 === 1 ? 'bg-[rgb(23_20_15_/_0.035)]' : ''
-              }`}
-            >
+        <ul className="mt-6 flex flex-col">
+          {page.comments.map((comment) => (
+            <li key={comment.id} className="border-t border-[var(--border-subtle)] py-5">
               <Comment comment={comment} onVote={vote} onDelete={remove} onReport={startReport} />
             </li>
           ))}
@@ -420,7 +415,7 @@ export function CommentSection({
           type="button"
           onClick={() => void showMore()}
           disabled={loadingMore}
-          className="btn btn-ink mt-4 px-4 py-3"
+          className="mt-2 min-h-11 border border-[var(--border-default)] px-4 text-[13px] font-bold text-secondary transition-colors duration-150 hover:border-[var(--border-strong)] hover:text-primary"
         >
           {loadingMore ? 'Loading…' : 'Show more comments'}
         </button>
@@ -455,27 +450,22 @@ function Comment({
   const score = comment.likeCount - comment.dislikeCount;
 
   return (
-    <article className="flex gap-3.5">
+    <article className="flex gap-3">
       <Avatar name={comment.author.displayName} />
 
       <div className="min-w-0 flex-1">
-        <div className="mb-2 flex flex-wrap items-center gap-2.5">
-          <span className="text-[13px] font-extrabold leading-none tracking-[0.02em]">
-            {comment.author.displayName}
-          </span>
-          <StanceBadge stance={comment.authorStance} />
-          <RelativeTime
-            iso={comment.createdAt}
-            className="text-[11.5px] font-medium uppercase leading-none tracking-[0.06em] text-[rgb(23_20_15_/_0.62)]"
-          />
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+          <span className="text-[14px] font-bold leading-none">{comment.author.displayName}</span>
+          {comment.authorStance && <ReactionBadge stance={comment.authorStance} reactions={comment.authorReactions} />}
+          <RelativeTime iso={comment.createdAt} className="text-[12px] leading-none text-tertiary" />
           <CommentMenu comment={comment} onDelete={onDelete} onReport={onReport} />
         </div>
 
-        <p className="m-0 max-w-[72ch] whitespace-pre-line text-pretty text-[15.5px] leading-[1.55]">
+        <p className="m-0 mt-1.5 max-w-[72ch] whitespace-pre-line text-pretty text-[15.5px] leading-[1.6] text-[rgb(247_242_231_/_0.9)]">
           {comment.body}
         </p>
 
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+        <div className="-ml-2 mt-2 flex flex-wrap items-center gap-0.5">
           <VoteButton
             label="like"
             active={comment.viewerVote === 1}
@@ -489,7 +479,7 @@ function Comment({
             onClick={() => onVote(comment, -1)}
           />
           <span
-            className="numeric ml-1 text-[11.5px] font-bold uppercase leading-none tracking-[0.06em] text-[rgb(23_20_15_/_0.6)]"
+            className="numeric ml-2 text-[12px] font-semibold leading-none text-tertiary"
             aria-label={`Score ${score}`}
           >
             {score > 0 ? `+${formatCount(score)}` : score < 0 ? `−${formatCount(Math.abs(score))}` : '0'}
@@ -580,11 +570,11 @@ function CommentMenu({
             setOpen(true);
           }
         }}
-        className={`flex h-9 w-9 items-center justify-center border-2 text-ink transition-colors duration-150 ${
-          open ? 'border-ink bg-[rgb(23_20_15_/_0.08)]' : 'border-transparent hover:border-ink'
+        className={`flex h-9 w-9 items-center justify-center text-tertiary transition-colors duration-150 hover:bg-[var(--color-surface-3)] hover:text-primary ${
+          open ? 'bg-[var(--color-surface-3)] text-primary' : ''
         }`}
       >
-        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 18 18" fill="currentColor">
           <circle cx="9" cy="3.5" r="1.9" />
           <circle cx="9" cy="9" r="1.9" />
           <circle cx="9" cy="14.5" r="1.9" />
@@ -625,7 +615,7 @@ function CommentMenu({
               type="button"
               role="menuitem"
               tabIndex={-1}
-              className="menu-item text-[color:var(--color-negative-deep)]"
+              className="menu-item text-[color:var(--color-egg)]"
               onClick={() => {
                 close(true);
                 onDelete(comment);
@@ -863,7 +853,9 @@ function VoteButton({
           ? `Remove your ${label} — ${count} so far`
           : `${label === 'like' ? 'Like' : 'Dislike'} this comment — ${count} so far`
       }
-      className={`btn btn-ink min-h-9 gap-1.5 ${active ? 'border-ink bg-ink text-paper' : ''}`}
+      className={`inline-flex min-h-9 items-center gap-1.5 px-2 text-[12.5px] font-semibold transition-colors duration-150 hover:bg-[var(--color-surface-3)] hover:text-primary ${
+        active ? 'bg-[var(--color-surface-3)] text-primary' : 'text-tertiary'
+      }`}
     >
       <span aria-hidden="true" className={label === 'dislike' ? 'inline-block rotate-180' : 'inline-block'}>
         ▲
@@ -873,12 +865,12 @@ function VoteButton({
   );
 }
 
-/** Initials in an ink square. No photographs anywhere in this system. */
+/** Initials in a quiet square. No photographs anywhere in this system. */
 function Avatar({ name }: { name: string | null }) {
   return (
     <span
       aria-hidden="true"
-      className="flex h-10 w-10 flex-none items-center justify-center border-2 border-ink bg-[rgb(23_20_15_/_0.06)] text-[13px] font-extrabold leading-none"
+      className="flex h-9 w-9 flex-none items-center justify-center bg-[var(--color-surface-3)] text-[12px] font-bold leading-none text-secondary"
     >
       {name ? initialsFor(name) : '—'}
     </span>
@@ -886,42 +878,46 @@ function Avatar({ name }: { name: string | null }) {
 }
 
 /**
- * The side this author took, when they took one.
- *
- * A person with no recorded side is labelled plainly rather than left blank —
- * an absent badge would read as a missing value instead of a real state.
+ * What this person sent the item, for the side they are on: "Gave 10 medals"
+ * or "Smashed 4 eggs". The count is theirs alone, never the crowd's.
  */
-function StanceBadge({ stance }: { stance: Stance | null }) {
-  if (!stance) {
-    return (
-      <span className="border border-[var(--rule-default)] px-1.5 py-1 text-[10.5px] font-bold uppercase leading-none tracking-[0.06em] text-[rgb(23_20_15_/_0.5)]">
-        No position
-      </span>
-    );
-  }
-
+function ReactionBadge({
+  stance,
+  reactions,
+}: {
+  stance: Stance;
+  reactions: { medals: number; rottenEggs: number };
+}) {
   const negative = stance === 'negative';
+  const count = negative ? reactions.rottenEggs : reactions.medals;
+  const label = negative
+    ? `Smashed ${formatCount(count)} ${count === 1 ? 'egg' : 'eggs'}`
+    : `Gave ${formatCount(count)} ${count === 1 ? 'medal' : 'medals'}`;
+
   return (
     <span
-      className={`px-1.5 py-1 text-[10.5px] font-bold uppercase leading-none tracking-[0.06em] text-ink ${
-        negative ? 'bg-egg' : 'bg-medal'
+      className={`inline-flex items-center gap-1.5 px-1.5 py-1 text-[11.5px] font-semibold leading-none ${
+        negative
+          ? 'bg-[rgb(255_107_69_/_0.13)] text-[color:var(--color-egg)]'
+          : 'bg-[rgb(255_203_47_/_0.13)] text-[color:var(--color-medal)]'
       }`}
     >
-      {negative ? 'Critical' : 'Appreciative'}
+      <ReactionMark reactionType={negative ? 'rotten_egg' : 'medal'} size={12} />
+      {label}
     </span>
   );
 }
 
 function ThreadSkeleton() {
   return (
-    <div className="mt-[22px]" aria-hidden="true">
+    <div className="mt-6" aria-hidden="true">
       {[0, 1, 2].map((index) => (
-        <div key={index} className="flex gap-3.5 border-t border-[var(--rule-subtle)] px-3 py-[18px]">
-          <span className="h-10 w-10 flex-none bg-[rgb(23_20_15_/_0.09)]" />
+        <div key={index} className="flex gap-3 border-t border-[var(--border-subtle)] py-5">
+          <span className="h-9 w-9 flex-none bg-[var(--color-surface-3)]" />
           <div className="min-w-0 flex-1">
-            <span className="block h-3 w-[140px] bg-[rgb(23_20_15_/_0.09)]" />
-            <span className="mt-2.5 block h-3 w-full max-w-[52ch] bg-[rgb(23_20_15_/_0.07)]" />
-            <span className="mt-1.5 block h-3 w-full max-w-[34ch] bg-[rgb(23_20_15_/_0.07)]" />
+            <span className="block h-3 w-[140px] bg-[var(--color-surface-3)]" />
+            <span className="mt-2.5 block h-3 w-full max-w-[52ch] bg-[var(--color-surface-2)]" />
+            <span className="mt-1.5 block h-3 w-full max-w-[34ch] bg-[var(--color-surface-2)]" />
           </div>
         </div>
       ))}
@@ -943,12 +939,16 @@ function EmptyThread({
 }) {
   if (stance !== 'all') {
     return (
-      <div className="mt-[22px] border-t border-[var(--rule-subtle)] pt-[22px]">
-        <div className="display-sm text-[clamp(20px,2.2vw,30px)]">Nothing from this side yet.</div>
-        <p className="m-0 mt-2.5 max-w-[48ch] text-[14.5px] leading-[1.5] text-[rgb(23_20_15_/_0.66)]">
+      <div className="mt-6 border-t border-[var(--border-subtle)] pt-6">
+        <div className="text-[17px] font-bold">Nothing from this side yet.</div>
+        <p className="m-0 mt-1.5 max-w-[48ch] text-[14px] leading-[1.5] text-tertiary">
           Nobody who recorded {stance === 'negative' ? 'a critical' : 'an appreciative'} position has written here.
         </p>
-        <button type="button" onClick={onClearFilter} className="btn btn-ink mt-3.5 px-4 py-3">
+        <button
+          type="button"
+          onClick={onClearFilter}
+          className="mt-3 min-h-10 border border-[var(--border-default)] px-3.5 text-[13px] font-bold text-secondary hover:border-[var(--border-strong)] hover:text-primary"
+        >
           Show every comment
         </button>
       </div>
@@ -956,9 +956,9 @@ function EmptyThread({
   }
 
   return (
-    <div className="mt-[22px] border-t border-[var(--rule-subtle)] pt-[22px]">
-      <div className="display-sm text-[clamp(20px,2.2vw,30px)]">No takes yet. Set the tone.</div>
-      <p className="m-0 mt-2.5 max-w-[50ch] text-[14.5px] leading-[1.5] text-[rgb(23_20_15_/_0.66)]">
+    <div className="mt-6 border-t border-[var(--border-subtle)] pt-6">
+      <div className="text-[17px] font-bold">No takes yet. Set the tone.</div>
+      <p className="m-0 mt-1.5 max-w-[50ch] text-[14px] leading-[1.5] text-tertiary">
         {isAuthenticated
           ? 'Say what someone arriving here ought to know — the detail the headline left out.'
           : 'Sign in and say what someone arriving here ought to know.'}

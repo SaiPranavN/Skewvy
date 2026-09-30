@@ -84,4 +84,12 @@ export const RATE_RULES = {
   moodStampDeliver: { limit: 10, windowSeconds: 600 },
   /** Opening a stamp and stopping MoodStamps are public, keyed by IP. */
   moodStampPublic: { limit: 60, windowSeconds: 600 },
+  /** Sending through someone's link, per IP or account: no account needed, so kept tight. */
+  moodStampLinkSend: { limit: 6, windowSeconds: 3600 },
+  /** One sender to one link in a day, as with an address: past this it is a campaign. */
+  moodStampLinkPair: { limit: 3, windowSeconds: 86400 },
+  /** Everything one link can take in a day, so a shared link cannot bury its owner. */
+  moodStampLinkDaily: { limit: 60, windowSeconds: 86400 },
+  /** Pausing, resuming, renewing a link. */
+  moodStampLinkManage: { limit: 30, windowSeconds: 600 },
 } satisfies Record<string, RateLimitRule>;

@@ -57,7 +57,7 @@ export interface OutgoingEmail {
   subject: string;
   html: string;
   text: string;
-  headers: Record<string, string>;
+  headers?: Record<string, string>;
 }
 
 export type MoodStampEmail = OutgoingEmail;
@@ -96,7 +96,8 @@ function emotionSizes(emotion: string): { desktop: number; phone: number } {
   return { desktop: Math.max(26, Math.min(64, fit(DESKTOP_WIDTH))), phone: Math.max(20, Math.min(44, fit(PHONE_WIDTH))) };
 }
 
-function unsubscribeHeaders(oneClickUrl: string): Record<string, string> {
+function unsubscribeHeaders(oneClickUrl: string | undefined): Record<string, string> | undefined {
+  if (!oneClickUrl) return undefined;
   return { 'List-Unsubscribe': `<${oneClickUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' };
 }
 
@@ -345,8 +346,14 @@ export interface ReminderEmailInput {
   /** The address they were sent to, so a new account is made with the right one. */
   email: string;
   optOutUrl: string;
-  oneClickOptOutUrl: string;
+  /** Absent for the email about a person's own link, which they switch off on Skewvy. */
+  oneClickOptOutUrl?: string;
   siteUrl: string;
+  /**
+   * 'address': MoodStamps sent to this address, held back to keep it to one
+   * email a day. 'link': MoodStamps written on the person's own link.
+   */
+  source?: 'address' | 'link';
 }
 
 /**
@@ -359,12 +366,22 @@ export interface ReminderEmailInput {
 export function renderReminderEmail(input: ReminderEmailInput): OutgoingEmail {
   const e = escapeHtml;
   const many = input.count > 1;
+  const viaLink = input.source === 'link';
   const subject = many ? `You have ${input.count} MoodStamps waiting` : 'You have a MoodStamp waiting';
-  const lead = many
-    ? `${input.count} more MoodStamps were sent to you on Skewvy.`
-    : 'Another MoodStamp was sent to you on Skewvy.';
-  const why =
-    'So your inbox is not flooded, Skewvy emails you at most one MoodStamp a day. The rest wait for you on your MoodStamps board.';
+  const lead = viaLink
+    ? many
+      ? `${input.count} MoodStamps came in through your MoodStamp link.`
+      : 'A MoodStamp came in through your MoodStamp link.'
+    : many
+      ? `${input.count} more MoodStamps were sent to you on Skewvy.`
+      : 'Another MoodStamp was sent to you on Skewvy.';
+  const why = viaLink
+    ? 'They are on your MoodStamps board. Skewvy tells you about new ones at most once a day.'
+    : 'So your inbox is not flooded, Skewvy emails you at most one MoodStamp a day. The rest wait for you on your MoodStamps board.';
+  const footer = viaLink
+    ? 'You got this because you have a MoodStamp link on Skewvy.'
+    : 'You got this because MoodStamps were sent to your email address on Skewvy.';
+  const stopLabel = viaLink ? 'Turn off these emails' : 'Stop MoodStamps to this address';
   const action = input.hasAccount ? 'Open your MoodStamps' : 'Create your account to read them';
   const accountNote = input.hasAccount
     ? 'Sign in to Skewvy to read them.'
@@ -381,8 +398,8 @@ export function renderReminderEmail(input: ReminderEmailInput): OutgoingEmail {
     </div>
   </td></tr>
   <tr><td style="padding:26px 2px 0;font:12px/1.6 ${BODY};color:${MUTED};">
-    You got this because MoodStamps were sent to your email address on Skewvy.<br><br>
-    <a href="${e(input.optOutUrl)}" style="color:${INK};font-weight:700;">Stop MoodStamps to this address</a>
+    ${e(footer)}<br><br>
+    <a href="${e(input.optOutUrl)}" style="color:${INK};font-weight:700;">${e(stopLabel)}</a>
   </td></tr>`;
 
   const text = [
@@ -393,7 +410,7 @@ export function renderReminderEmail(input: ReminderEmailInput): OutgoingEmail {
     '',
     `${action}: ${input.actionUrl}`,
     '',
-    `Stop MoodStamps to this address: ${input.optOutUrl}`,
+    `${stopLabel}: ${input.optOutUrl}`,
   ].join('\n');
 
   return { subject, html: document(subject, subject, '', body), text, headers: unsubscribeHeaders(input.oneClickOptOutUrl) };

@@ -4,6 +4,7 @@ import { useId, useRef, useState } from 'react';
 import { useArtifact } from '@/components/reactions/useArtifact';
 import { TrendChart } from './TrendChart';
 import { DistributionCharts } from './DistributionCharts';
+import { Modal } from '@/components/ui/Modal';
 import { MEASUREMENT_NOTE } from '@/lib/domain/copy';
 import { RANGE_SPEC, TREND_RANGES, type TrendRange } from '@/lib/domain/trend-ranges';
 import type { ArtifactCard } from '@/lib/domain/types';
@@ -23,11 +24,17 @@ import type { ArtifactTrends } from '@/lib/services/timeline';
  * One range picker drives both charts. Two pickers would let the charts drift
  * onto different windows, and the whole value of having them side by side is
  * reading the same stretch of time two ways.
+ *
+ * The page shows one chart — public opinion, the verdict — so the section
+ * reads at a glance. The expand button in its corner opens all four together,
+ * on the same range: both histories and both distributions.
  */
 export function AnalyticsSection({ card, trends: initial }: { card: ArtifactCard; trends: ArtifactTrends }) {
   const state = useArtifact(card.type, card.id, { totals: card.totals, contribution: card.contribution });
   const { totals } = state;
   const pickerId = useId();
+  const allChartsId = useId();
+  const [expanded, setExpanded] = useState(false);
 
   const [trends, setTrends] = useState<ArtifactTrends>(initial);
   const [loading, setLoading] = useState(false);
@@ -98,13 +105,7 @@ export function AnalyticsSection({ card, trends: initial }: { card: ArtifactCard
         </span>
       </div>
 
-      {/* Two histories, two axes, never one chart. */}
-      <div
-        className={`flex flex-wrap items-start gap-[clamp(16px,2.2vw,32px)] transition-opacity duration-150 ${
-          loading ? 'opacity-60' : ''
-        }`}
-        aria-busy={loading}
-      >
+      <div className={`transition-opacity duration-150 ${loading ? 'opacity-60' : ''}`} aria-busy={loading}>
         <TrendChart
           trend={trends.opinions}
           title="Public opinion over time"
@@ -114,23 +115,74 @@ export function AnalyticsSection({ card, trends: initial }: { card: ArtifactCard
           liveNegative={totals.negativeOpinionTotal}
           livePositive={totals.positiveOpinionTotal}
           emptyNote="No one has taken a side yet, so there is no history to draw."
-        />
-
-        <TrendChart
-          trend={trends.reactions}
-          title="Reaction intensity over time"
-          unitNote="Each point counts reaction taps, which are unlimited per person."
-          negativeLabel="Rotten Eggs"
-          positiveLabel="Medals"
-          liveNegative={totals.rottenEggTotal}
-          livePositive={totals.medalTotal}
-          emptyNote="No reactions yet, so there is no history to draw."
+          action={<ExpandButton onClick={() => setExpanded(true)} />}
         />
       </div>
 
-      <div className="mt-[clamp(16px,2.2vw,32px)]">
-        <DistributionCharts card={card} />
-      </div>
+      <Modal open={expanded} onClose={() => setExpanded(false)} labelledBy={allChartsId} size="wide">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="eyebrow">{RANGE_SPEC[trends.range].long}</p>
+            <h2 id={allChartsId} className="display mt-2 text-[clamp(24px,3vw,40px)]">
+              Every chart
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            aria-label="Close the charts"
+            className="flex h-11 w-11 flex-none items-center justify-center border border-[var(--border-strong)] text-[20px] leading-none text-primary transition-colors duration-150 hover:border-[color:var(--color-paper)]"
+          >
+            <span aria-hidden="true">✕</span>
+          </button>
+        </div>
+
+        {/* Two histories, two axes, never one chart. */}
+        <div className="mt-[clamp(16px,2vw,24px)] flex flex-wrap items-start gap-[clamp(16px,2.2vw,28px)]">
+          <TrendChart
+            trend={trends.opinions}
+            title="Public opinion over time"
+            unitNote="Each point counts people, once each."
+            negativeLabel="Critical"
+            positiveLabel="Appreciative"
+            liveNegative={totals.negativeOpinionTotal}
+            livePositive={totals.positiveOpinionTotal}
+            emptyNote="No one has taken a side yet, so there is no history to draw."
+          />
+          <TrendChart
+            trend={trends.reactions}
+            title="Reaction intensity over time"
+            unitNote="Each point counts reaction taps, which are unlimited per person."
+            negativeLabel="Rotten Eggs"
+            positiveLabel="Medals"
+            liveNegative={totals.rottenEggTotal}
+            livePositive={totals.medalTotal}
+            emptyNote="No reactions yet, so there is no history to draw."
+          />
+        </div>
+
+        <div className="mt-[clamp(16px,2.2vw,28px)]">
+          <DistributionCharts card={card} />
+        </div>
+      </Modal>
     </div>
+  );
+}
+
+/** Four corners pointing outward: open every chart. */
+function ExpandButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-haspopup="dialog"
+      aria-label="Expand to see every chart"
+      title="See every chart"
+      className="flex h-10 w-10 flex-none items-center justify-center border border-[var(--rule-default)] text-ink transition-colors duration-150 hover:border-ink hover:bg-[rgb(23_20_15_/_0.06)]"
+    >
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M2 7V2h5M11 2h5v5M16 11v5h-5M7 16H2v-5" strokeLinecap="square" />
+      </svg>
+    </button>
   );
 }

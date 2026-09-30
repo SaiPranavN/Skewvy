@@ -362,6 +362,46 @@ CREATE TABLE IF NOT EXISTS moodstamp_optouts (
   created_at TEXT NOT NULL
 );
 
+-- A person's own link for receiving MoodStamps, one per account. The code is
+-- the whole address (skewvy.com/to/<code>) and is meant to be shared, so it is
+-- kept as it is rather than hashed. A new link replaces the code in place,
+-- and the old one stops working at once. Paused, the page stays up but takes
+-- nothing; notify is whether its owner is emailed when one arrives.
+CREATE TABLE IF NOT EXISTS moodstamp_inbox_links (
+  user_id     TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  code        TEXT NOT NULL UNIQUE,
+  paused      INTEGER NOT NULL DEFAULT 0,
+  notify      INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL,
+  rotated_at  TEXT
+);
+
+-- MoodStamps sent to someone through their link. The sender needs no account:
+-- sender_id is set only when they were signed in, and only then is the name
+-- on the stamp a verified one. Delivered the moment they are written, to the
+-- recipient's Received board; there is no address to send to and nothing to
+-- retry. recipient_notified_at is when the owner was emailed about it.
+CREATE TABLE IF NOT EXISTS moodstamp_link_stamps (
+  id              TEXT PRIMARY KEY,
+  receipt_code    TEXT NOT NULL UNIQUE,
+  recipient_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sender_id       TEXT REFERENCES users(id) ON DELETE SET NULL,
+  sender_name     TEXT NOT NULL,
+  anonymous       INTEGER NOT NULL DEFAULT 0,
+  recipient_name  TEXT NOT NULL,
+  reaction        TEXT NOT NULL CHECK (reaction IN ('medal', 'rotten_egg')),
+  emotion         TEXT NOT NULL,
+  quantity        INTEGER NOT NULL CHECK (quantity BETWEEN 1 AND 100),
+  reason_what     TEXT NOT NULL,
+  reason_impact   TEXT NOT NULL,
+  reason_request  TEXT NOT NULL,
+  opened_at       TEXT,
+  recipient_notified_at TEXT,
+  created_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_moodstamp_link_stamps_recipient ON moodstamp_link_stamps(recipient_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_moodstamp_link_stamps_sender ON moodstamp_link_stamps(sender_id, created_at);
+
 -- Server-side rate limiting; a fixed window keyed by action + subject.
 CREATE TABLE IF NOT EXISTS rate_limits (
   bucket_key   TEXT PRIMARY KEY,
@@ -408,7 +448,7 @@ DECLARE
   target text;
   supabase_roles boolean := EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon');
 BEGIN
-  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'opinion_changes', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'comments', 'comment_votes', 'comment_reports', 'site_reports', 'moodstamps', 'moodstamp_links', 'moodstamp_recipients', 'moodstamp_optouts', 'rate_limits', 'app_settings']
+  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'opinion_changes', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'comments', 'comment_votes', 'comment_reports', 'site_reports', 'moodstamps', 'moodstamp_links', 'moodstamp_recipients', 'moodstamp_optouts', 'moodstamp_inbox_links', 'moodstamp_link_stamps', 'rate_limits', 'app_settings']
   LOOP
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = target) THEN
       EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', target);

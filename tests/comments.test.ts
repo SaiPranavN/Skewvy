@@ -59,6 +59,8 @@ describe('comments', () => {
 
     const page = await listComments('flash_news', artifactId, { viewerId: userId });
     expect(page.comments[0].authorStance).toBe('negative');
+    // What they sent, for the "Smashed 3 eggs" beside their name.
+    expect(page.comments[0].authorReactions).toEqual({ medals: 0, rottenEggs: 3 });
 
     const { getTotals } = await import('@/lib/services/totals');
     const totals = await getTotals('flash_news', artifactId);
@@ -213,31 +215,13 @@ describe('filtering by recorded position', () => {
     expect(appreciative.comments[0].authorStance).toBe('positive');
   });
 
-  it('reports the side taken, never the volume of reactions sent', async () => {
+  it('reports the side taken and what the author sent to it', async () => {
     const artifactId = await seed();
     const page = await listComments('flash_news', artifactId, { stance: 'negative' });
 
-    // The critic sent two hundred Rotten Eggs; the comment carries a label,
-    // not a score, and nothing on it is bigger for having tapped harder.
+    // The critic sent two hundred Rotten Eggs: "Smashed 200 eggs" beside their name.
     expect(page.comments[0].authorStance).toBe('negative');
-
-    // Walk the fields rather than searching the serialised text: a random id
-    // such as `12004033-…` contains "200" without carrying any volume at all.
-    const numbers: number[] = [];
-    const keys: string[] = [];
-    const walk = (value: unknown) => {
-      if (typeof value === 'number') numbers.push(value);
-      else if (value && typeof value === 'object') {
-        for (const [key, child] of Object.entries(value)) {
-          keys.push(key);
-          walk(child);
-        }
-      }
-    };
-    walk(page.comments[0]);
-
-    expect(numbers).not.toContain(200);
-    expect(keys.filter((key) => /egg|medal|reaction|volume|intensity/i.test(key))).toEqual([]);
+    expect(page.comments[0].authorReactions).toEqual({ medals: 0, rottenEggs: 200 });
   });
 });
 

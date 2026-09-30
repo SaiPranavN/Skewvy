@@ -13,6 +13,9 @@ import { useEffect, useRef } from 'react';
  *
  * `dismissible` goes false while a request is in flight: closing the dialog
  * mid-request would hide the outcome of an action the person already took.
+ *
+ * `size="wide"` is a sheet of the dark ground rather than a slip of paper, for
+ * content that is itself made of paper panels, such as charts.
  */
 export function Modal({
   open,
@@ -21,6 +24,7 @@ export function Modal({
   describedBy,
   initialFocus,
   dismissible = true,
+  size = 'default',
   children,
 }: {
   open: boolean;
@@ -29,6 +33,7 @@ export function Modal({
   describedBy?: string;
   initialFocus?: React.RefObject<HTMLElement | null>;
   dismissible?: boolean;
+  size?: 'default' | 'wide';
   children: React.ReactNode;
 }) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
@@ -62,7 +67,7 @@ export function Modal({
       ref={dialogRef}
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
-      className="modal on-paper"
+      className={size === 'wide' ? 'modal modal-wide' : 'modal on-paper'}
       onCancel={(event) => {
         // Escape. The dialog would close itself; React state must decide instead.
         event.preventDefault();

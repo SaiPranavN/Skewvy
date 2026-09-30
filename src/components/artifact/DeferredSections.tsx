@@ -34,7 +34,19 @@ export async function DeferredComments({
 }
 
 /** Holds the space a section will fill, so nothing jumps when it arrives. */
-export function SectionSkeleton({ label, height }: { label: string; height: string }) {
+export function SectionSkeleton({ label, height, dark = false }: { label: string; height: string; dark?: boolean }) {
+  if (dark) {
+    return (
+      <div
+        className="border border-[var(--border-subtle)] bg-[var(--color-elevated)] p-[clamp(20px,2.6vw,40px)]"
+        aria-busy="true"
+        aria-label={label}
+      >
+        <div className="skeleton h-7 w-48 bg-[var(--color-surface-3)]" />
+        <div className="skeleton mt-6 w-full bg-[var(--color-surface)]" style={{ height }} />
+      </div>
+    );
+  }
   return (
     <div className="paper p-[clamp(20px,2.6vw,40px)]" aria-busy="true" aria-label={label}>
       <div className="skeleton h-7 w-48 bg-[rgb(23_20_15_/_0.09)]" />

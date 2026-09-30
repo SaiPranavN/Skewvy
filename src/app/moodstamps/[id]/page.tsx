@@ -17,9 +17,9 @@ export const dynamic = 'force-dynamic';
 /**
  * One MoodStamp, on its own page — for the two people it belongs to.
  *
- * Its sender sees where it went. The person it was sent to, signed in with
- * the verified address it was sent to, sees it as theirs, and opening it here
- * marks it opened. Anyone else is told there is nothing here, which is also
+ * Its sender sees where it went. The person it was sent to — signed in with
+ * the verified address it was sent to, or the owner of the link it was
+ * written on — sees it as theirs, and opening it here marks it opened. Anyone else is told there is nothing here, which is also
  * what they would see for an id that never existed.
  */
 export default async function MoodStampRoute({ params }: { params: Promise<{ id: string }> }) {
@@ -28,7 +28,7 @@ export default async function MoodStampRoute({ params }: { params: Promise<{ id:
   const record = await getMoodStampForSender(id, user.id);
 
   if (!record) {
-    const received = await openReceivedMoodStamp(id, receivingAddress(user));
+    const received = await openReceivedMoodStamp(id, receivingAddress(user), user.id);
     if (!received) notFound();
     return (
       <ReceivedStampView

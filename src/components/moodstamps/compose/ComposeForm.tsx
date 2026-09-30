@@ -45,12 +45,15 @@ export function ComposeForm({
   errors,
   senderName,
   onPreview,
+  who,
 }: {
   draft: DraftState;
   update: <K extends keyof DraftState>(key: K, value: DraftState[K]) => void;
   errors: Errors;
   senderName: string;
   onPreview: () => void;
+  /** Replaces part 04 when who it is for is already settled, as on someone's own link. */
+  who?: React.ReactNode;
 }) {
   const voice = draft.reaction ? REACTION_VOICES[draft.reaction] : null;
 
@@ -249,6 +252,7 @@ export function ComposeForm({
       </section>
 
       {/* 04 — Who */}
+      {who ?? (
       <section aria-labelledby="msc-part-who" className="msc-card">
         <PartHeading id="msc-part-who" number="04" title="Who it’s for" />
 
@@ -313,6 +317,7 @@ export function ComposeForm({
           </div>
         </fieldset>
       </section>
+      )}
 
       <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
         <button type="submit" className="ms-key ms-cta w-full sm:w-auto">
@@ -328,7 +333,7 @@ export function ComposeForm({
   );
 }
 
-function PartHeading({ id, number, title }: { id: string; number: string; title: string }) {
+export function PartHeading({ id, number, title }: { id: string; number: string; title: string }) {
   return (
     <h2 id={id} className="flex items-baseline gap-3">
       <span className="text-[12px] font-extrabold tracking-[0.14em] text-[rgb(23_20_15/0.5)]">{number}</span>

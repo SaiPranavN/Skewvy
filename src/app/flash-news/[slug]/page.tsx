@@ -239,13 +239,13 @@ export default async function FlashNewsDetailPage({ params }: { params: Promise<
       </section>
 
       <section className={`rail ${sectionPad}`}>
-        <Suspense fallback={<SectionSkeleton label="Loading the history" height="520px" />}>
+        <Suspense fallback={<SectionSkeleton label="Loading the history" height="360px" />}>
           <DeferredAnalytics card={card} />
         </Suspense>
       </section>
 
       <section className={`rail ${sectionPad}`}>
-        <Suspense fallback={<SectionSkeleton label="Loading the discussion" height="420px" />}>
+        <Suspense fallback={<SectionSkeleton label="Loading the discussion" height="360px" dark />}>
           <DeferredComments
             card={card}
             viewerId={viewerId}

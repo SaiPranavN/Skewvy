@@ -260,6 +260,69 @@ export async function sendDueMoodStampReminders(limit = 25): Promise<{ sent: num
     }
   }
 
+  const linked = await sendDueLinkNotices(limit);
+  return { sent: sent + linked.sent, waiting: due.length + linked.waiting };
+}
+
+/**
+ * Tells people about MoodStamps that came in through their own link: one
+ * email, under the same once-a-day rule as everything else sent to that
+ * address, and only to a verified address whose owner has not switched it
+ * off. A stamp they have already opened on Skewvy needs no email about it.
+ */
+async function sendDueLinkNotices(limit: number): Promise<{ sent: number; waiting: number }> {
+  const due = await query<{ recipient_id: string; email: string; waiting: number | string }>(
+    `SELECT s.recipient_id, u.email_normalized AS email, COUNT(*) AS waiting
+       FROM moodstamp_link_stamps s
+       JOIN users u ON u.id = s.recipient_id
+       LEFT JOIN moodstamp_inbox_links l ON l.user_id = s.recipient_id
+      WHERE s.recipient_notified_at IS NULL AND s.opened_at IS NULL
+        AND u.email_verified_at IS NOT NULL AND u.suspended_at IS NULL
+        AND COALESCE(l.notify, 1) = 1
+      GROUP BY s.recipient_id, u.email_normalized
+      LIMIT $1`,
+    [limit],
+  );
+
+  let sent = 0;
+  for (const row of due) {
+    const now = new Date();
+    const markNotified = () =>
+      execute(
+        `UPDATE moodstamp_link_stamps SET recipient_notified_at = $1
+          WHERE recipient_id = $2 AND recipient_notified_at IS NULL AND created_at <= $1`,
+        [now.toISOString(), row.recipient_id],
+      );
+
+    if (await isOptedOut(row.email)) {
+      await markNotified();
+      continue;
+    }
+    if (process.env.NODE_ENV === 'production' && !emailDeliveryConfigured()) continue;
+
+    const release = await claimEmailSlot(row.email, now);
+    if (!release) continue;
+
+    const notice = renderReminderEmail({
+      count: Number(row.waiting),
+      hasAccount: true,
+      email: row.email,
+      actionUrl: absoluteUrl('/moodstamps?view=received'),
+      optOutUrl: absoluteUrl('/moodstamps/receive'),
+      siteUrl: SITE_URL,
+      source: 'link',
+    });
+
+    try {
+      await sendEmail({ to: row.email, ...notice });
+      await markNotified();
+      sent += 1;
+    } catch (error) {
+      console.error('[moodstamps] link notice failed', { error });
+      await release();
+    }
+  }
+
   return { sent, waiting: due.length };
 }
 
@@ -288,7 +351,7 @@ async function stampForToken(token: string): Promise<MoodStampRow | null> {
   if (!token || token.length < 16 || token.length > 128) return null;
   const rows = await query<MoodStampRow>(
     `SELECT ${COLUMNS.split(',')
-      .map((column) => `m.${column.trim()}`)
+      .map((column) => (/^\d/.test(column.trim()) ? column.trim() : `m.${column.trim()}`))
       .join(', ')}
        FROM moodstamp_links l JOIN moodstamps m ON m.id = l.moodstamp_id
       WHERE l.token_hash = $1 AND m.delivery_status = 'delivered'`,

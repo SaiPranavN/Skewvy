@@ -41,6 +41,8 @@ export interface TrendChartProps {
   liveNegative: number;
   livePositive: number;
   emptyNote: string;
+  /** A control for the chart's top corner, such as the button that opens the rest. */
+  action?: React.ReactNode;
 }
 
 export function TrendChart({
@@ -52,6 +54,7 @@ export function TrendChart({
   liveNegative,
   livePositive,
   emptyNote,
+  action,
 }: TrendChartProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const titleId = useId();
@@ -98,9 +101,12 @@ export function TrendChart({
       className="paper min-w-[min(100%,300px)] flex-[1_1_440px] p-[clamp(18px,2.2vw,32px)]"
       aria-labelledby={titleId}
     >
-      <h3 id={titleId} className="display-sm m-0 text-[clamp(19px,2.1vw,28px)]">
-        {title}
-      </h3>
+      <div className="flex items-start justify-between gap-4">
+        <h3 id={titleId} className="display-sm m-0 text-[clamp(19px,2.1vw,28px)]">
+          {title}
+        </h3>
+        {action}
+      </div>
       <div
         className="mt-2 min-h-[2.6em] text-[12.5px] font-medium leading-[1.4] text-[rgb(23_20_15_/_0.62)]"
         suppressHydrationWarning

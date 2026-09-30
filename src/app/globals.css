@@ -476,6 +476,18 @@ body {
     padding: clamp(18px, 2.4vw, 28px);
   }
 
+  .modal.modal-wide {
+    width: min(1180px, calc(100% - 32px));
+    border: 1px solid var(--border-strong);
+    background-color: var(--color-ground);
+    color: var(--color-primary);
+    box-shadow: 0 24px 80px rgb(0 0 0 / 0.55);
+  }
+
+  .modal.modal-wide::backdrop {
+    background-color: rgb(8 7 6 / 0.78);
+  }
+
   /* Policy pages: plain reading text on the ground, no decoration. */
   .policy-prose {
     color: var(--color-secondary, inherit);
@@ -1349,6 +1361,53 @@ body {
     }
   }
 
+  /* ------------------------------ discussion ------------------------------ */
+
+  /* A quiet text tab: the current one is bright and underlined, the rest recede. */
+  .discuss-tab {
+    min-height: 40px;
+    padding: 10px 0 8px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--color-tertiary);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: color var(--duration-control) var(--ease-standard);
+  }
+
+  .discuss-tab:hover {
+    color: var(--color-secondary);
+  }
+
+  .discuss-tab[aria-pressed='true'] {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+  }
+
+  /* The comment menu, on the dark thread: no paper slab, no hard shadow. */
+  .discuss .menu-list {
+    border: 1px solid var(--border-default);
+    background-color: var(--color-surface-2);
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+  }
+
+  .discuss .menu-item {
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  .discuss .menu-item:hover,
+  .discuss .menu-item:focus-visible {
+    background-color: var(--color-surface-3);
+  }
+
+  .discuss .menu-item[aria-disabled='true'] {
+    color: var(--color-tertiary);
+  }
+
   /* ------------------------------ segmented ------------------------------- */
 
   .seg {
@@ -1939,6 +1998,78 @@ body {
     border: 2px solid var(--color-ink);
     padding: clamp(18px, 2.6vw, 30px);
     min-width: 0;
+  }
+
+  /* ---- Receive: the owner's link ---- */
+
+  .msr-button {
+    display: inline-flex;
+    min-height: 52px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 18px;
+    border: 2px solid var(--color-ink);
+    background-color: transparent;
+    color: var(--color-ink);
+    font-size: 14.5px;
+    font-weight: 800;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color var(--duration-control) var(--ease-standard);
+  }
+
+  .msr-button:hover {
+    background-color: rgb(23 20 15 / 0.07);
+  }
+
+  .msr-button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .msr-button-danger {
+    background-color: var(--color-egg);
+  }
+
+  .msr-button-danger:hover {
+    background-color: var(--color-egg-deep);
+  }
+
+  /* An on/off switch: a square track with a square knob, ink when on. */
+  .msr-switch {
+    position: relative;
+    flex: none;
+    width: 52px;
+    height: 30px;
+    margin-top: 2px;
+    border: 2px solid var(--color-ink);
+    background-color: rgb(23 20 15 / 0.1);
+    cursor: pointer;
+    transition: background-color var(--duration-control) var(--ease-standard);
+  }
+
+  .msr-switch[aria-checked='true'] {
+    background-color: var(--color-violet);
+  }
+
+  .msr-switch:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  .msr-switch-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background-color: var(--color-ink);
+    transition: transform var(--duration-control) var(--ease-standard);
+  }
+
+  .msr-switch[aria-checked='true'] .msr-switch-knob {
+    transform: translateX(22px);
   }
 
   .msc-card :focus-visible {

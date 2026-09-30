@@ -96,6 +96,26 @@ export const moodStampDeliverySchema = z.discriminatedUnion('channel', [
 
 export type MoodStampDelivery = z.infer<typeof moodStampDeliverySchema>;
 
+/** The longest name someone without an account can sign a stamp with. */
+export const SENDER_NAME_MAX = 30;
+
+/**
+ * A draft written on someone's link. Who it is for is not the writer's to
+ * say: the name printed is the link owner's own, set by the server.
+ */
+export const moodStampLinkDraftSchema = moodStampDraftSchema.omit({ recipientName: true });
+
+export const moodStampLinkSendSchema = z.object({
+  draft: moodStampLinkDraftSchema,
+  /** Only read from someone without an account; empty means anonymous. */
+  senderName: clean(
+    z.string().trim().max(SENDER_NAME_MAX, `Keep your name to ${SENDER_NAME_MAX} characters.`),
+  ).default(''),
+  turnstileToken: z.string().max(4096).default(''),
+  /** Left empty by people. A form filler that fills every field fills this too. */
+  website: z.string().max(500).default(''),
+});
+
 export const moodStampCreateSchema = z.object({
   draft: moodStampDraftSchema,
   delivery: moodStampDeliverySchema,

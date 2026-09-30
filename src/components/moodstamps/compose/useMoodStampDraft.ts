@@ -35,32 +35,34 @@ const STORAGE_KEY = 'skewvy:moodstamp-draft';
  * Only a convenience: a reload or an accidental Back does not throw away a
  * paragraph someone struggled to write. It lives in this browser tab alone,
  * is cleared once the stamp is sent, and the form works the same without it.
+ * A draft written on someone's link is kept under its own key, apart from
+ * the one the person is writing in their own composer.
  */
-export function useMoodStampDraft() {
+export function useMoodStampDraft(storageKey: string = STORAGE_KEY) {
   const [draft, setDraft] = useState<DraftState>(EMPTY_DRAFT);
   // Until the saved draft has been read, the form does not know which step it can show.
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     try {
-      const saved = window.sessionStorage.getItem(STORAGE_KEY);
+      const saved = window.sessionStorage.getItem(storageKey);
       if (saved) setDraft({ ...EMPTY_DRAFT, ...(JSON.parse(saved) as Partial<DraftState>) });
     } catch {
       // Private mode or blocked storage: start fresh.
     }
     setLoaded(true);
-  }, []);
+  }, [storageKey]);
 
   // Saving waits for a render in which `loaded` is true — by then the restored draft is
   // the state. Saving any earlier would write the empty form over the one being restored.
   useEffect(() => {
     if (!loaded) return;
     try {
-      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+      window.sessionStorage.setItem(storageKey, JSON.stringify(draft));
     } catch {
       // Nothing to do; the draft simply is not kept.
     }
-  }, [draft, loaded]);
+  }, [draft, loaded, storageKey]);
 
   const update = useCallback(<K extends keyof DraftState>(key: K, value: DraftState[K]) => {
     setDraft((current) => {
@@ -77,11 +79,11 @@ export function useMoodStampDraft() {
   const clear = useCallback(() => {
     setDraft(EMPTY_DRAFT);
     try {
-      window.sessionStorage.removeItem(STORAGE_KEY);
+      window.sessionStorage.removeItem(storageKey);
     } catch {
       // As above.
     }
-  }, []);
+  }, [storageKey]);
 
   return { draft, update, clear, loaded };
 }

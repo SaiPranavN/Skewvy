@@ -37,11 +37,23 @@ export interface MoodStampRow {
   delivered_at: string | null;
   opened_at: string | null;
   created_at: string;
+  /** 1 when Skewvy knows who sent it; 0 for a stamp written on a link without an account. */
+  sender_verified: number | boolean;
 }
 
 export const COLUMNS = `id, receipt_code, sender_name, anonymous, recipient_name, reaction, emotion, quantity,
   reason_what, reason_impact, reason_request, channel, recipient_email, recipient_phone,
-  delivery_status, delivery_error, delivery_route, delivered_at, opened_at, created_at`;
+  delivery_status, delivery_error, delivery_route, delivered_at, opened_at, created_at, 1 AS sender_verified`;
+
+/**
+ * A stamp written on someone's MoodStamp link, in the same shape as the
+ * columns above, so both kinds read into one list. It was delivered the
+ * moment it was written, to a board rather than an address.
+ */
+export const LINK_COLUMNS = `id, receipt_code, sender_name, anonymous, recipient_name, reaction, emotion, quantity,
+  reason_what, reason_impact, reason_request, 'link' AS channel, NULL AS recipient_email, NULL AS recipient_phone,
+  'delivered' AS delivery_status, NULL AS delivery_error, NULL AS delivery_route, created_at AS delivered_at,
+  opened_at, created_at, CASE WHEN sender_id IS NULL THEN 0 ELSE 1 END AS sender_verified`;
 
 /** Seen by its sender: every stamp here is one they sent. */
 export function toRecord(row: MoodStampRow): MoodStampRecord {
@@ -66,6 +78,7 @@ export function toRecord(row: MoodStampRow): MoodStampRecord {
     destination: row.recipient_email ?? row.recipient_phone,
     // Emailed before routes existed: those went by their own email.
     deliveryRoute: row.delivery_status === 'delivered' && row.channel === 'email' ? (row.delivery_route ?? 'email') : null,
+    senderVerified: Boolean(Number(row.sender_verified ?? 1)),
   };
 }
 
@@ -94,10 +107,15 @@ function receiptCodeFor(quantity: number): string {
   return `SKV-${randomBytes(2).toString('hex').toUpperCase()}-${String(quantity).padStart(3, '0')}`;
 }
 
-async function uniqueReceiptCode(quantity: number): Promise<string> {
+/** Receipt codes are unique across both kinds of stamp. */
+export async function uniqueReceiptCode(quantity: number): Promise<string> {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const code = receiptCodeFor(quantity);
-    const taken = await query<{ id: string }>('SELECT id FROM moodstamps WHERE receipt_code = $1', [code]);
+    const taken = await query<{ id: string }>(
+      `SELECT id FROM moodstamps WHERE receipt_code = $1
+       UNION ALL SELECT id FROM moodstamp_link_stamps WHERE receipt_code = $1`,
+      [code],
+    );
     if (taken.length === 0) return code;
   }
   // 65,536 codes per count; eight misses in a row means the space is crowded, so widen it.
@@ -154,13 +172,18 @@ export async function createMoodStamp(input: {
   return created;
 }
 
-/** One stamp, for its sender only. Anyone else gets nothing — not even that it exists. */
+/**
+ * One stamp, for its sender only. Anyone else gets nothing — not even that it
+ * exists. That includes a stamp they wrote on someone's link while signed in.
+ */
 export async function getMoodStampForSender(id: string, userId: string): Promise<MoodStampRecord | null> {
   if (!id || !userId) return null;
-  const rows = await query<MoodStampRow>(`SELECT ${COLUMNS} FROM moodstamps WHERE id = $1 AND sender_id = $2`, [
-    id,
-    userId,
-  ]);
+  const rows = await query<MoodStampRow>(
+    `SELECT ${COLUMNS} FROM moodstamps WHERE id = $1 AND sender_id = $2
+     UNION ALL
+     SELECT ${LINK_COLUMNS} FROM moodstamp_link_stamps WHERE id = $1 AND sender_id = $2`,
+    [id, userId],
+  );
   return rows[0] ? toRecord(rows[0]) : null;
 }
 
@@ -196,6 +219,15 @@ function toReceivedSummary(row: MoodStampRow): MoodStampSummary {
 const RECEIVED_WHERE = `recipient_email = $1 AND channel = 'email' AND delivery_status = 'delivered'`;
 
 /**
+ * Everything delivered to one person: stamps sent to their verified address,
+ * and stamps written on their link. `$1` is the address (or null), `$2` the
+ * account id.
+ */
+const RECEIVED_UNION = `SELECT ${COLUMNS} FROM moodstamps WHERE ${RECEIVED_WHERE}
+  UNION ALL
+  SELECT ${LINK_COLUMNS} FROM moodstamp_link_stamps WHERE recipient_id = $2`;
+
+/**
  * The signed-in person's MoodStamp board: what they received and what they sent.
  *
  * Always keyed by the session's own account — its id for Sent, its verified
@@ -205,32 +237,37 @@ const RECEIVED_WHERE = `recipient_email = $1 AND channel = 'email' AND delivery_
  * Received holds every stamp delivered to that address, whether it arrived
  * as its own email or was held on Skewvy because the address had already
  * been emailed that day. Stamps sent before the account existed are there
- * too: the address is the inbox, and the account is the key to it.
+ * too: the address is the inbox, and the account is the key to it. Stamps
+ * written on the person's own link are keyed to the account itself, so they
+ * arrive whether or not the address is verified.
  */
 export async function loadMoodStampBoard(userId: string, receivingEmail: string | null = null): Promise<MoodStampBoardData> {
   if (!userId) throw new Error('A MoodStamp board belongs to a signed-in person.');
 
   const rows = await query<MoodStampRow>(
-    `SELECT ${COLUMNS} FROM moodstamps WHERE sender_id = $1 ORDER BY created_at DESC LIMIT 200`,
+    `SELECT * FROM (
+       SELECT ${COLUMNS} FROM moodstamps WHERE sender_id = $1
+       UNION ALL
+       SELECT ${LINK_COLUMNS} FROM moodstamp_link_stamps WHERE sender_id = $1
+     ) AS stamps ORDER BY created_at DESC LIMIT 200`,
     [userId],
   );
-  const total = await query<{ count: number | string }>('SELECT COUNT(*) AS count FROM moodstamps WHERE sender_id = $1', [
-    userId,
-  ]);
+  const total = await query<{ count: number | string }>(
+    `SELECT (SELECT COUNT(*) FROM moodstamps WHERE sender_id = $1)
+          + (SELECT COUNT(*) FROM moodstamp_link_stamps WHERE sender_id = $1) AS count`,
+    [userId],
+  );
 
-  let received: MoodStampSummary[] = [];
-  let receivedTotal = 0;
-  if (receivingEmail) {
-    const receivedRows = await query<MoodStampRow>(
-      `SELECT ${COLUMNS} FROM moodstamps WHERE ${RECEIVED_WHERE} ORDER BY COALESCE(delivered_at, created_at) DESC LIMIT 200`,
-      [receivingEmail],
-    );
-    received = receivedRows.map(toReceivedSummary);
-    const count = await query<{ count: number | string }>(`SELECT COUNT(*) AS count FROM moodstamps WHERE ${RECEIVED_WHERE}`, [
-      receivingEmail,
-    ]);
-    receivedTotal = Number(count[0]?.count ?? received.length);
-  }
+  const receivedRows = await query<MoodStampRow>(
+    `SELECT * FROM (${RECEIVED_UNION}) AS stamps ORDER BY COALESCE(delivered_at, created_at) DESC LIMIT 200`,
+    [receivingEmail, userId],
+  );
+  const received = receivedRows.map(toReceivedSummary);
+  const receivedCount = await query<{ count: number | string }>(
+    `SELECT COUNT(*) AS count FROM (${RECEIVED_UNION}) AS stamps`,
+    [receivingEmail, userId],
+  );
+  const receivedTotal = Number(receivedCount[0]?.count ?? received.length);
 
   return {
     received,
@@ -257,21 +294,27 @@ export function receivedArtwork(row: MoodStampRow): MoodStampArtworkData {
 }
 
 /**
- * One stamp sent to this address, opened by its recipient on Skewvy. Opening
- * it here is what marks it opened — the page is behind their own session, so
- * no mail scanner can be the one looking.
+ * One stamp sent to this person — to their address, or on their link —
+ * opened by them on Skewvy. Opening it here is what marks it opened: the page
+ * is behind their own session, so no mail scanner can be the one looking.
  */
-export async function openReceivedMoodStamp(id: string, receivingEmail: string | null): Promise<ReceivedMoodStamp | null> {
-  if (!id || !receivingEmail) return null;
-  const rows = await query<MoodStampRow>(`SELECT ${COLUMNS} FROM moodstamps WHERE id = $2 AND ${RECEIVED_WHERE}`, [
+export async function openReceivedMoodStamp(
+  id: string,
+  receivingEmail: string | null,
+  userId: string | null = null,
+): Promise<ReceivedMoodStamp | null> {
+  if (!id || (!receivingEmail && !userId)) return null;
+  const rows = await query<MoodStampRow>(`SELECT * FROM (${RECEIVED_UNION}) AS stamps WHERE id = $3`, [
     receivingEmail,
+    userId,
     id,
   ]);
   const row = rows[0];
   if (!row) return null;
 
   if (!row.opened_at) {
-    await execute('UPDATE moodstamps SET opened_at = $1 WHERE id = $2 AND opened_at IS NULL', [new Date().toISOString(), id]);
+    const table = row.channel === 'link' ? 'moodstamp_link_stamps' : 'moodstamps';
+    await execute(`UPDATE ${table} SET opened_at = $1 WHERE id = $2 AND opened_at IS NULL`, [new Date().toISOString(), id]);
   }
   return { id: row.id, artwork: receivedArtwork(row), opened: true };
 }

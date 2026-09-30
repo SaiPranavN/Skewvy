@@ -40,6 +40,8 @@ export interface CommentView {
   author: { id: string; displayName: string };
   /** The side the author took on this artifact, if they ever reacted to it. */
   authorStance: Stance | null;
+  /** What the author sent this artifact, shown beside their name for the side they are on. */
+  authorReactions: { medals: number; rottenEggs: number };
   /** The viewer's own vote on this comment. */
   viewerVote: VoteValue;
   /** True when the viewer may remove it: their own comment, or an admin. */
@@ -69,6 +71,8 @@ interface CommentRow {
   user_id: string;
   display_name: string;
   stance: string | null;
+  medal_count: number | null;
+  rotten_egg_count: number | null;
   viewer_vote: number | null;
   viewer_report: string | null;
 }
@@ -82,6 +86,7 @@ function toView(row: CommentRow, viewerId: string | null, viewerIsAdmin: boolean
     dislikeCount: Number(row.dislike_count),
     author: { id: row.user_id, displayName: row.display_name },
     authorStance: (row.stance as Stance | null) ?? null,
+    authorReactions: { medals: Number(row.medal_count ?? 0), rottenEggs: Number(row.rotten_egg_count ?? 0) },
     viewerVote: (Number(row.viewer_vote ?? 0) || 0) as VoteValue,
     viewerCanDelete: viewerIsAdmin || (viewerId !== null && viewerId === row.user_id),
     viewerIsAuthor: viewerId !== null && viewerId === row.user_id,
@@ -122,12 +127,15 @@ export async function listComments(
     `SELECT c.id, c.body, c.created_at, c.like_count, c.dislike_count, c.user_id,
             u.display_name,
             o.stance AS stance,
+            a.medal_count, a.rotten_egg_count,
             v.value  AS viewer_vote,
             r.id     AS viewer_report
        FROM comments c
        JOIN users u ON u.id = c.user_id
        LEFT JOIN opinions o
          ON o.user_id = c.user_id AND o.artifact_type = c.artifact_type AND o.artifact_id = c.artifact_id
+       LEFT JOIN reaction_aggregates a
+         ON a.user_id = c.user_id AND a.artifact_type = c.artifact_type AND a.artifact_id = c.artifact_id
        LEFT JOIN comment_votes v
          ON v.comment_id = c.id AND v.user_id = $3
        LEFT JOIN comment_reports r
@@ -202,12 +210,15 @@ export async function createComment(input: {
     `SELECT c.id, c.body, c.created_at, c.like_count, c.dislike_count, c.user_id,
             u.display_name,
             o.stance AS stance,
+            a.medal_count, a.rotten_egg_count,
             NULL AS viewer_vote,
             NULL AS viewer_report
        FROM comments c
        JOIN users u ON u.id = c.user_id
        LEFT JOIN opinions o
          ON o.user_id = c.user_id AND o.artifact_type = c.artifact_type AND o.artifact_id = c.artifact_id
+       LEFT JOIN reaction_aggregates a
+         ON a.user_id = c.user_id AND a.artifact_type = c.artifact_type AND a.artifact_id = c.artifact_id
       WHERE c.id = $1`,
     [id],
   );

@@ -1,5 +1,5 @@
 import { REACTION_VOICES } from '@/lib/moodstamps/catalog';
-import type { MoodStampArtworkData } from '@/lib/moodstamps/types';
+import { verifiedBadge, type MoodStampArtworkData } from '@/lib/moodstamps/types';
 import { EggMark, MedalMark } from './MoodStampMarks';
 
 const STATE_BADGE: Record<MoodStampArtworkData['state'], string> = {
@@ -40,7 +40,7 @@ export function MoodStampArtwork({ data, className = '' }: { data: MoodStampArtw
   const emotionSize = `min(14.5cqi, calc(88cqi / ${(longest * 0.72).toFixed(2)}))`;
   const from = data.anonymous ? 'Anonymous' : data.senderName;
   const badge = STATE_BADGE[data.state];
-  const delivered = data.state === 'unopened' || data.state === 'opened';
+  const verified = data.senderVerified !== false;
 
   return (
     <div className={`msa-root ${className}`} style={{ '--tone': tone } as React.CSSProperties}>
@@ -59,7 +59,7 @@ export function MoodStampArtwork({ data, className = '' }: { data: MoodStampArtw
               <ul className="msa-badges" aria-label="Status">
                 <li>Private</li>
                 <li data-solid="">{badge}</li>
-                <li>{delivered ? 'Verified delivery' : 'Verified sender'}</li>
+                <li>{verifiedBadge(data)}</li>
               </ul>
 
               <p className="msa-lead">{voice.lead}</p>
@@ -82,11 +82,12 @@ export function MoodStampArtwork({ data, className = '' }: { data: MoodStampArtw
                 <p className="msa-person">
                   <span className="msa-person-label">From:</span>
                   <span className="msa-person-name">{from}</span>
-                  {data.anonymous && (
+                  {data.anonymous && verified && (
                     <span className="msa-verified">
                       <span aria-hidden="true">✓</span> Identity verified by Skewvy
                     </span>
                   )}
+                  {!data.anonymous && !verified && <span className="msa-verified">Name given by the sender</span>}
                 </p>
                 <p className="msa-person msa-person-to">
                   <span className="msa-person-label">To:</span>

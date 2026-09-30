@@ -10,6 +10,9 @@ import type { ArtifactTotals } from '@/lib/domain/types';
  *
  * Every tap total carries the number of people behind it, so a big count from
  * one person can never pass for a crowd.
+ *
+ * Open type on the card rather than boxed cells: the card is already the box,
+ * and the Rotten Egg figure sits flush right, under Negative.
  */
 export function ReactionSplit({ totals, size = 'md' }: { totals: ArtifactTotals; size?: 'md' | 'lg' }) {
   const medals = totals.medalTotal;
@@ -23,7 +26,6 @@ export function ReactionSplit({ totals, size = 'md' }: { totals: ArtifactTotals;
 
   return (
     <div
-      className="border-2 border-ink"
       role="group"
       aria-label={
         taps === 0
@@ -33,17 +35,15 @@ export function ReactionSplit({ totals, size = 'md' }: { totals: ArtifactTotals;
             )} Rotten Eggs from ${people(totals.rottenEggContributorTotal)}.`
       }
     >
-      <div className="grid grid-cols-2" aria-hidden="true">
+      <div className="grid grid-cols-2 gap-4" aria-hidden="true">
         <Cell
           label="Medals"
           glyph="🏅"
           kind="medal"
           count={medals}
           contributors={totals.medalContributorTotal}
-          tint="rgb(255 200 40 / 0.2)"
           colour="var(--color-medal-deep)"
           figure={figure}
-          className="border-r-2 border-ink"
         />
         <Cell
           label="Rotten Eggs"
@@ -51,14 +51,14 @@ export function ReactionSplit({ totals, size = 'md' }: { totals: ArtifactTotals;
           kind="egg"
           count={eggs}
           contributors={totals.rottenEggContributorTotal}
-          tint="rgb(255 107 69 / 0.16)"
           colour="var(--color-egg-deep)"
           figure={figure}
+          alignEnd
         />
       </div>
 
       {/* Share of all taps, Medals from the left and Rotten Eggs the rest. */}
-      <div className="flex h-[7px] border-t-2 border-ink bg-[rgb(23_20_15_/_0.12)]" aria-hidden="true">
+      <div className="mt-3 flex h-[4px] bg-[rgb(23_20_15_/_0.1)]" aria-hidden="true">
         {taps > 0 && (
           <>
             <span className="block h-full bg-[color:var(--color-medal)]" style={{ width: `${medalShare}%` }} />
@@ -80,24 +80,26 @@ function Cell({
   kind,
   count,
   contributors,
-  tint,
   colour,
   figure,
-  className = '',
+  alignEnd = false,
 }: {
   label: string;
   glyph: string;
   kind: 'egg' | 'medal';
   count: number;
   contributors: number;
-  tint: string;
   colour: string;
   figure: string;
-  className?: string;
+  alignEnd?: boolean;
 }) {
   return (
-    <div className={`min-w-0 px-3 py-3 ${className}`} style={{ backgroundColor: tint }}>
-      <div className="flex h-5 items-center gap-1.5 truncate text-[11px] font-bold uppercase leading-none tracking-[0.1em]">
+    <div className={`min-w-0 ${alignEnd ? 'text-right' : ''}`}>
+      <div
+        className={`flex h-5 items-center gap-1.5 truncate text-[11px] font-bold uppercase leading-none tracking-[0.1em] ${
+          alignEnd ? 'justify-end' : ''
+        }`}
+      >
         <span className={`emoji emoji-${kind} text-[18px]`}>{glyph}</span>
         {label}
       </div>

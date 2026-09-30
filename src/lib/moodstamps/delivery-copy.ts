@@ -6,6 +6,10 @@ import { deliveryErrorMessage, type MoodStampRecord } from './types';
  */
 export function deliverySummary(record: MoodStampRecord): string {
   if (record.channel === 'download') return 'You downloaded this one to hand over yourself.';
+  if (record.channel === 'link') {
+    const opened = record.opened ? ' They have opened it.' : ' They have not opened it yet.';
+    return `Delivered to ${record.recipientName}’s MoodStamps board, through their MoodStamp link.${opened}`;
+  }
 
   if (record.delivery === 'delivered') {
     const opened = record.opened ? ' They have opened it.' : ' They have not opened it yet.';
