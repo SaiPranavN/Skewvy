@@ -57,6 +57,8 @@ export const WORDS: Record<ModerationCategory, string[]> = {
     'blockhead', 'cretin', 'degenerate', 'lowlife', 'bimbo', 'skank', 'airhead', 'pea-brain', 'peabrain',
     'nincompoop', 'dumbo', 'kutta', 'kutte', 'kutti', 'kamina', 'kamine', 'kamini', 'harami', 'haramzada',
     'haramzade', 'nalayak', 'nikamma', 'nikammi',
+    // Body-shaming
+    'fatso', 'fatty', 'fatass', 'lardass', 'lardo', 'blimp', 'pigface', 'uggo',
   ],
   threat: ['kys'],
 };
@@ -103,6 +105,11 @@ export const PHRASES: Record<ModerationCategory, string[]> = {
     'piece of trash', 'piece of crap', 'you make me sick', 'i hate you', 'hate your guts', 'ullu ka pattha',
     'ullu ke patthe', 'ullu ki patthi', 'bhaad mein ja', 'get a life', 'grow a brain', 'go to hell',
     'burn in hell', 'rot in hell',
+    // Body-shaming: words that describe a thing, aimed at a body or a face.
+    'fattest kid', 'fattest person', 'fattest girl', 'fattest boy', 'fattest guy', 'fattest one',
+    'ugliest kid', 'ugliest person', 'ugliest girl', 'ugliest boy', 'ugliest guy', 'ugliest one', 'ugliest face',
+    'fat pig', 'fat cow', 'fat slob', 'fat kid', 'fat loser', 'ugly face', 'ugly mug', 'so fat', 'so ugly',
+    'too fat', 'too ugly',
   ],
   threat: [
     'kill you', 'kill u', 'murder you', 'will hurt you', 'gonna hurt you', 'ill hurt you', 'beat you up',

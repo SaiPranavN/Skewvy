@@ -4,7 +4,7 @@ import { setupTestDatabase, teardownTestDatabase, truncateAll, createVerifiedUse
 import { execute, query } from '@/lib/db';
 import { SESSION_COOKIE, createSession } from '@/lib/services/sessions';
 import { ensureInboxLink } from '@/lib/services/moodstamp-inbox';
-import { listFlaggedReviews, normaliseAnswer, reviewMoodStamp } from '@/lib/services/moodstamp-review';
+import { listFlaggedReviews, normaliseAnswer, reviewHealth, reviewMoodStamp } from '@/lib/services/moodstamp-review';
 
 const { POST: reviewRoute } = await import('@/app/api/moodstamps/review/route');
 const { POST: createRoute } = await import('@/app/api/moodstamps/route');
@@ -201,5 +201,28 @@ describe('The AI review', () => {
     expect(flagged.excerpt).toContain('Tell me earlier next time.');
     expect(flagged.excerpt).toContain('From: Priya');
     expect(flagged.senderKey).toMatch(/^ip:/);
+  });
+
+  it('records why it is not running, for the admin page, and when it works again', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.stubEnv('ANTHROPIC_API_KEY', '');
+    await reviewMoodStamp(DRAFT as never);
+    expect(await reviewHealth()).toMatchObject({ state: 'missing_key' });
+
+    vi.stubEnv('ANTHROPIC_API_KEY', 'wrong-key');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }, { status: 401 })),
+    );
+    await reviewMoodStamp(DRAFT as never);
+    const rejected = await reviewHealth();
+    expect(rejected).toMatchObject({ state: 'rejected' });
+    expect(rejected?.detail).toContain('401');
+    expect(rejected?.detail).toContain('invalid x-api-key');
+    expect(rejected?.detail).not.toContain('wrong-key');
+
+    modelAnswers({ verdict: 'allow', categories: [], message: '', notes: [] });
+    await reviewMoodStamp({ ...DRAFT, reasonWhat: 'A different wording.' } as never);
+    expect(await reviewHealth()).toMatchObject({ state: 'ok', detail: 'claude-haiku-4-5-20251001' });
   });
 });

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { execute, query } from '@/lib/db';
+import { getSetting, setSetting } from './settings';
 import { moderateText } from '@/lib/moodstamps/moderation';
 import { EMOTION_MAX, REASON_LIMITS, RECIPIENT_NAME_MAX } from '@/lib/moodstamps/catalog';
 import { SENDER_NAME_MAX } from '@/lib/moodstamps/validation';
@@ -55,6 +56,53 @@ export interface ReviewInput {
 
 export function aiReviewEnabled(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+}
+
+/* ---------------------------------- health --------------------------------- */
+
+/**
+ * Whether the review is actually running, and if not, why. A review that
+ * steps aside is silent to the sender by design, so the reason is kept where
+ * an admin can see it: the Reports page reads it back. Written only when it
+ * changes, so a healthy review costs no extra writes.
+ */
+export interface ReviewHealth {
+  state: 'ok' | 'missing_key' | 'rejected' | 'unavailable';
+  detail: string;
+  at: string;
+}
+
+const HEALTH_KEY = 'moodstamp_review_health';
+let lastHealth: string | null = null;
+
+async function recordHealth(state: ReviewHealth['state'], detail: string): Promise<void> {
+  const signature = `${state}:${detail}`;
+  if (signature === lastHealth) return;
+  lastHealth = signature;
+  try {
+    await setSetting(HEALTH_KEY, JSON.stringify({ state, detail, at: new Date().toISOString() } satisfies ReviewHealth));
+  } catch {
+    // Diagnostics must never break a send.
+  }
+}
+
+export async function reviewHealth(): Promise<ReviewHealth | null> {
+  const value = await getSetting(HEALTH_KEY);
+  try {
+    return value ? (JSON.parse(value) as ReviewHealth) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A refusal from the model's API, with what it said — never the key. */
+class ReviewRefused extends Error {
+  constructor(
+    readonly status: number,
+    detail: string,
+  ) {
+    super(detail);
+  }
 }
 
 const SYSTEM_PROMPT = `You review MoodStamps on Skewvy before they are sent.
@@ -222,7 +270,11 @@ async function askModel(input: ReviewInput, apiKey: string): Promise<MoodStampRe
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (!response.ok) throw new Error(`Review request failed with status ${response.status}`);
+  if (!response.ok) {
+    const error = (await response.json().catch(() => null)) as { error?: { type?: string; message?: string } } | null;
+    const detail = [error?.error?.type, error?.error?.message].filter(Boolean).join(': ').slice(0, 200);
+    throw new ReviewRefused(response.status, `HTTP ${response.status}${detail ? ` — ${detail}` : ''}`);
+  }
   const body = (await response.json()) as { content?: Array<{ type: string; input?: unknown }> };
   const call = body.content?.find((block) => block.type === 'tool_use');
   return call ? normaliseAnswer(call.input, Boolean(input.senderName)) : null;
@@ -245,7 +297,11 @@ function excerptOf(input: ReviewInput): string {
  */
 export async function reviewMoodStamp(input: ReviewInput, senderKey: string | null = null): Promise<MoodStampReview> {
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
-  if (!apiKey) return UNCHECKED;
+  if (!apiKey) {
+    if (process.env.NODE_ENV === 'production') console.warn('[moodstamps] AI review off: ANTHROPIC_API_KEY is not set');
+    await recordHealth('missing_key', 'ANTHROPIC_API_KEY is not set on this deployment.');
+    return UNCHECKED;
+  }
 
   const hash = reviewHash(input);
   const since = new Date(Date.now() - CACHE_DAYS * 86400 * 1000).toISOString();
@@ -263,10 +319,18 @@ export async function reviewMoodStamp(input: ReviewInput, senderKey: string | nu
   try {
     review = await askModel(input, apiKey);
   } catch (error) {
-    console.error('[moodstamps] AI review unavailable', { error: error instanceof Error ? error.message : error });
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error('[moodstamps] AI review unavailable', { error: detail });
+    // 401/403: the key itself is wrong. 400/404: the request or model name. Anything else is passing.
+    const refused = error instanceof ReviewRefused && [400, 401, 403, 404].includes(error.status);
+    await recordHealth(refused ? 'rejected' : 'unavailable', error instanceof DOMException && error.name === 'TimeoutError' ? `No answer within ${TIMEOUT_MS / 1000}s` : detail);
     return UNCHECKED;
   }
-  if (!review) return UNCHECKED;
+  if (!review) {
+    await recordHealth('unavailable', 'The model answered without a review.');
+    return UNCHECKED;
+  }
+  await recordHealth('ok', MODEL);
 
   try {
     await execute(

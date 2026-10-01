@@ -6,7 +6,7 @@ import { listReportedComments } from '@/lib/services/comments';
 import { listOpenSiteReports } from '@/lib/services/site-reports';
 import { SiteReportsQueue } from '@/components/admin/SiteReportsQueue';
 import { formatExact } from '@/lib/domain/format';
-import { aiReviewEnabled, listFlaggedReviews } from '@/lib/services/moodstamp-review';
+import { aiReviewEnabled, listFlaggedReviews, reviewHealth } from '@/lib/services/moodstamp-review';
 import { CATEGORY_LABELS, type ReviewCategory } from '@/lib/moodstamps/review-types';
 
 export const metadata: Metadata = { title: 'Reports' };
@@ -21,6 +21,7 @@ export default async function AdminReportsPage() {
     listOpenSiteReports(),
     listFlaggedReviews(50),
   ]);
+  const health = await reviewHealth();
 
   return (
     <div className="space-y-6">
@@ -61,9 +62,21 @@ export default async function AdminReportsPage() {
             MoodStamps the AI review held back
           </h2>
           <p className="mt-1 text-sm text-secondary">
-            {aiReviewEnabled()
-              ? 'The last 50 the review asked to be reworded or blocked. Blocked ones were never sent; a reworded one may have been sent as written after the sender saw the note.'
-              : 'The AI review is off: ANTHROPIC_API_KEY is not set, so only the word checks are running.'}
+            The last 50 the review asked to be reworded or blocked. Blocked ones were never sent; a reworded one may
+            have been sent as written after the sender saw the note.
+          </p>
+          <p
+            className={`mt-2 text-sm font-semibold ${
+              aiReviewEnabled() && (!health || health.state === 'ok') ? 'text-[color:var(--color-success)]' : 'text-[color:var(--color-egg)]'
+            }`}
+          >
+            {!aiReviewEnabled()
+              ? 'AI review is OFF on this deployment: ANTHROPIC_API_KEY is not set, so only the word checks run.'
+              : !health
+                ? 'AI review is on. It has not been used yet.'
+                : health.state === 'ok'
+                  ? `AI review is working (${health.detail}), last confirmed ${new Date(health.at).toLocaleString('en-IN')}.`
+                  : `AI review is NOT working since ${new Date(health.at).toLocaleString('en-IN')}: ${health.detail}. Stamps are going out with only the word checks.`}
           </p>
         </div>
         {flagged.length === 0 ? (

@@ -105,6 +105,26 @@ describe('MoodStamp language checks — what they catch', () => {
   });
 });
 
+describe('MoodStamp language checks — body-shaming', () => {
+  it.each([
+    'Proud of you on becoming the fattest and ugliest kid in class',
+    'Gives me immense pleassure to declare you as the fattest kid',
+    'You fatso',
+    'Look at that ugly face',
+    'You are too fat to play',
+  ])('%s', (text) => {
+    expect(categories(text)).toContain('insult');
+  });
+
+  it.each([
+    'This was the fattest bonus the team ever got.',
+    'The ugliest bug in the codebase is finally fixed.',
+    'The fat margin on that deal paid for the offsite.',
+  ])('leaves alone: %s', (text) => {
+    expect(moderateText(text).clean).toBe(true);
+  });
+});
+
 describe('MoodStamp language checks — what they leave alone', () => {
   it.each([
     'You changed the project deadline without informing the team.',
