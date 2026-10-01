@@ -46,6 +46,8 @@ export function ComposeForm({
   senderName,
   onPreview,
   who,
+  checking = false,
+  notice,
 }: {
   draft: DraftState;
   update: <K extends keyof DraftState>(key: K, value: DraftState[K]) => void;
@@ -54,6 +56,10 @@ export function ComposeForm({
   onPreview: () => void;
   /** Replaces part 04 when who it is for is already settled, as on someone's own link. */
   who?: React.ReactNode;
+  /** True while the finished stamp is being read before the preview. */
+  checking?: boolean;
+  /** What that reading found, shown above the button. */
+  notice?: React.ReactNode;
 }) {
   const voice = draft.reaction ? REACTION_VOICES[draft.reaction] : null;
 
@@ -319,9 +325,11 @@ export function ComposeForm({
       </section>
       )}
 
+      {notice}
+
       <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
-        <button type="submit" className="ms-key ms-cta w-full sm:w-auto">
-          Preview your MoodStamp
+        <button type="submit" disabled={checking} aria-busy={checking} className="ms-key ms-cta w-full sm:w-auto">
+          {checking ? 'Reading it through…' : 'Preview your MoodStamp'}
         </button>
         {flagged > 0 && (
           <p className="text-[13.5px] font-semibold text-[color:var(--color-egg)]">

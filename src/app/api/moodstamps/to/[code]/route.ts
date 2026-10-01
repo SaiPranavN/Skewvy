@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE, resolveSession } from '@/lib/services/sessions';
 import { createLinkMoodStamp, resolveInboxLink } from '@/lib/services/moodstamp-inbox';
 import { sweepRemindersSoon } from '@/lib/services/moodstamp-delivery';
+import { blockedFields, reviewMoodStamp } from '@/lib/services/moodstamp-review';
 import { consumeRateLimit, RATE_RULES } from '@/lib/services/rate-limit';
 import { verifyTurnstile, turnstileUnavailable, TURNSTILE_UNAVAILABLE_MESSAGE } from '@/lib/services/turnstile';
 import { hashIp } from '@/lib/services/crypto';
@@ -58,6 +59,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
   }
 
+  // The AI review, answered from the one made at Preview when nothing has changed.
+  const guestName = !session && !draft.anonymous ? senderName : null;
+  const review = await reviewMoodStamp({ ...draft, recipientName: link.ownerName, senderName: guestName }, senderKey);
+  if (review.verdict === 'block') {
+    return apiError(422, 'review_blocked', review.message, { fields: blockedFields(review) });
+  }
+
   const pair = await consumeRateLimit(`moodstamp-link-pair:${senderKey}:${link.ownerId}`, RATE_RULES.moodStampLinkPair);
   if (!pair.allowed) {
     return apiError(429, 'recipient_limit', `You have already sent ${link.ownerName} three MoodStamps today.`, {
@@ -76,7 +84,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     draft: { ...draft, recipientName: link.ownerName },
     sender: session
       ? { kind: 'account', user: session.user }
-      : { kind: 'guest', name: draft.anonymous ? null : senderName },
+      : { kind: 'guest', name: guestName },
   });
   sweepRemindersSoon();
   return NextResponse.json({ moodStamp }, { status: 201, headers: PRIVATE });

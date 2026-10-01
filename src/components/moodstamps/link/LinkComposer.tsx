@@ -13,6 +13,8 @@ import { MoodStampArtwork } from '../MoodStampArtwork';
 import { ComposeForm, FIELD_IDS, PartHeading } from '../compose/ComposeForm';
 import { FieldWarning } from '../compose/LanguageNotice';
 import { useMoodStampDraft, type DraftState } from '../compose/useMoodStampDraft';
+import { ReviewNotice, requestReview } from '../compose/ReviewNotice';
+import type { MoodStampReview } from '@/lib/moodstamps/review-types';
 
 type Step = 'write' | 'preview' | 'done';
 type Errors = Partial<Record<keyof MoodStampDraft | 'senderName', string>>;
@@ -61,6 +63,9 @@ export function LinkComposer({
   const [sending, setSending] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [website, setWebsite] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [review, setReview] = useState<MoodStampReview | null>(null);
+  const [keptAsWritten, setKeptAsWritten] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
 
   // The name printed as "To:" is the owner's, whatever is in the draft.
@@ -113,11 +118,45 @@ export function LinkComposer({
     state,
   });
 
-  const preview = () => {
+  // What is sent: the draft without a recipient — the link decides who it is for.
+  const linkDraft = {
+    reaction: draft.reaction,
+    emotion: draft.emotion,
+    quantity: draft.quantity,
+    reasonWhat: draft.reasonWhat,
+    reasonImpact: draft.reasonImpact,
+    reasonRequest: draft.reasonRequest,
+    anonymous: draft.anonymous,
+  };
+  const typedName = guest && !draft.anonymous ? guestName.trim() : '';
+  const wording = JSON.stringify([linkDraft, typedName]);
+
+  const preview = async () => {
     if (ready) {
       setServerErrors({});
       setFormError(null);
-      go('preview');
+      if (keptAsWritten === wording) {
+        go('preview');
+        return;
+      }
+      setChecking(true);
+      const outcome = await requestReview({ code, draft: linkDraft, senderName: typedName });
+      setChecking(false);
+      if (outcome.kind === 'fields') {
+        setServerErrors(
+          Object.fromEntries(
+            Object.entries(outcome.fields).map(([key, value]) => [key.replace(/^draft\./, ''), value]),
+          ) as Errors,
+        );
+        setShowErrors(true);
+        return;
+      }
+      if (outcome.review.verdict === 'allow' || outcome.review.verdict === 'unchecked') {
+        setReview(null);
+        go('preview');
+        return;
+      }
+      setReview(outcome.review);
       return;
     }
     setShowErrors(true);
@@ -140,21 +179,12 @@ export function LinkComposer({
     setSending(true);
     setFormError(null);
     try {
-      const linkDraft = {
-        reaction: draft.reaction,
-        emotion: draft.emotion,
-        quantity: draft.quantity,
-        reasonWhat: draft.reasonWhat,
-        reasonImpact: draft.reasonImpact,
-        reasonRequest: draft.reasonRequest,
-        anonymous: draft.anonymous,
-      };
       const response = await fetch(`/api/moodstamps/to/${code}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           draft: linkDraft,
-          senderName: guest && !draft.anonymous ? guestName.trim() : '',
+          senderName: typedName,
           turnstileToken: token ?? '',
           website,
         }),
@@ -232,7 +262,29 @@ export function LinkComposer({
                 }}
                 errors={shownErrors}
                 senderName={senderLabel}
-                onPreview={preview}
+                onPreview={() => void preview()}
+                checking={checking}
+                notice={
+                  review && (
+                    <ReviewNotice
+                      review={review}
+                      reaction={draft.reaction}
+                      onApply={(field, text) => {
+                        if (field === 'senderName') setGuestName(text);
+                        else if (field !== 'recipientName') update(field, text);
+                        setReview((current) =>
+                          current ? { ...current, notes: current.notes.filter((note) => note.field !== field) } : current,
+                        );
+                      }}
+                      onProceed={() => {
+                        setKeptAsWritten(wording);
+                        setReview(null);
+                        go('preview');
+                      }}
+                      onDismiss={() => setReview(null)}
+                    />
+                  )
+                }
                 who={
                   <FromSection
                     ownerName={ownerName}

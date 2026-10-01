@@ -10,6 +10,8 @@ import { MoodStampArtwork } from '../MoodStampArtwork';
 import { ComposeForm, FIELD_IDS } from './ComposeForm';
 import { DeliveryStep } from './DeliveryStep';
 import { PreviewStep } from './PreviewStep';
+import { ReviewNotice, requestReview } from './ReviewNotice';
+import type { MoodStampReview } from '@/lib/moodstamps/review-types';
 import { SentStep } from './SentStep';
 import { useMoodStampDraft, type DraftState } from './useMoodStampDraft';
 
@@ -69,6 +71,10 @@ export function MoodStampComposer({ senderName }: { senderName: string }) {
   const [showErrors, setShowErrors] = useState(false);
   const [serverErrors, setServerErrors] = useState<Partial<Record<keyof MoodStampDraft, string>>>({});
   const [sent, setSent] = useState<MoodStampRecord | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [review, setReview] = useState<MoodStampReview | null>(null);
+  /** The wording the sender chose to keep after a rewrite note; previewing it again needs no second read. */
+  const [keptAsWritten, setKeptAsWritten] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement | null>(null);
 
   const errors = useMemo(() => draftErrors(asInput(draft)), [draft]);
@@ -98,10 +104,34 @@ export function MoodStampComposer({ senderName }: { senderName: string }) {
     headingRef.current?.focus({ preventScroll: true });
   }, [step]);
 
-  const preview = () => {
+  const wording = JSON.stringify(draft);
+
+  const preview = async () => {
     if (ready) {
       setServerErrors({});
-      go('preview');
+      if (keptAsWritten === wording) {
+        go('preview');
+        return;
+      }
+      // A second reader before the preview: the AI review, after the word checks.
+      setChecking(true);
+      const outcome = await requestReview({ draft: parsed.data });
+      setChecking(false);
+      if (outcome.kind === 'fields') {
+        setServerErrors(
+          Object.fromEntries(
+            Object.entries(outcome.fields).map(([key, value]) => [key.replace(/^draft\./, ''), value]),
+          ) as Partial<Record<keyof MoodStampDraft, string>>,
+        );
+        setShowErrors(true);
+        return;
+      }
+      if (outcome.review.verdict === 'allow' || outcome.review.verdict === 'unchecked') {
+        setReview(null);
+        go('preview');
+        return;
+      }
+      setReview(outcome.review);
       return;
     }
     setShowErrors(true);
@@ -156,7 +186,33 @@ export function MoodStampComposer({ senderName }: { senderName: string }) {
               }}
               errors={shownErrors}
               senderName={senderName}
-              onPreview={preview}
+              onPreview={() => void preview()}
+              checking={checking}
+              notice={
+                review && (
+                  <ReviewNotice
+                    review={review}
+                    reaction={draft.reaction}
+                    onApply={(field, text) => {
+                      if (field === 'senderName') return;
+                      update(field, text);
+                      setReview((current) =>
+                        current ? { ...current, notes: current.notes.filter((note) => note.field !== field) } : current,
+                      );
+                    }}
+                    onProceed={() => {
+                      setKeptAsWritten(wording);
+                      setReview(null);
+                      go('preview');
+                    }}
+                    onDismiss={() => {
+                      const first = review.notes[0]?.field;
+                      setReview(null);
+                      if (first && first !== 'senderName') document.getElementById(FIELD_IDS[first])?.focus();
+                    }}
+                  />
+                )
+              }
             />
             <aside aria-label="Live preview" className="sticky top-24 hidden lg:block">
               <p className="eyebrow mb-4">Live preview</p>

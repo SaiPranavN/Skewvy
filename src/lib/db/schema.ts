@@ -400,6 +400,20 @@ CREATE TABLE IF NOT EXISTS moodstamp_link_stamps (
 CREATE INDEX IF NOT EXISTS idx_moodstamp_link_stamps_recipient ON moodstamp_link_stamps(recipient_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_moodstamp_link_stamps_sender ON moodstamp_link_stamps(sender_id, created_at);
 
+-- What the AI review said about a MoodStamp's wording, keyed by a hash of
+-- that wording, so the check at Preview is reused at Send instead of paid for
+-- twice. The text itself is kept only when it was not allowed, for the admins
+-- who review what is being caught; sender_key is 'user:<id>' or 'ip:<hash>'.
+CREATE TABLE IF NOT EXISTS moodstamp_reviews (
+  content_hash TEXT PRIMARY KEY,
+  verdict      TEXT NOT NULL CHECK (verdict IN ('allow', 'rewrite', 'block')),
+  result       TEXT NOT NULL,
+  excerpt      TEXT,
+  sender_key   TEXT,
+  created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_moodstamp_reviews_flagged ON moodstamp_reviews(verdict, created_at);
+
 -- Server-side rate limiting; a fixed window keyed by action + subject.
 CREATE TABLE IF NOT EXISTS rate_limits (
   bucket_key   TEXT PRIMARY KEY,

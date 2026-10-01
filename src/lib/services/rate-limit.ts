@@ -90,6 +90,8 @@ export const RATE_RULES = {
   moodStampLinkPair: { limit: 3, windowSeconds: 86400 },
   /** Everything one link can take in a day, so a shared link cannot bury its owner. */
   moodStampLinkDaily: { limit: 60, windowSeconds: 86400 },
+  /** The AI review at Preview, per account or network address. Each one is a paid model call. */
+  moodStampReview: { limit: 40, windowSeconds: 3600 },
   /** Pausing, resuming, renewing a link. */
   moodStampLinkManage: { limit: 30, windowSeconds: 600 },
 } satisfies Record<string, RateLimitRule>;

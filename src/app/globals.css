@@ -2048,6 +2048,30 @@ body {
     background-color: var(--color-egg-deep);
   }
 
+  .msr-button-quiet {
+    border-color: transparent;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* The AI review's note: paper, with an edge in the colour of how serious it is. */
+  .msc-review {
+    border-left-width: 8px;
+    border-left-color: var(--color-medal);
+  }
+
+  .msc-review[data-verdict='block'] {
+    border-left-color: var(--color-egg);
+  }
+
+  .msc-review-tag {
+    padding: 4px 8px;
+    border: 1px solid rgb(23 20 15 / 0.35);
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
   /* An on/off switch: a square track with a square knob, ink when on. */
   .msr-switch {
     position: relative;

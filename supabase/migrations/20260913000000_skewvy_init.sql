@@ -402,6 +402,20 @@ CREATE TABLE IF NOT EXISTS moodstamp_link_stamps (
 CREATE INDEX IF NOT EXISTS idx_moodstamp_link_stamps_recipient ON moodstamp_link_stamps(recipient_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_moodstamp_link_stamps_sender ON moodstamp_link_stamps(sender_id, created_at);
 
+-- What the AI review said about a MoodStamp's wording, keyed by a hash of
+-- that wording, so the check at Preview is reused at Send instead of paid for
+-- twice. The text itself is kept only when it was not allowed, for the admins
+-- who review what is being caught; sender_key is 'user:<id>' or 'ip:<hash>'.
+CREATE TABLE IF NOT EXISTS moodstamp_reviews (
+  content_hash TEXT PRIMARY KEY,
+  verdict      TEXT NOT NULL CHECK (verdict IN ('allow', 'rewrite', 'block')),
+  result       TEXT NOT NULL,
+  excerpt      TEXT,
+  sender_key   TEXT,
+  created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_moodstamp_reviews_flagged ON moodstamp_reviews(verdict, created_at);
+
 -- Server-side rate limiting; a fixed window keyed by action + subject.
 CREATE TABLE IF NOT EXISTS rate_limits (
   bucket_key   TEXT PRIMARY KEY,
@@ -448,7 +462,7 @@ DECLARE
   target text;
   supabase_roles boolean := EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon');
 BEGIN
-  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'opinion_changes', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'comments', 'comment_votes', 'comment_reports', 'site_reports', 'moodstamps', 'moodstamp_links', 'moodstamp_recipients', 'moodstamp_optouts', 'moodstamp_inbox_links', 'moodstamp_link_stamps', 'rate_limits', 'app_settings']
+  FOREACH target IN ARRAY ARRAY['users', 'sessions', 'auth_tokens', 'pending_registrations', 'entities', 'flash_news', 'flash_news_entities', 'opinions', 'opinion_changes', 'reaction_aggregates', 'artifact_totals', 'reaction_batches', 'reaction_timeline', 'opinion_timeline', 'comments', 'comment_votes', 'comment_reports', 'site_reports', 'moodstamps', 'moodstamp_links', 'moodstamp_recipients', 'moodstamp_optouts', 'moodstamp_inbox_links', 'moodstamp_link_stamps', 'moodstamp_reviews', 'rate_limits', 'app_settings']
   LOOP
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = target) THEN
       EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', target);
