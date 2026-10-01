@@ -97,11 +97,11 @@ export async function reviewHealth(): Promise<ReviewHealth | null> {
 
 /** A refusal from the model's API, with what it said — never the key. */
 class ReviewRefused extends Error {
-  constructor(
-    readonly status: number,
-    detail: string,
-  ) {
+  readonly status: number;
+
+  constructor(status: number, detail: string) {
     super(detail);
+    this.status = status;
   }
 }
 
